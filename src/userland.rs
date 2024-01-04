@@ -1,3 +1,4 @@
+use crate::gdt::TSS_ENTRY;
 use core::arch::asm;
 
 pub fn switch_to_userland() {
@@ -6,6 +7,8 @@ pub fn switch_to_userland() {
     }
 
     unsafe {
+        // TODO set dynamically before switching to userspace
+        TSS_ENTRY.rsp0 = 0x14cf68;
         jump_usermode();
     }
 }
@@ -28,7 +31,7 @@ pub extern "C" fn userland() {
         );
     }*/
 
-    //loop {}
+    loop {}
 }
 
 #[no_mangle]

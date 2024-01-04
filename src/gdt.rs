@@ -18,7 +18,7 @@ struct GDT {
 }
 
 // https://wiki.osdev.org/GDT_Tutorial#Flat_.2F_Long_Mode_Setup
-static mut GDT_ENTRIES: [[u8; 8]; 6] = [[0; 8], [0; 8], [0; 8], [0; 8], [0; 8], [0; 8]];
+static mut GDT_ENTRIES: [[u8; 8]; 7] = [[0; 8], [0; 8], [0; 8], [0; 8], [0; 8], [0; 8], [0; 8]];
 
 // https://wiki.osdev.org/TSS#Long_Mode
 #[repr(C)]
@@ -42,7 +42,7 @@ struct Tss {
     iopb: u16,
 }
 
-static TSS_ENTRY: Tss = Tss {
+pub static mut TSS_ENTRY: Tss = Tss {
     reserved1: 0x0,
     rsp0: 0x14cf80, // TODO replace with derived value, dont use static
     rsp1: 0x0,
@@ -91,13 +91,6 @@ pub fn init_gdt() {
                 access_byte: 0x92,
                 flags: 0xc,
             }),
-            //  User Mode Code Segment
-            encode_gdt_entry(GDT {
-                base: 0x0,
-                limit: 0xfffff,
-                access_byte: 0xfa,
-                flags: 0xa,
-            }),
             //  User Mode Data Segment
             encode_gdt_entry(GDT {
                 base: 0x0,
@@ -105,12 +98,26 @@ pub fn init_gdt() {
                 access_byte: 0xf2,
                 flags: 0xc,
             }),
+            //  User Mode Code Segment
+            encode_gdt_entry(GDT {
+                base: 0x0,
+                limit: 0xfffff,
+                access_byte: 0xfa,
+                flags: 0xa,
+            }),
             //  Task State Segment
             encode_gdt_entry(GDT {
                 base: &TSS_ENTRY as *const _ as u32,
                 limit: &TSS_ENTRY as *const _ as u32 + mem::size_of::<Tss>() as u32 - 1,
                 access_byte: 0x89,
                 flags: 0xc,
+            }),
+            //  Task State Segment, 2nd empty part
+            encode_gdt_entry(GDT {
+                base: 0x0,
+                limit: 0x0,
+                access_byte: 0x0,
+                flags: 0x0,
             }),
         ]
     };
@@ -130,6 +137,12 @@ pub fn init_gdt() {
             fn reloadSegments();
         }
         reloadSegments();
+        // Load tss segment selector into task register
+        // sixth 8-byte selector, symbolically OR-ed with 0 to set the RPL (requested privilege level).
+        asm!(
+            "mov ax, (5 * 8) | 0
+            ltr ax"
+        );
     }
 }
 

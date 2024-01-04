@@ -117,7 +117,3 @@ irq_common_stub:
 	add rsp, 16 ; "pop" the two longs we have pushed originally
 	sti
 	iretq
-
-global interrupt_privilege_change_handler
-interrupt_privilege_change_handler:
-    swapgs
