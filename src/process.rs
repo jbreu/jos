@@ -57,9 +57,9 @@ impl Process {
         let mut l4_page_map_l4_table: PageTable = PageTable::new();
 
         // TODO remove hard coding
-        // Upper end of page which begins at 0x200000
+        // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
         // TODO only one page (2MB) yet!
-        l2_page_directory_table.entry[511] = 0x1000000000 | 0b10000111; // bitmask: present, writable, huge page, access from user
+        l2_page_directory_table.entry[511] = 0x2000000 | 0b10000111; // bitmask: present, writable, huge page, access from user
         l3_page_directory_pointer_table.entry[511] =
             &l2_page_directory_table as *const _ as u64 | 0b111;
         l4_page_map_l4_table.entry[511] =

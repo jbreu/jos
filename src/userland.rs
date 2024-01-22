@@ -35,6 +35,6 @@ impl Userland {
 // Inside here the CPL register should be 3 (CPL=3) --> we are in user land / ring 3
 pub extern "C" fn userland() {
     loop {
-        //printf!("Hellö Wörld!");
+        printf!("Hellö Wörld!");
     }
 }
