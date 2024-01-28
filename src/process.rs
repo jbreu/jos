@@ -41,6 +41,42 @@ impl PageTable {
     }
 }
 
+// TODO make more elegant
+// available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
+
+const MAX_PAGE_FRAMES: usize = 64;
+static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
+    let mut array = [false; MAX_PAGE_FRAMES];
+
+    // some page frames are already allocated in main.asm -> setup_page_tables
+    array[0] = true;
+    array[1] = true;
+    array[2] = true;
+    array[3] = true;
+    array[4] = true;
+    array[5] = true;
+    array[6] = true;
+    array[7] = true;
+    array[8] = true;
+    array[9] = true;
+    array
+};
+
+fn allocate_page_frame() -> u64 {
+    // TODO make safe
+    // TODO make faster by not iterating by storing next free page frame
+    unsafe {
+        for i in 0..MAX_PAGE_FRAMES - 1 {
+            if AVAILABLE_MEMORY[i] == false {
+                AVAILABLE_MEMORY[i] = true;
+                return i as u64 * 0x200000 as u64;
+            }
+        }
+    }
+
+    return 0;
+}
+
 pub struct Process {
     registers: registers_struct,
 
@@ -59,7 +95,7 @@ impl Process {
         // TODO remove hard coding
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
         // TODO only one page (2MB) yet!
-        l2_page_directory_table.entry[511] = 0x2000000 | 0b10000111; // bitmask: present, writable, huge page, access from user
+        l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         l3_page_directory_pointer_table.entry[511] =
             &l2_page_directory_table as *const _ as u64 | 0b111;
         l4_page_map_l4_table.entry[511] =
