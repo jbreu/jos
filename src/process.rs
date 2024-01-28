@@ -1,6 +1,8 @@
 use crate::kprint;
 use core::arch::asm;
 
+pub static mut CURRENT_PROCESS: u64 = core::u64::MAX;
+
 // stores a process' registers when it gets interrupted
 #[derive(Default)]
 struct registers_struct {
@@ -64,7 +66,7 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
 
 fn allocate_page_frame() -> u64 {
     // TODO make safe
-    // TODO make faster by not iterating by storing next free page frame
+    // TODO make faster by not iterating instead storing next free page frame
     unsafe {
         for i in 0..MAX_PAGE_FRAMES - 1 {
             if AVAILABLE_MEMORY[i] == false {
@@ -101,7 +103,7 @@ impl Process {
         l4_page_map_l4_table.entry[511] =
             &l3_page_directory_pointer_table as *const _ as u64 | 0b111;
 
-        // TODO Hack: map the kernel pages from main.asm to process
+        // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         let mut cr3: u64;
 
@@ -118,12 +120,14 @@ impl Process {
         }
     }
 
-    pub fn getC3PageMapL4BaseAddress(&self) -> u64 {
+    pub fn launch() {}
+
+    pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
         // According to AMD64 Volume 2 p. 146 only bits 13 to 51 are relevant for C3, but the rest seems (?) ignored
         &(self.l4_page_map_l4_table) as *const _ as u64
     }
 
-    pub fn getStackTopAddress(&self) -> u64 {
+    pub fn get_stack_top_address(&self) -> u64 {
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
     }
