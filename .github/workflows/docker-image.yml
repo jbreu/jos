@@ -12,6 +12,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # https://docs.docker.com/build/ci/github-actions/local-registry/
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+
     steps:
     - uses: actions/checkout@v3
     - uses: docker/setup-buildx-action@v3
@@ -20,14 +27,12 @@ jobs:
         context: "{{defaultContext}}:buildenv_rust"
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        push: true
+        tags: localhost:5000/jos/buildenv_rust:latest
 
     - name: Run the build process with Docker
-      uses: addnab/docker-run-action@v3
-      with:
-          image: jos/buildenv:latest
-          options: -v "${pwd}:/root/env"
-          run: |
-            make build-x86_64
+      run: |
+        make build-x86_64
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
