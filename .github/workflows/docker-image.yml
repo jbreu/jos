@@ -13,17 +13,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build and push docker
-      uses: docker/build-push-action@v5
+    - uses: actions/checkout@v3
+    - uses: docker/setup-buildx-action@v3
+    - uses: docker/build-push-action@v5
       with:
         context: "{{defaultContext}}:buildenv_rust"
-        push: true
-        tags: "jos/buildenv:latest"
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Run the build process with Docker
+      uses: addnab/docker-run-action@v3
+      with:
+          image: jos/buildenv:latest
+          options: -v "${pwd}:/root/env"
+          run: |
+            make build-x86_64
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
