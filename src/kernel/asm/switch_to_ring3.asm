@@ -30,7 +30,7 @@ jump_usermode:
 	mov rdx, 0x0
 	wrmsr
 
-	mov ecx, main ; to be loaded into RIP
+	mov rcx, QWORD main ; to be loaded into RIP
 	mov r11, 0x202 ; to be loaded into EFLAGS
 
 	mov cr3, rdi

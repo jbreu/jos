@@ -1,7 +1,7 @@
 global long_mode_start
 extern kernel_main
 
-section .text
+section .boottext
 bits 64
 long_mode_start:
     ; load null into all data segment registers
@@ -12,5 +12,6 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
-	call kernel_main
+    mov rax, QWORD kernel_main
+	call rax
     hlt

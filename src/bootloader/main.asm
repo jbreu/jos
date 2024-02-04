@@ -1,7 +1,7 @@
 global start
 extern long_mode_start
 
-section .text
+section .boottext
 bits 32
 start:
 	mov esp, stack_top
@@ -65,6 +65,8 @@ setup_page_tables:
 	; TODO disable user access generally?
 	or eax, 0b111 ; present, writable, access from user
 	mov [page_table_l4], eax
+	; temporarily map the same l3 table also to middle of l4 of virtual memory to enable later switch to higher half kernel
+	mov [page_table_l4+256*8], eax
 	
 	mov eax, page_table_l2
 	; TODO disable user access generally?
@@ -118,7 +120,7 @@ error:
 	mov byte  [0xb800a], al
 	hlt
 
-section .bss
+section .bootbss
 align 4096
 page_table_l4:
 	resb 4096
@@ -131,7 +133,7 @@ stack_bottom:
 	resb 4096 * 100
 stack_top:
 
-section .rodata
+section .bootrodata
 gdt64:
 	dq 0 ; zero entry
 .code_segment: equ $ - gdt64

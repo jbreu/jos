@@ -1,5 +1,5 @@
 [workspace]
-members = ["kernel", "userland"]
+members = ["src/kernel", "src/userland"]
 
 [profile.dev]
 panic = "abort"
