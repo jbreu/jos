@@ -10,7 +10,7 @@ x86_64_asm_object_files := $(patsubst kernel/asm/%.asm, build/x86_64/%.o, $(x86_
 
 $(x86_64_asm_object_files): build/x86_64/%.o : kernel/asm/%.asm
 	mkdir -p $(dir $@) && \
-	nasm -g -f elf64 -F dwarf $(patsubst build/x86_64/%.o, kernel/asm/%.asm, $@) -o $@
+	nasm -f elf64 -g -F dwarf $(patsubst build/x86_64/%.o, kernel/asm/%.asm, $@) -o $@
 
 # TODO --allow-multiple-definition is a hack to have two static libs (kernel and helloworld) both with a panic handler. As helloworld should be a separate executable this will not be required
 .PHONY: build-x86_64
