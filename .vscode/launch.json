@@ -13,7 +13,7 @@
             "valuesFormatting": "prettyPrinters",
             "target": ":1234",
             "remote": true,
-            "printCalls": true
+            "printCalls": true,
         }
     ]
 }
