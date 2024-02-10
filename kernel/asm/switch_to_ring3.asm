@@ -51,7 +51,8 @@ syscall_handler:
 
 	push_all_registers
 
-    call system_call
+	mov rax, QWORD system_call
+	call rax
 
 	pop_all_registers
 

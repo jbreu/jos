@@ -6,13 +6,16 @@ pub fn getpid() -> u64 {
     unsafe {
         asm!("
             push rax
+            push rcx
 
             mov rax, {0:r}
 
-            call trigger_syscall
+            mov rcx, trigger_syscall
+            call rcx
 
             mov {1:r}, rax
 
+            push rcx
             pop rax
         ",
             in(reg) 2,
@@ -30,14 +33,17 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
             push rbx
             push r8
             push rdx
+            push rcx
 
             mov rax, {0:r}
             mov rbx, {1:r}
             mov r8, {2:r}
             mov rdx, {3:r}
 
-            call trigger_syscall
+            mov rcx, trigger_syscall
+            call rcx
 
+            pop rcx
             pop rdx
             pop r8
             pop rbx
