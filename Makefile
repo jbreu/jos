@@ -14,7 +14,7 @@ $(x86_64_asm_object_files): build/x86_64/%.o : kernel/asm/%.asm
 
 # TODO --allow-multiple-definition is a hack to have two static libs (kernel and helloworld) both with a panic handler. As helloworld should be a separate executable this will not be required
 .PHONY: build-x86_64
-build-x86_64: $(x86_64_boot_object_files) $(x86_64_asm_object_files)
+build-x86_64: $(x86_64_asm_object_files)
 	mkdir -p build/kernel && \
 	cargo rustc --manifest-path kernel/Cargo.toml --target-dir build/kernel/ -- -C code-model=large -C no-redzone=on -C target-feature=-sse --target x86_64-unknown-none
 	cargo rustc --manifest-path userland/Cargo.toml --target-dir build/userspace/ -- -C no-redzone=on -C target-feature=-sse --target x86_64-unknown-none
