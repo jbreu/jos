@@ -2,7 +2,7 @@
 ; https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf p. 174
 ; https://wiki.osdev.org/SYSENTER
 
-%include "src/kernel/asm/macros.mac"
+%include "kernel/asm/macros.mac"
 
 global jump_usermode
 extern main
