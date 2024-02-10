@@ -12,6 +12,8 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
+    add rsp, 0xffff800000000000
+
     mov rax, QWORD kernel_main
 	call rax
     hlt

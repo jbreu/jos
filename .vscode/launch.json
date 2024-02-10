@@ -10,13 +10,10 @@
             "request": "attach",
             "executable": "dist/x86_64/kernel.bin",
             "cwd": "${workspaceRoot}",
-            "valuesFormatting": "parseText",
+            "valuesFormatting": "prettyPrinters",
             "target": ":1234",
             "remote": true,
-            "printCalls": true,
-            //"debugger_args": [
-            //   "set substitute-path /root/env ${workspaceRoot}"
-            //]
+            "printCalls": true
         }
     ]
 }

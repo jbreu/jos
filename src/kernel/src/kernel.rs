@@ -23,20 +23,15 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
-fn finalize_switch_to_higher_half() {
-    unsafe {
-        asm!("mov rsp, [rsp+0xffff800000000000]");
-    }
-    // TODO change rsp to pointer in higher half
-
-    // remove 1st page table entry
-
-    // reload cr3 to flush tlb
-}
-
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
-    finalize_switch_to_higher_half();
+    /*unsafe {
+        asm!("mov rsp, [rsp+0xffff800000000000]");
+    }*/
+
+    // TODO remove 1st page table entry
+
+    // TODO reload cr3 to flush tlb
 
     gdt::init_gdt();
     interrupt::init_idt();
