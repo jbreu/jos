@@ -7,29 +7,29 @@ SECTIONS
 {
 	. = KERNEL_START;
 
-	.boot ALIGN(4K) :
+	.boot :
 	{
 		KEEP(*(.multiboot_header))
 	}
 
-	.text ALIGN(4K) : 
+	.text : 
 	{
 		*boot*.o:*(.text)
 	}
 
-	.bootbss ALIGN(4K) :
+	.bss :
 	{
-		*boot*.o:*(.bootbss .bootbss.*)
+		*boot*.o:*(.bss .bss.*)
 	}
 
-	.bootrodata ALIGN(4K) :
+	.rodata :
 	{
-		*boot*.o:*(.bootrodata .bootrodata.*)
+		*boot*.o:*(.rodata .rodata.*)
 	}
 
 	. += KERNEL_OFFSET;
 
-	.text ALIGN(4K): AT(ADDR(.text) - KERNEL_OFFSET)
+	.kerneltext ALIGN(4K): AT(ADDR(.kerneltext) - KERNEL_OFFSET)
 	{
 		*.a:*(.text .text.*)
 		*switch_to_ring3.o:*(.text .text.*)
@@ -37,7 +37,7 @@ SECTIONS
 		*gdt.o:*(.text .text.*)
 	}
 
-	.rodata ALIGN(4K): AT(ADDR(.rodata) - KERNEL_OFFSET)
+	.kernelrodata ALIGN(4K): AT(ADDR(.kernelrodata) - KERNEL_OFFSET)
 	{
 		*.a:*(.rodata .rodata.*)
 		*switch_to_ring3.o:*(.rodata .rodata.*)
@@ -45,7 +45,7 @@ SECTIONS
 		*gdt.o:*(.rodata .rodata.*)
 	}
 	
-	.data ALIGN(4K): AT(ADDR(.data) - KERNEL_OFFSET)
+	.kerneldata ALIGN(4K): AT(ADDR(.kerneldata) - KERNEL_OFFSET)
 	{
 		*.a:*(.data .data.*)
 		*switch_to_ring3.o:*(.data .data.*)
@@ -53,9 +53,8 @@ SECTIONS
 		*gdt.o:*(.data .data.*)
 	}
 
-	.bss ALIGN(4K): AT(ADDR(.bss) - KERNEL_OFFSET)
+	.kernelbss ALIGN(4K): AT(ADDR(.kernelbss) - KERNEL_OFFSET)
 	{
-		*(COMMON)
 		*.a:*(.bss .bss.*)
 		*switch_to_ring3.o:*(.bss .bss.*)
 		*interrupt.o:*(.bss .bss.*)

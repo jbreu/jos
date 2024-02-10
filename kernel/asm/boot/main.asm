@@ -120,7 +120,7 @@ error:
 	mov byte  [0xb800a], al
 	hlt
 
-section .bootbss
+section .bss
 align 4096
 page_table_l4:
 	resb 4096
@@ -133,7 +133,7 @@ stack_bottom:
 	resb 4096 * 100
 stack_top:
 
-section .bootrodata
+section .rodata
 gdt64:
 	dq 0 ; zero entry
 .code_segment: equ $ - gdt64
