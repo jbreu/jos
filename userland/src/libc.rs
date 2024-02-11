@@ -15,7 +15,7 @@ pub fn getpid() -> u64 {
 
             mov {1:r}, rax
 
-            push rcx
+            pop rcx
             pop rax
         ",
             in(reg) 2,

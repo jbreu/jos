@@ -1,7 +1,7 @@
 global long_mode_start
 extern kernel_main
 
-section .text
+section .boottext exec
 bits 64
 long_mode_start:
     ; load null into all data segment registers

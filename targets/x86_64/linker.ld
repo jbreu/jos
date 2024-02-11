@@ -14,17 +14,17 @@ SECTIONS
 
 	.text : 
 	{
-		*boot*.o:*(.text)
+		*(.boottext)
 	}
 
 	.bss :
 	{
-		*boot*.o:*(.bss .bss.*)
+		*(.bootbss .bootbss.*)
 	}
 
 	.rodata :
 	{
-		*boot*.o:*(.rodata .rodata.*)
+		*(.bootrodata .bootrodata.*)
 	}
 
 	. += KERNEL_OFFSET;

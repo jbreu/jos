@@ -1,7 +1,7 @@
 global start
 extern long_mode_start
 
-section .text
+section .boottext exec
 bits 32
 start:
 	mov esp, stack_top
@@ -120,7 +120,7 @@ error:
 	mov byte  [0xb800a], al
 	hlt
 
-section .bss
+section .bootbss
 align 4096
 page_table_l4:
 	resb 4096
@@ -133,7 +133,7 @@ stack_bottom:
 	resb 4096 * 100
 stack_top:
 
-section .rodata
+section .bootrodata
 gdt64:
 	dq 0 ; zero entry
 .code_segment: equ $ - gdt64
