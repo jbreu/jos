@@ -8,7 +8,7 @@ pub extern "C" fn system_call() {
 
     unsafe {
         asm!("
-            mov {:r}, rax
+            mov {:r}, rdx
         ",
             out(reg) syscall_nr
         );
@@ -18,7 +18,7 @@ pub extern "C" fn system_call() {
         1 => syscall_write(),
         2 => syscall_getpid(),
         _ => {
-            kprintln!("System Call triggered");
+            kprintln!("Undefined system call triggered");
         }
     }
 }
@@ -26,7 +26,7 @@ pub extern "C" fn system_call() {
 fn syscall_getpid() {
     unsafe {
         asm!("
-            mov rax, {:r}
+            mov rdx, {:r}
         ",
             in(reg) CURRENT_PROCESS,
         );
@@ -51,7 +51,7 @@ fn syscall_write() {
             out(reg) payload,
         );
         asm!("
-            mov {:r}, rdx
+            mov {:r}, r9
         ",
             out(reg) len
         );

@@ -12,17 +12,17 @@ SECTIONS
 		KEEP(*(.multiboot_header))
 	}
 
-	.text : 
+	.boottext : 
 	{
 		*(.boottext)
 	}
 
-	.bss :
+	.bootbss :
 	{
 		*(.bootbss .bootbss.*)
 	}
 
-	.rodata :
+	.bootrodata :
 	{
 		*(.bootrodata .bootrodata.*)
 	}

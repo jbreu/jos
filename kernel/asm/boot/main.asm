@@ -87,6 +87,11 @@ setup_page_tables:
 	; cmp ecx, 512 ; checks if the whole table is mapped
 	jne .loop ; if not, continue
 
+	; TODO map video memory also: probably wrong virtual memory location on the long term; 
+	mov eax, 0x000000
+	or eax, 0b10000111 ; present, writable, huge page, access from user
+	mov [page_table_l2 + 510 * 8], eax
+
 	ret
 
 enable_paging:
