@@ -35,29 +35,33 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
     unsafe {
         asm!("
             push rdx
-            push rbx
+            push r10
             push r8
             push r9
             push rcx
 
-            mov rdx, {0:r}
-            mov rbx, {1:r}
-            mov r8, {2:r}
-            mov r9, {3:r}
+            mov rdx, 1
+            mov r10, {0:r}
+            mov r8, {1:r}
+            mov r9, {2:r}
 
-            call {4}
+            call {3}
 
             pop rcx
             pop r9
             pop r8
-            pop rbx
+            pop r10
             pop rdx
         ",
-            in(reg) 1,
             in(reg) filedescriptor,
             in(reg) payload.as_ptr(),
             in(reg) payload.len(),
-            sym trigger_syscall
+            sym trigger_syscall,
+            out("rcx") _,
+            out("r9") _,
+            out("r8") _,
+            out("r10") _,
+            out("rdx") _,
         );
     }
 }

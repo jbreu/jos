@@ -40,8 +40,9 @@ fn syscall_write() {
     let bytes: &str;
 
     unsafe {
+        // TODO this must be possible more elegantly
         asm!("
-            mov {:r}, rbx
+            mov {:r}, r10
         ",
             out(reg) filedescriptor,
         );
