@@ -25,14 +25,6 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
-    /*unsafe {
-        asm!("mov rsp, [rsp+0xffff800000000000]");
-    }*/
-
-    // TODO remove 1st page table entry
-
-    // TODO reload cr3 to flush tlb
-
     gdt::init_gdt();
     interrupt::init_idt();
 
