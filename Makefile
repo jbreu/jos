@@ -1,10 +1,3 @@
-#x86_64_boot_source_files := $(shell find src/kernel/bootloader -name *.asm)
-#x86_64_boot_object_files := $(patsubst src/kernel/bootloader/%.asm, build/x86_64/%.o, $(x86_64_boot_source_files))
-
-#$(x86_64_boot_object_files): build/x86_64/%.o : src/kernel/bootloader/%.asm
-#	mkdir -p $(dir $@) && \
-#	nasm -g -f elf64 -F dwarf $(patsubst build/x86_64/%.o, src/kernel/bootloader/%.asm, $@) -o $@
-
 x86_64_asm_source_files := $(shell find kernel/asm -name *.asm)
 x86_64_asm_object_files := $(patsubst kernel/asm/%.asm, build/x86_64/%.o, $(x86_64_asm_source_files))
 
