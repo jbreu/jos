@@ -164,6 +164,8 @@ impl Process {
             ));
         }
 
+        Process::load_elf_from_bin();
+
         Self {
             registers: Default::default(),
             l2_page_directory_table: l2_page_directory_table,
@@ -218,5 +220,46 @@ impl Process {
     pub fn get_stack_top_address(&self) -> u64 {
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
+    }
+
+    pub fn load_elf_from_bin() {
+        extern "C" {
+            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
+            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
+        }
+
+        unsafe {
+            kprint!(
+                "embedded elf file\nstart: {:x}\n  end: {:x}",
+                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start as *const u8
+                    as usize,
+                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end as *const u8
+                    as usize
+            );
+
+            let size = &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end
+                as *const u8 as usize
+                - &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start as *const u8
+                    as usize;
+
+            let slice = core::slice::from_raw_parts(
+                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start,
+                size,
+            );
+
+            use elf::endian::AnyEndian;
+            use elf::note::Note;
+            use elf::note::NoteGnuBuildId;
+            use elf::section::SectionHeader;
+            use elf::ElfBytes;
+
+            let file = elf::ElfBytes::<AnyEndian>::minimal_parse(slice).expect("Open test1");
+
+            // Get the ELF file's build-id
+            let abi_shdr: SectionHeader = file
+                .section_header_by_name(".text")
+                .expect("section table should be parseable")
+                .expect("file should have a .note.ABI-tag section");
+        }
     }
 }

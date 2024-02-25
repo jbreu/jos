@@ -33,8 +33,9 @@ jump_usermode:
 	mov edx, 0xffff8000
 	wrmsr
 
-	mov rcx, QWORD main ; to be loaded into RIP
-	mov r11, 0x202 ; to be loaded into EFLAGS
+	; TODO !!!
+	;mov rcx, QWORD main ; to be loaded into RIP
+	;mov r11, 0x202 ; to be loaded into EFLAGS
 
 	; Attention: CR3 consumes physical addresses!
 	mov cr3, rdi
@@ -67,19 +68,3 @@ syscall_handler:
     swapgs
 
 	o64 sysret
-
-global trigger_syscall
-trigger_syscall:
-	push r11
-	push rcx
-
-	push_all_registers
-
-	syscall
-
-	pop_all_registers
-
-	pop rcx
-	pop r11
-
-	ret
