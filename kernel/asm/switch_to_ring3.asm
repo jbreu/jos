@@ -11,6 +11,8 @@ global jump_usermode
 extern main
 extern TSS_ENTRY
 jump_usermode:
+	push rdx ; push rdx (3rd call parameter) as it will be overwritten until its used
+
 	; enable system call extensions that enable sysret and syscall
 	mov rcx, 0xc0000080
 	rdmsr
@@ -33,9 +35,9 @@ jump_usermode:
 	mov edx, 0xffff8000
 	wrmsr
 
-	; TODO !!!
-	;mov rcx, QWORD main ; to be loaded into RIP
-	;mov r11, 0x202 ; to be loaded into EFLAGS
+	pop rdx;
+	mov rcx, rdx ; to be loaded into RIP
+	mov r11, 0x202 ; to be loaded into EFLAGS
 
 	; Attention: CR3 consumes physical addresses!
 	mov cr3, rdi
