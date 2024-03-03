@@ -142,7 +142,7 @@ impl Process {
         l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
         // TODO Hack: Map video memory to virtual memory
-        l2_page_directory_table.entry[510] = 0x0 | 0b10000111; // bitmask: present, writable, huge page, access from user
+        l2_page_directory_table.entry[510] = 0x0 | 0b10000011; // bitmask: present, writable, huge page, access from user
 
         l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
@@ -164,7 +164,6 @@ impl Process {
 
         // allocate two pages page at beginning of virtual memory for elf loading
         // TODO allocate more if needed
-
         let mut l2_page_directory_table_beginning: PageTable = PageTable::new();
         let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new();
 
@@ -202,8 +201,10 @@ impl Process {
 
     // According to AMD Volume 2, page 146
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
+        // Simple variant, only works for kernel memory
         vaddr - 0xffff800000000000
 
+        // TODO get this running
         /*let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 38;
         let page_directory_pointer_offset = (vaddr & 0x0000_007f_f000_0000) >> 29;
         let page_directory_offset = (vaddr & 0x0000_000_ff80_0000) >> 20;
