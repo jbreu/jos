@@ -56,12 +56,8 @@ syscall_handler:
 	push r11 ; syscall has set r11 to the rflags
 	push rsp
 
-	push_all_registers
-
 	mov rax, QWORD system_call
 	call rax
-
-	pop_all_registers
 
 	pop rsp
 	pop r11
