@@ -34,5 +34,5 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: jbreu/jos:latest
-          options: -v .:/root/env
+          options: -v ${{ github.workspace }}:/root/env
           run: make build-x86_64
