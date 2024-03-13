@@ -22,7 +22,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push
+      - name: Build and push Docker
         uses: docker/build-push-action@v5
         with:
           context: "{{defaultContext}}:buildenv_rust"
@@ -30,3 +30,8 @@ jobs:
           tags: jbreu/jos:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Build jos
+        with:
+          image: jbreu/jos:latest
+          options: -v .:/root/env
+          run: make build-x86_64
