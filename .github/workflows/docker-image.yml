@@ -31,6 +31,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build jos
+        uses: addnab/docker-run-action@v3
         with:
           image: jbreu/jos:latest
           options: -v .:/root/env
