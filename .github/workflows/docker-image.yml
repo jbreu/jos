@@ -25,7 +25,7 @@ jobs:
       - name: Build and push Docker
         uses: docker/build-push-action@v5
         with:
-          context: "{{defaultContext}}:buildenv_rust"
+          context: "buildenv_rust/"
           push: true
           tags: jbreu/jos:latest
           cache-from: type=gha
