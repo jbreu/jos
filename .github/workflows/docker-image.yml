@@ -35,4 +35,4 @@ jobs:
         with:
           image: jbreu/jos:latest
           options: -v ${{ github.workspace }}:/root/env
-          run: /bin/bash source $HOME/.cargo/env make build-x86_64
+          run: /bin/sh source $HOME/.cargo/env make build-x86_64
