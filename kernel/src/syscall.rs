@@ -1,4 +1,4 @@
-use crate::process::CURRENT_PROCESS;
+use crate::USERLAND;
 use crate::{kprintln, logging::log};
 use core::arch::asm;
 
@@ -28,7 +28,7 @@ fn syscall_getpid() {
         asm!("
             mov rdx, {:r}
         ",
-            in(reg) CURRENT_PROCESS,
+            in(reg) USERLAND.lock().get_current_process_id(),
         );
     }
 }

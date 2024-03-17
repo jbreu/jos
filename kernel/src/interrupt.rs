@@ -5,6 +5,7 @@ use crate::keyboard;
 use crate::kprint;
 use crate::kprintln;
 use crate::time;
+use crate::userland;
 use core::arch::asm;
 use core::arch::global_asm;
 
@@ -90,6 +91,9 @@ pub extern "C" fn irq_handler(int_no: u64) {
             }
 
             kprint!("{}", keyboard::get_key_for_scancode(key as u8));
+
+            // TODO move to clock
+            userland::schedule();
         }
         _ => {}
     }

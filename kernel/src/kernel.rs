@@ -2,6 +2,8 @@
 #![no_main] // disable all Rust-level entry points
 
 use core::{arch::asm, panic::PanicInfo};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 mod gdt;
 mod interrupt;
@@ -23,6 +25,10 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
+lazy_static! {
+    pub static ref USERLAND: Mutex<userland::Userland> = Mutex::new(userland::Userland::new());
+}
+
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     gdt::init_gdt();
@@ -37,11 +43,7 @@ pub extern "C" fn kernel_main() -> ! {
         asm!("int3", options(nomem, nostack));
     }
 
-    let userland: userland::Userland = userland::Userland::new();
+    USERLAND.lock().switch_to_userland(&USERLAND);
 
-    userland.switch_to_userland();
-
-    //panic!("this is a terrible mistake!");
-
-    loop {}
+    panic!("This should never happen!?");
 }
