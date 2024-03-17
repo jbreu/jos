@@ -38,7 +38,6 @@ jump_usermode:
 	// Attention: CR3 consumes physical addresses!
 	mov cr3, rdi
 	
-	// TODO Setting the stack pointer for userland process to max value (rsi is passed from rust code)
 	mov rsp, rsi
 
 	sysretq //use "o64 sysret" if you assemble with NASM

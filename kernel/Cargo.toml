@@ -3,7 +3,11 @@ name = "jos-kernel"
 version = "0.1.0"
 
 [dependencies]
-spin = "0.5.2"
+
+[dependencies.spin]
+version = "0.9.8"
+default-features = false
+features = ["mutex", "spin_mutex"]
 
 [dependencies.elf]
 version = "0.7.4"

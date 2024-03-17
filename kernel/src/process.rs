@@ -1,11 +1,12 @@
 use crate::kprint;
 use core::arch::asm;
 
-pub static mut CURRENT_PROCESS: u64 = core::u64::MAX;
+static mut KERNEL_CR3: u64 = 0;
 
 // stores a process' registers when it gets interrupted
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 struct RegistersStruct {
+    _cr3: u64,
     _rax: u64,
     _rbx: u64,
     _rcx: u64,
@@ -30,16 +31,20 @@ struct RegistersStruct {
 
 #[repr(C)]
 #[repr(align(4096))]
+#[derive(Copy, Clone)]
 struct PageTable {
     entry: [u64; 512],
 }
 
+impl Default for PageTable {
+    fn default() -> PageTable {
+        PageTable { entry: [0; 512] }
+    }
+}
+
 impl PageTable {
-    pub fn new() -> Self {
-        let entries: [u64; 512] = [0; 512];
-        // TODO start with providing only the upmost pages for a process stack (lower end to do)
-        //entries[511] = 0b111; // present, writable, access from user
-        Self { entry: entries }
+    fn new() -> Self {
+        Self { entry: [0; 512] }
     }
 }
 
@@ -119,6 +124,21 @@ fn print_page_table_tree(start_addr: u64) {
     }
 }
 
+#[derive(Clone, Copy)]
+enum ProcessState {
+    Off,
+    Prepared,
+    Active,
+    Passive,
+}
+
+impl Default for ProcessState {
+    fn default() -> Self {
+        ProcessState::Off
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct Process {
     _registers: RegistersStruct,
 
@@ -127,6 +147,21 @@ pub struct Process {
     l4_page_map_l4_table: PageTable,
 
     entry_ip: u64,
+
+    state: ProcessState,
+}
+
+impl Default for Process {
+    fn default() -> Process {
+        Self {
+            _registers: RegistersStruct::default(),
+            _l2_page_directory_table: PageTable::default(),
+            _l3_page_directory_pointer_table: PageTable::default(),
+            l4_page_map_l4_table: PageTable::default(),
+            entry_ip: u64::default(),
+            state: ProcessState::default(),
+        }
+    }
 }
 
 impl Process {
@@ -152,16 +187,6 @@ impl Process {
             &l3_page_directory_pointer_table as *const _ as u64,
         ) | 0b111;
 
-        // TODO Hack? map the kernel pages from main.asm to process
-        // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
-        unsafe {
-            let mut cr3: u64;
-
-            asm!("mov {}, cr3", out(reg) cr3);
-
-            l4_page_map_l4_table.entry[256] = *((cr3 + 256 * 8) as *const _);
-        }
-
         // allocate two pages page at beginning of virtual memory for elf loading
         // TODO allocate more if needed
         let mut l2_page_directory_table_beginning: PageTable = PageTable::new();
@@ -181,23 +206,65 @@ impl Process {
             &l4_page_map_l4_table as *const _ as u64,
         ));
 
+        let mut registers = RegistersStruct::default();
+
+        // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
+        let process_cr3 = Process::get_physical_address_for_virtual_address(
+            &l4_page_map_l4_table as *const _ as u64,
+        );
+
+        // TODO Hack? map the kernel pages from main.asm to process
+        // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
+        unsafe {
+            if KERNEL_CR3 == 0 {
+                asm!("mov {}, cr3", out(reg) KERNEL_CR3);
+            }
+
+            kprint!("Kernel CR3: {:x}", KERNEL_CR3);
+
+            l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
+        }
+
+        registers._cr3 = process_cr3;
+
         unsafe {
             asm!(
                 "mov cr3, {}",
-                in(reg) Process::get_physical_address_for_virtual_address(&l4_page_map_l4_table as *const _ as u64)
+                in(reg) process_cr3
             );
         }
 
         Self {
-            _registers: Default::default(),
+            _registers: registers,
             _l2_page_directory_table: l2_page_directory_table,
             _l3_page_directory_pointer_table: l3_page_directory_pointer_table,
             l4_page_map_l4_table: l4_page_map_l4_table,
             entry_ip: Process::load_elf_from_bin(),
+            state: ProcessState::Prepared,
         }
     }
 
-    pub fn _launch() {}
+    pub fn launch(&mut self) {
+        self.state = ProcessState::Passive;
+    }
+
+    pub fn activate(&mut self) {
+        //HIER NOCH IRQ STACK FRAME MANIPULIEREN
+        //BRAUCHEN WIR EIN SYSRET?
+
+        self.state = ProcessState::Active;
+    }
+
+    pub fn passivate(&mut self) {
+        self.state = ProcessState::Passive;
+    }
+
+    pub fn activatable(&self) -> bool {
+        match self.state {
+            ProcessState::Passive => true,
+            _ => false,
+        }
+    }
 
     // According to AMD Volume 2, page 146
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
