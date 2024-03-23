@@ -26,7 +26,7 @@ pub extern "C" fn system_call() {
 fn syscall_getpid() {
     unsafe {
         asm!("
-            mov rdx, {:r}
+            mov r8, {:r}
         ",
             in(reg) USERLAND.lock().get_current_process_id(),
         );

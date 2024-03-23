@@ -2,8 +2,15 @@
 // https://wiki.osdev.org/ISR
 // https://wiki.osdev.org/Interrupts_Tutorial
 
-.section .text
 .code64
+
+.section .data
+pushed_registers:
+    .quad 0
+
+.section .text
+
+.globl pushed_registers
 
 //%include "kernel/asm/macros.mac"
 
@@ -24,6 +31,7 @@
     push r13
     push r14
     push r15
+    mov [rip + pushed_registers], rsp
 .endm
 
 .macro pop_all_registers

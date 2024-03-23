@@ -4,29 +4,26 @@ use core::arch::asm;
 static mut KERNEL_CR3: u64 = 0;
 
 // stores a process' registers when it gets interrupted
+#[repr(C, packed)]
 #[derive(Default, Clone, Copy)]
 struct RegistersStruct {
-    _cr3: u64,
-    _rax: u64,
-    _rbx: u64,
-    _rcx: u64,
-    _rdx: u64,
-    _rsi: u64,
-    _rdi: u64,
-    _rbp: u64,
-    _rsp: u64,
-    _r8: u64,
-    _r9: u64,
-    _r10: u64,
-    _r11: u64,
-    _r12: u64,
-    _r13: u64,
-    _r14: u64,
+    // Has to be always in sync with asm macro "pop_all_registers"
     _r15: u64,
-    _rip: u64,
-    _rfl: u64,
-    _cs: u64,
-    _ss: u64,
+    _r14: u64,
+    _r13: u64,
+    _r12: u64,
+    _r11: u64,
+    _r10: u64,
+    _r9: u64,
+    _r8: u64,
+    _rsp: u64,
+    _rbp: u64,
+    _rdi: u64,
+    _rsi: u64,
+    _rdx: u64,
+    _rcx: u64,
+    _rbx: u64,
+    _rax: u64,
 }
 
 #[repr(C)]
@@ -225,8 +222,6 @@ impl Process {
             l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
         }
 
-        registers._cr3 = process_cr3;
-
         unsafe {
             asm!(
                 "mov cr3, {}",
@@ -257,6 +252,12 @@ impl Process {
 
     pub fn passivate(&mut self) {
         self.state = ProcessState::Passive;
+
+        extern "C" {
+            static mut pushed_registers: *const RegistersStruct;
+        }
+
+        unsafe { self._registers = *pushed_registers.clone() }
     }
 
     pub fn activatable(&self) -> bool {

@@ -54,6 +54,9 @@ impl Userland {
         // TODO for now scheduler is simply going round robin
         let last_process = self.current_process;
 
+        // FIXME REMOVE!!!!
+        self.processes[last_process].passivate();
+
         loop {
             self.current_process += 1;
             if self.current_process == self.processes.len() {
@@ -69,7 +72,7 @@ impl Userland {
             }
         }
 
-        self.processes[self.current_process].passivate();
+        self.processes[last_process].passivate();
         self.processes[self.current_process].activate();
     }
 

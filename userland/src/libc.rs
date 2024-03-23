@@ -8,6 +8,7 @@ pub fn getpid() -> u64 {
         asm!("
             push rdx
             push rcx
+            push r8
 
             mov rdx, {0:r}
 
@@ -19,8 +20,9 @@ pub fn getpid() -> u64 {
             pop rcx
             pop r11
 
-            mov {1:r}, rdx
+            mov {1:r}, r8
 
+            pop r8
             pop rcx
             pop rdx
         ",
