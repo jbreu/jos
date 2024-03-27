@@ -7,12 +7,12 @@
 .section .data
 pushed_registers:
     .quad 0
+.globl pushed_registers
+stack_frame:
+    .quad 0
+.globl stack_frame
 
 .section .text
-
-.globl pushed_registers
-
-//%include "kernel/asm/macros.mac"
 
 .macro push_all_registers
     push rax
@@ -22,7 +22,6 @@ pushed_registers:
     push rsi
     push rdi
     push rbp
-    push rsp
     push r8
     push r9
     push r10
@@ -31,10 +30,22 @@ pushed_registers:
     push r13
     push r14
     push r15
+    //mov ax, ss
+    //push ax
+    //mov ax, ds
+    //push ax
+    //push ax
+    //push ax
     mov [rip + pushed_registers], rsp
 .endm
 
 .macro pop_all_registers
+    //pop ax
+    //pop ax
+    //pop ax
+    //mov ds, ax
+    //pop ax
+    //mov ss, ax
     pop r15
     pop r14 
     pop r13 
@@ -43,7 +54,6 @@ pushed_registers:
     pop r10
     pop r9
     pop r8
-    pop rsp
     pop rbp
     pop rdi
     pop rsi
@@ -57,8 +67,8 @@ pushed_registers:
     .globl isr\isr
     isr\isr\():
         cli
-        push dword ptr 0
-        push dword ptr \isr
+        push qword ptr 0
+        push qword ptr \isr
         jmp isr_common_stub
 .endm
 
@@ -66,7 +76,7 @@ pushed_registers:
     .globl isr\isr
     isr\isr\():
         cli
-        push dword ptr \isr
+        push qword ptr \isr
         jmp isr_common_stub
 .endm
 
@@ -74,8 +84,9 @@ pushed_registers:
     .globl irq\irq
     irq\irq\():
         cli
-        push dword ptr 0
-        push dword ptr \number
+        push qword ptr 0
+        push qword ptr \number
+        mov [rip + stack_frame], rsp
         jmp irq_common_stub
 .endm
 

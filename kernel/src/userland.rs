@@ -1,6 +1,7 @@
 use spin::Mutex;
 
 use crate::gdt::TSS_ENTRY;
+use crate::process;
 use crate::process::Process;
 use crate::USERLAND;
 use core::arch::asm;
@@ -10,14 +11,16 @@ global_asm!(include_str!("switch_to_ring3.S"));
 
 #[derive(Default)]
 pub struct Userland {
-    processes: [Process; 2],
+    process0: Process,
+    process1: Process,
     current_process: usize,
 }
 
 impl Userland {
     pub fn new() -> Self {
         Self {
-            processes: [Process::new(); 2],
+            process0: Process::new(),
+            process1: Process::new(),
             current_process: 0,
         }
     }
@@ -32,8 +35,9 @@ impl Userland {
 
             self.current_process = 0;
 
-            self.processes[0].launch();
-            self.processes[0].activate();
+            self.process0.launch();
+            self.process1.launch();
+            self.process0.activate();
 
             // FIXME this feels very wrong!
             mutex.force_unlock();
@@ -43,9 +47,9 @@ impl Userland {
             TSS_ENTRY.rsp0 = rsp0;
 
             jump_usermode(
-                self.processes[0].get_c3_page_map_l4_base_address(),
-                self.processes[0].get_stack_top_address(),
-                self.processes[0].get_entry_ip(),
+                self.process0.get_c3_page_map_l4_base_address(),
+                self.process0.get_stack_top_address(),
+                self.process0.get_entry_ip(),
             );
         }
     }
@@ -54,12 +58,29 @@ impl Userland {
         // TODO for now scheduler is simply going round robin
         let last_process = self.current_process;
 
-        // FIXME REMOVE!!!!
-        self.processes[last_process].passivate();
+        // TDOO ugly for only 2 processes
+        match self.current_process {
+            0 => {
+                self.process0.passivate();
+                self.process1.activate();
+                self.current_process = 1;
+            }
+            1 => {
+                self.process0.activate();
+                self.process1.passivate();
+                self.current_process = 0;
+            }
+            _ => {
+                panic!("This should never happen!")
+            }
+        }
 
-        loop {
+        // FIXME!!!
+        /*loop {
             self.current_process += 1;
-            if self.current_process == self.processes.len() {
+            if self.current_process == 2
+            /*self.processes.len()*/
+            {
                 self.current_process = 0;
             }
             if self.processes[self.current_process].activatable() {
@@ -73,7 +94,7 @@ impl Userland {
         }
 
         self.processes[last_process].passivate();
-        self.processes[self.current_process].activate();
+        self.processes[self.current_process].activate();*/
     }
 
     pub fn get_current_process_id(&self) -> usize {

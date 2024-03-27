@@ -8,22 +8,22 @@ static mut KERNEL_CR3: u64 = 0;
 #[derive(Default, Clone, Copy)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
-    _r15: u64,
-    _r14: u64,
-    _r13: u64,
-    _r12: u64,
-    _r11: u64,
-    _r10: u64,
-    _r9: u64,
-    _r8: u64,
-    _rsp: u64,
-    _rbp: u64,
-    _rdi: u64,
-    _rsi: u64,
-    _rdx: u64,
-    _rcx: u64,
-    _rbx: u64,
-    _rax: u64,
+    //dsss: u64,
+    r15: u64,
+    r14: u64,
+    r13: u64,
+    r12: u64,
+    r11: u64,
+    r10: u64,
+    r9: u64,
+    r8: u64,
+    rbp: u64,
+    rdi: u64,
+    rsi: u64,
+    rdx: u64,
+    rcx: u64,
+    rbx: u64,
+    rax: u64,
 }
 
 #[repr(C)]
@@ -143,7 +143,12 @@ pub struct Process {
     _l3_page_directory_pointer_table: PageTable,
     l4_page_map_l4_table: PageTable,
 
-    entry_ip: u64,
+    rip: u64,
+    rsp: u64,
+    cr3: u64,
+    ss: u64,
+    cs: u64,
+    rflags: u64,
 
     state: ProcessState,
 }
@@ -155,7 +160,12 @@ impl Default for Process {
             _l2_page_directory_table: PageTable::default(),
             _l3_page_directory_pointer_table: PageTable::default(),
             l4_page_map_l4_table: PageTable::default(),
-            entry_ip: u64::default(),
+            rip: u64::default(),
+            rsp: u64::default(),
+            cr3: u64::default(),
+            cs: u64::default(),
+            ss: u64::default(),
+            rflags: u64::default(),
             state: ProcessState::default(),
         }
     }
@@ -164,9 +174,9 @@ impl Default for Process {
 impl Process {
     pub fn new() -> Self {
         // Initialize paging
-        let mut l2_page_directory_table: PageTable = PageTable::new();
-        let mut l3_page_directory_pointer_table: PageTable = PageTable::new();
-        let mut l4_page_map_l4_table: PageTable = PageTable::new();
+        let mut l2_page_directory_table: PageTable = PageTable::new().clone();
+        let mut l3_page_directory_pointer_table: PageTable = PageTable::new().clone();
+        let mut l4_page_map_l4_table: PageTable = PageTable::new().clone();
 
         // TODO remove hard coding
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
@@ -186,8 +196,8 @@ impl Process {
 
         // allocate two pages page at beginning of virtual memory for elf loading
         // TODO allocate more if needed
-        let mut l2_page_directory_table_beginning: PageTable = PageTable::new();
-        let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new();
+        let mut l2_page_directory_table_beginning: PageTable = PageTable::new().clone();
+        let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new().clone();
 
         l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
@@ -199,17 +209,6 @@ impl Process {
             &l3_page_directory_pointer_table_beginning as *const _ as u64,
         ) | 0b111;
 
-        print_page_table_tree(Process::get_physical_address_for_virtual_address(
-            &l4_page_map_l4_table as *const _ as u64,
-        ));
-
-        let mut registers = RegistersStruct::default();
-
-        // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
-        let process_cr3 = Process::get_physical_address_for_virtual_address(
-            &l4_page_map_l4_table as *const _ as u64,
-        );
-
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
@@ -217,10 +216,17 @@ impl Process {
                 asm!("mov {}, cr3", out(reg) KERNEL_CR3);
             }
 
-            kprint!("Kernel CR3: {:x}", KERNEL_CR3);
+            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
 
             l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
         }
+
+        // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
+        let process_cr3 = Process::get_physical_address_for_virtual_address(
+            &l4_page_map_l4_table as *const _ as u64,
+        );
+
+        kprint!("Process CR3: {:x}\n", process_cr3);
 
         unsafe {
             asm!(
@@ -229,12 +235,31 @@ impl Process {
             );
         }
 
+        print_page_table_tree(&l4_page_map_l4_table as *const _ as u64);
+
+        let registers = RegistersStruct::default();
+        let rsp = 0xffff_ffff_ffff_ffff;
+
+        let entry_ip = Process::load_elf_from_bin();
+
+        unsafe {
+            asm!(
+                "mov cr3, {}",
+                in(reg) KERNEL_CR3,
+            );
+        }
+
         Self {
             _registers: registers,
             _l2_page_directory_table: l2_page_directory_table,
             _l3_page_directory_pointer_table: l3_page_directory_pointer_table,
             l4_page_map_l4_table: l4_page_map_l4_table,
-            entry_ip: Process::load_elf_from_bin(),
+            rip: entry_ip,
+            cr3: process_cr3,
+            ss: 0x1b,
+            cs: 0x23,
+            rflags: 0x202,
+            rsp: rsp,
             state: ProcessState::Prepared,
         }
     }
@@ -244,8 +269,26 @@ impl Process {
     }
 
     pub fn activate(&mut self) {
-        //HIER NOCH IRQ STACK FRAME MANIPULIEREN
-        //BRAUCHEN WIR EIN SYSRET?
+        extern "C" {
+            static mut pushed_registers: *mut RegistersStruct;
+            static mut stack_frame: *mut u64;
+        }
+
+        unsafe {
+            core::ptr::write(pushed_registers, self._registers);
+            core::ptr::write(stack_frame.add(2), self.rip);
+            core::ptr::write(stack_frame.add(5), self.rsp);
+
+            core::ptr::write(stack_frame.add(3), self.cs);
+            core::ptr::write(stack_frame.add(6), self.ss);
+            core::ptr::write(stack_frame.add(4), self.rflags);
+
+            asm!(
+                "mov cr3, {}",
+                in(reg)
+                self.cr3
+            );
+        }
 
         self.state = ProcessState::Active;
     }
@@ -255,9 +298,17 @@ impl Process {
 
         extern "C" {
             static mut pushed_registers: *const RegistersStruct;
+            static mut stack_frame: *const u64;
         }
 
-        unsafe { self._registers = *pushed_registers.clone() }
+        unsafe {
+            core::ptr::write(&mut self._registers, *pushed_registers);
+            self.rip = *(stack_frame.add(2));
+            self.cs = *(stack_frame.add(3));
+            self.ss = *(stack_frame.add(6));
+            self.rflags = *(stack_frame.add(4));
+            self.rsp = *(stack_frame.add(5));
+        }
     }
 
     pub fn activatable(&self) -> bool {
@@ -316,7 +367,7 @@ impl Process {
     }
 
     pub fn get_entry_ip(&self) -> u64 {
-        self.entry_ip
+        self.rip
     }
 
     pub fn load_elf_from_bin() -> u64 {
