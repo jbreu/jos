@@ -31,7 +31,7 @@ jump_usermode:
 	mov edx, 0xffff8000
 	wrmsr
 
-	pop rdx//
+	pop rdx
 	mov rcx, rdx // to be loaded into RIP
 	mov r11, 0x202 // to be loaded into EFLAGS
 
