@@ -6,6 +6,7 @@ use crate::kprint;
 use crate::kprintln;
 use crate::time;
 use crate::userland;
+use crate::USERLAND;
 use core::arch::asm;
 use core::arch::global_asm;
 
@@ -81,7 +82,10 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
 pub extern "C" fn irq_handler(int_no: u64) {
     match (int_no - 32) as u64 {
         // Clock
-        0 => time::update_clock(),
+        0 => {
+            time::update_clock();
+            kprint::kprint_integer_at_pos(USERLAND.lock().get_current_process_id() as i64, 1, 70);
+        }
         // Keyboard action
         1 => {
             let mut key: i8;
@@ -93,7 +97,9 @@ pub extern "C" fn irq_handler(int_no: u64) {
             kprint!("{}", keyboard::get_key_for_scancode(key as u8));
 
             // TODO move to clock
-            userland::schedule();
+            if keyboard::get_key_for_scancode(key as u8) != 0xfe as char {
+                userland::schedule();
+            }
         }
         _ => {}
     }
@@ -165,6 +171,7 @@ pub fn init_idt() {
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
+
     //out_port_b(0x21, 0xfd);
     //out_port_b(0xA1, 0xff);
 

@@ -43,8 +43,12 @@ jump_usermode:
 	sysretq //use "o64 sysret" if you assemble with NASM
 
 syscall_handler:
+	cli // TODO Hack: No task switches during syscalls (due to stack issues)
+	
     swapgs
 	
+	// FIXME SECURITY somewhere here we should change the stack pointer to kernel space
+
 	push rcx // syscall has set ecx to the rip of the userland process
 	push r11 // syscall has set r11 to the rflags
 	push rsp
@@ -57,5 +61,7 @@ syscall_handler:
 	pop rcx 
 
     swapgs
+
+	sti
 
 	sysretq

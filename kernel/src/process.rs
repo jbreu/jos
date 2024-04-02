@@ -1,3 +1,4 @@
+use crate::gdt::TSS_ENTRY;
 use crate::kprint;
 use core::arch::asm;
 
@@ -63,6 +64,9 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array[7] = true;
     array[8] = true;
     array[9] = true;
+
+    // TODO Stack for interrupts, see HackID1
+    array[10] = true;
     array
 };
 
@@ -179,12 +183,13 @@ impl Process {
         let mut l4_page_map_l4_table: PageTable = PageTable::new().clone();
 
         // TODO remove hard coding
+        // TODO Task stack
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
         // TODO only one page (2MB) yet!
         l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
-        // TODO Hack: Map video memory to virtual memory
-        l2_page_directory_table.entry[510] = 0x0 | 0b10000011; // bitmask: present, writable, huge page, access from user
+        // TODO HackID1: Fixed kernel stack for interrupts (starts at 20 MByte)
+        l2_page_directory_table.entry[510] = 10 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
 
         l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
@@ -268,26 +273,33 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
-    pub fn activate(&mut self) {
+    pub fn activate(&mut self, initial_start: bool) {
         extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
         }
 
         unsafe {
-            core::ptr::write(pushed_registers, self._registers);
-            core::ptr::write(stack_frame.add(2), self.rip);
-            core::ptr::write(stack_frame.add(5), self.rsp);
+            if !initial_start {
+                core::ptr::write(pushed_registers, self._registers);
+                core::ptr::write(stack_frame.add(2), self.rip);
+                core::ptr::write(stack_frame.add(5), self.rsp);
 
-            core::ptr::write(stack_frame.add(3), self.cs);
-            core::ptr::write(stack_frame.add(6), self.ss);
-            core::ptr::write(stack_frame.add(4), self.rflags);
+                core::ptr::write(stack_frame.add(3), self.cs);
+                core::ptr::write(stack_frame.add(6), self.ss);
+                core::ptr::write(stack_frame.add(4), self.rflags);
+            }
+
+            // HIER!!!!!!!!
+            //schreibe zwar was in den Stack, aber dann lade ich per cr3 ja neues paging!!!!
 
             asm!(
                 "mov cr3, {}",
                 in(reg)
                 self.cr3
             );
+
+            TSS_ENTRY.rsp0 = self.get_tss_rsp0();
         }
 
         self.state = ProcessState::Active;
@@ -316,6 +328,10 @@ impl Process {
             ProcessState::Passive => true,
             _ => false,
         }
+    }
+
+    fn get_tss_rsp0(&self) -> u64 {
+        0xffff_ffff_ffcf_ffff
     }
 
     // According to AMD Volume 2, page 146

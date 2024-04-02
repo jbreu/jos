@@ -1,10 +1,8 @@
 use spin::Mutex;
 
-use crate::gdt::TSS_ENTRY;
-use crate::process;
+use crate::kprintln;
 use crate::process::Process;
 use crate::USERLAND;
-use core::arch::asm;
 use core::arch::global_asm;
 
 global_asm!(include_str!("switch_to_ring3.S"));
@@ -31,20 +29,14 @@ impl Userland {
         }
 
         unsafe {
-            let mut rsp0: u64;
-
             self.current_process = 0;
 
             self.process0.launch();
             self.process1.launch();
-            self.process0.activate();
+            self.process0.activate(true);
 
             // FIXME this feels very wrong!
             mutex.force_unlock();
-
-            asm!("mov {}, rsp", out(reg) rsp0);
-
-            TSS_ENTRY.rsp0 = rsp0;
 
             jump_usermode(
                 self.process0.get_c3_page_map_l4_base_address(),
@@ -62,13 +54,17 @@ impl Userland {
         match self.current_process {
             0 => {
                 self.process0.passivate();
-                self.process1.activate();
+                self.process1.activate(false);
                 self.current_process = 1;
+                kprintln!("New process: 1");
+                return;
             }
             1 => {
-                self.process0.activate();
                 self.process1.passivate();
+                self.process0.activate(false);
                 self.current_process = 0;
+                kprintln!("New process: 0");
+                return;
             }
             _ => {
                 panic!("This should never happen!")
@@ -104,5 +100,14 @@ impl Userland {
 
 // very simple scheduler
 pub fn schedule() {
+    unsafe {
+        USERLAND.force_unlock();
+    }
+
     USERLAND.lock().switch_process();
+
+    // TODO avoid!
+    unsafe {
+        USERLAND.force_unlock();
+    }
 }
