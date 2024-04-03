@@ -40,6 +40,8 @@ jump_usermode:
 	
 	mov rsp, rsi
 
+	sti
+
 	sysretq //use "o64 sysret" if you assemble with NASM
 
 syscall_handler:

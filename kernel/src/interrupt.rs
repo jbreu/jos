@@ -83,6 +83,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
     match (int_no - 32) as u64 {
         // Clock
         0 => {
+            userland::schedule();
             time::update_clock();
             kprint::kprint_integer_at_pos(USERLAND.lock().get_current_process_id() as i64, 1, 70);
         }
@@ -95,11 +96,6 @@ pub extern "C" fn irq_handler(int_no: u64) {
             }
 
             kprint!("{}", keyboard::get_key_for_scancode(key as u8));
-
-            // TODO move to clock
-            if keyboard::get_key_for_scancode(key as u8) != 0xfe as char {
-                userland::schedule();
-            }
         }
         _ => {}
     }
@@ -539,8 +535,7 @@ pub fn init_idt() {
             base: IDT_ENTRIES.as_ptr() as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
         };
         asm!(
-            "lidt [{}]
-            sti",
+            "lidt [{}]",
             in(reg) &idt_ptr, options(readonly, nostack, preserves_flags)
         );
     }

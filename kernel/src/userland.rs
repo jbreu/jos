@@ -3,6 +3,7 @@ use spin::Mutex;
 use crate::kprintln;
 use crate::process::Process;
 use crate::USERLAND;
+use core::arch::asm;
 use core::arch::global_asm;
 
 global_asm!(include_str!("switch_to_ring3.S"));
@@ -34,6 +35,9 @@ impl Userland {
             self.process0.launch();
             self.process1.launch();
             self.process0.activate(true);
+
+            // TODO Investigate: Disable interrupts, because otherwise during jump to usermode interrupt may appear, leading to weird behavior
+            asm!("cli");
 
             // FIXME this feels very wrong!
             mutex.force_unlock();
