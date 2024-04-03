@@ -36,9 +36,6 @@ impl Userland {
             self.process1.launch();
             self.process0.activate(true);
 
-            // TODO Investigate: Disable interrupts, because otherwise during jump to usermode interrupt may appear, leading to weird behavior
-            asm!("cli");
-
             // FIXME this feels very wrong!
             mutex.force_unlock();
 

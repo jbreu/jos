@@ -40,6 +40,8 @@ jump_usermode:
 	
 	mov rsp, rsi
 
+	
+	// TODO Investigate: Only enable interrupts here (pretty late), because otherwise during jump to usermode interrupt may appear, leading to weird behavior
 	sti
 
 	sysretq //use "o64 sysret" if you assemble with NASM
