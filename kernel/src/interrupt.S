@@ -30,22 +30,10 @@ stack_frame:
     push r13
     push r14
     push r15
-    //mov ax, ss
-    //push ax
-    //mov ax, ds
-    //push ax
-    //push ax
-    //push ax
     mov [rip + pushed_registers], rsp
 .endm
 
 .macro pop_all_registers
-    //pop ax
-    //pop ax
-    //pop ax
-    //mov ds, ax
-    //pop ax
-    //mov ss, ax
     pop r15
     pop r14 
     pop r13 

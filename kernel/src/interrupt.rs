@@ -167,8 +167,6 @@ pub fn init_idt() {
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
-
-    // FIXME Remove!
     //out_port_b(0x21, 0xfd);
     //out_port_b(0xA1, 0xff);
 
