@@ -38,10 +38,10 @@ pub extern "C" fn kernel_main() -> ! {
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
 
-    // Trigger exception
-    unsafe {
-        asm!("int3", options(nomem, nostack));
-    }
+    // Trigger test exception
+    //unsafe {
+    //    asm!("int3", options(nomem, nostack));
+    //}
 
     USERLAND.lock().switch_to_userland(&USERLAND);
 

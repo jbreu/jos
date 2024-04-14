@@ -15,6 +15,7 @@ fn panic(_info: &PanicInfo) -> ! {
 pub fn _start() {
     loop {
         libc::getpid();
-        //printf!("Hellö Wörld! I am process {}", libc::getpid());
+        printf!("Test\n");
+        printf!("Hellö Wörld! I am process {}", libc::getpid());
     }
 }

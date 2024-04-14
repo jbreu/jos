@@ -7,10 +7,9 @@ pub fn getpid() -> u64 {
     unsafe {
         asm!("
             push rdx
-            push rcx
             push r8
 
-            mov rdx, {0:r}
+            mov rdx, 2
 
             push r11
             push rcx
@@ -20,14 +19,16 @@ pub fn getpid() -> u64 {
             pop rcx
             pop r11
 
-            mov {1:r}, r8
+            mov {0:r}, r8
 
             pop r8
-            pop rcx
             pop rdx
         ",
-            in(reg) 2,
-            out(reg) _pid
+            out(reg) _pid,
+            out("rcx") _,
+            out("rdx") _,
+            out("r8") _,
+            out("r11") _,
         );
     }
 
@@ -41,7 +42,6 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
             push r10
             push r8
             push r9
-            push rcx
 
             mov rdx, 1
             mov r10, {0:r}
@@ -56,7 +56,6 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
             pop rcx
             pop r11
 
-            pop rcx
             pop r9
             pop r8
             pop r10
@@ -69,7 +68,9 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
             out("r9") _,
             out("r8") _,
             out("r10") _,
+            out("r11") _,
             out("rdx") _,
+            options(nostack,nomem)
         );
     }
 }

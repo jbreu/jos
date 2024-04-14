@@ -30,7 +30,7 @@ fn syscall_getpid() {
         ",
             in(reg) USERLAND.lock().get_current_process_id(),
         );
-        kprintln!("pid: {:x}\n", USERLAND.lock().get_current_process_id())
+        //kprintln!("pid: {:x}\n", USERLAND.lock().get_current_process_id())
     }
 }
 

@@ -80,6 +80,22 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
 
 #[no_mangle]
 pub extern "C" fn irq_handler(int_no: u64) {
+    extern "C" {
+        static mut stack_frame: *const u64;
+    }
+
+    unsafe {
+        //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+        kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
+        kprint!(" RSP: {:x}\n", *(stack_frame.add(3)) as u64);
+
+        let stack = *(stack_frame.add(3)) as *const u64;
+        for i in 0..8 {
+            kprint!("   {:x}", stack.add(i).read_unaligned() as u64);
+        }
+        kprint!("\n");
+    }
+
     match (int_no - 32) as u64 {
         // Clock
         0 => {
@@ -96,8 +112,21 @@ pub extern "C" fn irq_handler(int_no: u64) {
             }
 
             kprint!("{}", keyboard::get_key_for_scancode(key as u8));
+
+            userland::schedule();
         }
         _ => {}
+    }
+
+    unsafe {
+        //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+        kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
+        kprint!(" RSP: {:x}\n", *(stack_frame.add(3)) as u64);
+        let stack = *(stack_frame.add(3)) as *const u64;
+        for i in 0..8 {
+            kprint!("   {:x}", stack.add(i).read_unaligned() as u64);
+        }
+        kprint!("\n");
     }
 
     if int_no >= 40 {
@@ -167,8 +196,9 @@ pub fn init_idt() {
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
-    //out_port_b(0x21, 0xfd);
-    //out_port_b(0xA1, 0xff);
+    // FIXME remove
+    out_port_b(0x21, 0xfd);
+    out_port_b(0xA1, 0xff);
 
     // Generated with http://www.mynikko.com/tools/tool_incrementstr.html
     // flags are set according to https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Descriptor_2

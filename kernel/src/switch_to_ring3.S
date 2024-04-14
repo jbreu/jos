@@ -51,16 +51,18 @@ syscall_handler:
 	
     swapgs
 	
-	// FIXME SECURITY somewhere here we should change the stack pointer to kernel space
+	// FIXME SECURITY somewhere here we should change the stack pointer to kernel space; see e.g. https://supercip971.github.io/02-wingos-syscalls.html
 
 	push rcx // syscall has set ecx to the rip of the userland process
 	push r11 // syscall has set r11 to the rflags
+	push rax
 	push rsp
 
 	lea rax, [rip + system_call]
 	call rax
 
 	pop rsp
+	pop rax
 	pop r11
 	pop rcx 
 

@@ -11,6 +11,8 @@ pushed_registers:
 stack_frame:
     .quad 0
 .globl stack_frame
+int_no:
+    .quad 0
 
 .section .text
 
@@ -72,8 +74,7 @@ stack_frame:
     .globl irq\irq
     irq\irq\():
         cli
-        push qword ptr 0
-        push qword ptr \number
+        mov qword ptr [rip + int_no], \number
         mov [rip + stack_frame], rsp
         jmp irq_common_stub
 .endm
@@ -153,23 +154,19 @@ isr_common_stub:
 	pop rsi
 	pop rdi
 
-	add rsp, 16 // "pop" the two longs we have pushed originally
+	add rsp, 16 // "pop" the two longs we have pushed originally // TODO check if this is correct!
 	sti
 	iretq
 
 irq_common_stub:
-    push rdi
-
-	mov rdi, [rsp+8]
-
     push_all_registers
+
+    mov rdi, [rip + int_no]
+
     lea rax, [rip + irq_handler]
 	call rax
 
     pop_all_registers
 
-    pop rdi
-
-	add rsp, 16 // "pop" the two longs we have pushed originally
 	sti
 	iretq

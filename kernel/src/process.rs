@@ -6,10 +6,9 @@ static mut KERNEL_CR3: u64 = 0;
 
 // stores a process' registers when it gets interrupted
 #[repr(C, packed)]
-#[derive(Default, Clone, Copy)]
+#[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
-    //dsss: u64,
     r15: u64,
     r14: u64,
     r13: u64,
@@ -29,15 +28,8 @@ struct RegistersStruct {
 
 #[repr(C)]
 #[repr(align(4096))]
-#[derive(Copy, Clone)]
 struct PageTable {
     entry: [u64; 512],
-}
-
-impl Default for PageTable {
-    fn default() -> PageTable {
-        PageTable { entry: [0; 512] }
-    }
 }
 
 impl PageTable {
@@ -125,7 +117,6 @@ fn print_page_table_tree(start_addr: u64) {
     }
 }
 
-#[derive(Clone, Copy)]
 enum ProcessState {
     Off,
     Prepared,
@@ -133,13 +124,6 @@ enum ProcessState {
     Passive,
 }
 
-impl Default for ProcessState {
-    fn default() -> Self {
-        ProcessState::Off
-    }
-}
-
-#[derive(Clone, Copy)]
 pub struct Process {
     _registers: RegistersStruct,
 
@@ -157,30 +141,12 @@ pub struct Process {
     state: ProcessState,
 }
 
-impl Default for Process {
-    fn default() -> Process {
-        Self {
-            _registers: RegistersStruct::default(),
-            _l2_page_directory_table: PageTable::default(),
-            _l3_page_directory_pointer_table: PageTable::default(),
-            l4_page_map_l4_table: PageTable::default(),
-            rip: u64::default(),
-            rsp: u64::default(),
-            cr3: u64::default(),
-            cs: u64::default(),
-            ss: u64::default(),
-            rflags: u64::default(),
-            state: ProcessState::default(),
-        }
-    }
-}
-
 impl Process {
     pub fn new() -> Self {
         // Initialize paging
-        let mut l2_page_directory_table: PageTable = PageTable::new().clone();
-        let mut l3_page_directory_pointer_table: PageTable = PageTable::new().clone();
-        let mut l4_page_map_l4_table: PageTable = PageTable::new().clone();
+        let mut l2_page_directory_table = PageTable::new();
+        let mut l3_page_directory_pointer_table = PageTable::new();
+        let mut l4_page_map_l4_table = PageTable::new();
 
         // TODO remove hard coding
         // TODO Task stack
@@ -201,8 +167,8 @@ impl Process {
 
         // allocate two pages page at beginning of virtual memory for elf loading
         // TODO allocate more if needed
-        let mut l2_page_directory_table_beginning: PageTable = PageTable::new().clone();
-        let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new().clone();
+        let mut l2_page_directory_table_beginning: PageTable = PageTable::new();
+        let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new();
 
         l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
@@ -232,6 +198,8 @@ impl Process {
         );
 
         kprint!("Process CR3: {:x}\n", process_cr3);
+
+        // FIXME THIS IS BROKEN!
 
         unsafe {
             asm!(
@@ -280,19 +248,26 @@ impl Process {
         }
 
         unsafe {
-            if !initial_start {
-                core::ptr::write(pushed_registers, self._registers);
-                core::ptr::write(stack_frame.add(2), self.rip);
-                core::ptr::write(stack_frame.add(5), self.rsp);
+            //kprint!("Stack frame: {:x}\n", stack_frame as u64);
 
-                core::ptr::write(stack_frame.add(3), self.cs);
-                core::ptr::write(stack_frame.add(6), self.ss);
-                core::ptr::write(stack_frame.add(4), self.rflags);
+            if !initial_start {
+                core::ptr::copy_nonoverlapping(
+                    &self._registers,
+                    pushed_registers,
+                    core::mem::size_of::<RegistersStruct>(),
+                );
+
+                core::ptr::copy_nonoverlapping(&self.rip, stack_frame.add(0), 8);
+                core::ptr::copy_nonoverlapping(&self.cs, stack_frame.add(1), 8);
+                core::ptr::copy_nonoverlapping(&self.rflags, stack_frame.add(2), 8);
+                core::ptr::copy_nonoverlapping(&self.rsp, stack_frame.add(3), 8);
+                core::ptr::copy_nonoverlapping(&self.ss, stack_frame.add(4), 8);
             }
 
             // HIER!!!!!!!!
             //schreibe zwar was in den Stack, aber dann lade ich per cr3 ja neues paging!!!!
 
+            // x /20xg 0xffffffffffcfffb8
             asm!(
                 "mov cr3, {}",
                 in(reg)
@@ -314,12 +289,17 @@ impl Process {
         }
 
         unsafe {
-            core::ptr::write(&mut self._registers, *pushed_registers);
-            self.rip = *(stack_frame.add(2));
-            self.cs = *(stack_frame.add(3));
-            self.ss = *(stack_frame.add(6));
-            self.rflags = *(stack_frame.add(4));
-            self.rsp = *(stack_frame.add(5));
+            core::ptr::copy_nonoverlapping(
+                pushed_registers,
+                &mut self._registers,
+                core::mem::size_of::<RegistersStruct>(),
+            );
+
+            self.rip = *(stack_frame.add(0));
+            self.cs = *(stack_frame.add(1));
+            self.rflags = *(stack_frame.add(2));
+            self.rsp = *(stack_frame.add(3));
+            self.ss = *(stack_frame.add(4));
         }
     }
 

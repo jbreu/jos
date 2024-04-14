@@ -3,12 +3,11 @@ use spin::Mutex;
 use crate::kprintln;
 use crate::process::Process;
 use crate::USERLAND;
-use core::arch::asm;
 use core::arch::global_asm;
 
 global_asm!(include_str!("switch_to_ring3.S"));
 
-#[derive(Default)]
+//#[derive(Default)]
 pub struct Userland {
     process0: Process,
     process1: Process,
