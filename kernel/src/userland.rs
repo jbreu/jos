@@ -82,14 +82,5 @@ impl Userland {
 
 // very simple scheduler
 pub fn schedule() {
-    unsafe {
-        USERLAND.force_unlock();
-    }
-
     USERLAND.lock().switch_process();
-
-    // TODO avoid!
-    unsafe {
-        USERLAND.force_unlock();
-    }
 }

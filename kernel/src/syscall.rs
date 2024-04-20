@@ -26,9 +26,9 @@ pub extern "C" fn system_call() {
 fn syscall_getpid() {
     unsafe {
         asm!("
-            mov r8, {:r}
+            nop
         ",
-            in(reg) USERLAND.lock().get_current_process_id(),
+            in("r12") USERLAND.lock().get_current_process_id(),
         );
         //kprintln!("pid: {:x}\n", USERLAND.lock().get_current_process_id())
     }
@@ -42,20 +42,10 @@ fn syscall_write() {
 
     unsafe {
         // TODO this must be possible more elegantly
-        asm!("
-            mov {:r}, r10
-        ",
-            out(reg) filedescriptor,
-        );
-        asm!("
-            mov {:r}, r8
-        ",
-            out(reg) payload,
-        );
-        asm!("
-            mov {:r}, r9
-        ",
-            out(reg) len
+        asm!("nop",
+            out("r14") filedescriptor,
+            out("r12") payload,
+            out("r13") len
         );
 
         bytes = core::str::from_utf8(core::slice::from_raw_parts(

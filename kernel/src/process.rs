@@ -81,7 +81,7 @@ fn _print_page_table_tree_for_cr3() {
     let mut cr3: u64;
 
     unsafe {
-        asm!("mov {}, cr3", out(reg) cr3);
+        asm!("mov r12, cr3", out("r12") cr3);
     }
 
     print_page_table_tree(cr3);
@@ -207,7 +207,7 @@ impl Process {
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
             if KERNEL_CR3 == 0 {
-                asm!("mov {}, cr3", out(reg) KERNEL_CR3);
+                asm!("mov r15, cr3", out("r15") KERNEL_CR3);
             }
 
             kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
@@ -229,8 +229,9 @@ impl Process {
 
         unsafe {
             asm!(
-                "mov cr3, {}",
-                in(reg) self.cr3
+                "mov cr3, r15",
+                in("r15") self.cr3,
+                options(nostack, preserves_flags)
             );
         }
 
@@ -242,8 +243,9 @@ impl Process {
 
         unsafe {
             asm!(
-                "mov cr3, {}",
-                in(reg) KERNEL_CR3,
+                "mov cr3, r15",
+                in("r15") KERNEL_CR3,
+                options(nostack, preserves_flags)
             );
         }
 
@@ -295,9 +297,9 @@ impl Process {
 
             // x /20xg 0xffffffffffcfffb8
             asm!(
-                "mov cr3, {}",
-                in(reg)
-                self.cr3
+                "mov cr3, r15",
+                in("r15") self.cr3,
+                options(nostack, preserves_flags)
             );
 
             //TSS_ENTRY.rsp0 = self.get_tss_rsp0();

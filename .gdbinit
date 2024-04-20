@@ -3,6 +3,7 @@ set disassembly-flavor intel
 add-symbol-file build/userspace/x86_64-unknown-none/debug/helloworld
 display/5i $pc
 display/20xg $sp
+#display/20xg $rcx+0x18
 #b *(syscall_handler+16)
 #b *(syscall_handler+27) if *($sp) == 0x0
 #b *(helloworld::libc::write+75)
@@ -15,7 +16,7 @@ display/20xg $sp
 #b irq_common_stub
 #b *(irq_common_stub+44)
 #b *(irq_common_stub+46)
-#b *(irq_common_stub+73)
+#b *(irq_common_stub+70)
 b *0x0
 b *0x2
 b *0x3
@@ -26,8 +27,7 @@ b *0x5
 #set height 0
 
 define log_instructions    
-  while 1
-    x/i $pc
+  while $pc >= 0x1000
     stepi
   end
 end
