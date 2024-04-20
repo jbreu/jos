@@ -84,6 +84,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
         static mut stack_frame: *const u64;
     }
 
+    /* TODO make this a verbose log
     unsafe {
         //kprint!("Stack frame: {:x}\n", stack_frame as u64);
         kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
@@ -94,7 +95,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
             kprint!("   {:x}", stack.add(i).read_unaligned() as u64);
         }
         kprint!("\n");
-    }
+    }*/
 
     match (int_no - 32) as u64 {
         // Clock
@@ -118,16 +119,18 @@ pub extern "C" fn irq_handler(int_no: u64) {
         _ => {}
     }
 
+    /* TODO make this a verbose log
     unsafe {
         //kprint!("Stack frame: {:x}\n", stack_frame as u64);
         kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
         kprint!(" RSP: {:x}\n", *(stack_frame.add(3)) as u64);
+
         let stack = *(stack_frame.add(3)) as *const u64;
         for i in 0..8 {
             kprint!("   {:x}", stack.add(i).read_unaligned() as u64);
         }
         kprint!("\n");
-    }
+    }*/
 
     if int_no >= 40 {
         out_port_b(0xA0, 0x20);
@@ -196,9 +199,9 @@ pub fn init_idt() {
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
-    // FIXME remove
-    out_port_b(0x21, 0xfd);
-    out_port_b(0xA1, 0xff);
+    // FIXME comment
+    //out_port_b(0x21, 0xfd);
+    //out_port_b(0xA1, 0xff);
 
     // Generated with http://www.mynikko.com/tools/tool_incrementstr.html
     // flags are set according to https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Descriptor_2

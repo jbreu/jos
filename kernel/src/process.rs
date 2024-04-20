@@ -5,7 +5,7 @@ use core::arch::asm;
 static mut KERNEL_CR3: u64 = 0;
 
 // stores a process' registers when it gets interrupted
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
@@ -33,7 +33,7 @@ struct PageTable {
 }
 
 impl PageTable {
-    fn new() -> Self {
+    fn default() -> Self {
         Self { entry: [0; 512] }
     }
 }
@@ -87,6 +87,13 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
+fn check_half(entry: *const u64) -> *const u64 {
+    if entry < 0xffff800000000000 as *const u64 {
+        return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
+    }
+    entry
+}
+
 fn print_page_table_tree(start_addr: u64) {
     let entry_mask = 0x0008_ffff_ffff_f800;
 
@@ -94,17 +101,18 @@ fn print_page_table_tree(start_addr: u64) {
         kprint!("start_addr: {:#x}\n", start_addr);
 
         for l4_entry in 0..512 {
-            let l4bits = *((start_addr + l4_entry * 8) as *const u64);
+            let l4bits = *check_half((start_addr + l4_entry * 8) as *const u64);
             if l4bits != 0 {
                 kprint!("   L4: {} - {:#x}\n", l4_entry, l4bits & entry_mask);
 
                 for l3_entry in 0..512 {
-                    let l3bits = *(((l4bits & entry_mask) + l3_entry * 8) as *const u64);
+                    let l3bits = *check_half(((l4bits & entry_mask) + l3_entry * 8) as *const u64);
                     if l3bits != 0 {
                         kprint!("      L3: {} - {:#x}\n", l3_entry, l3bits & entry_mask);
 
                         for l2_entry in 0..512 {
-                            let l2bits = *(((l3bits & entry_mask) + l2_entry * 8) as *const u64);
+                            let l2bits =
+                                *check_half(((l3bits & entry_mask) + l2_entry * 8) as *const u64);
 
                             if l2bits != 0 {
                                 kprint!("         L2: {} - {:#x}\n", l2_entry, l2bits & entry_mask);
@@ -118,18 +126,21 @@ fn print_page_table_tree(start_addr: u64) {
 }
 
 enum ProcessState {
-    Off,
+    New,
     Prepared,
     Active,
     Passive,
 }
 
 pub struct Process {
-    _registers: RegistersStruct,
+    registers: RegistersStruct,
 
-    _l2_page_directory_table: PageTable,
-    _l3_page_directory_pointer_table: PageTable,
+    l2_page_directory_table: PageTable,
+    l3_page_directory_pointer_table: PageTable,
     l4_page_map_l4_table: PageTable,
+
+    l2_page_directory_table_beginning: PageTable,
+    l3_page_directory_pointer_table_beginning: PageTable,
 
     rip: u64,
     rsp: u64,
@@ -143,41 +154,53 @@ pub struct Process {
 
 impl Process {
     pub fn new() -> Self {
-        // Initialize paging
-        let mut l2_page_directory_table = PageTable::new();
-        let mut l3_page_directory_pointer_table = PageTable::new();
-        let mut l4_page_map_l4_table = PageTable::new();
+        Self {
+            registers: RegistersStruct::default(),
+            l2_page_directory_table: PageTable::default(),
+            l2_page_directory_table_beginning: PageTable::default(),
+            l3_page_directory_pointer_table: PageTable::default(),
+            l3_page_directory_pointer_table_beginning: PageTable::default(),
+            l4_page_map_l4_table: PageTable::default(),
 
+            rip: 0,
+            cr3: 0,
+            ss: 0x1b,
+            cs: 0x23,
+            rflags: 0x202,
+            rsp: 0,
+            state: ProcessState::New,
+        }
+    }
+
+    pub fn initialize(&mut self) {
         // TODO remove hard coding
         // TODO Task stack
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
         // TODO only one page (2MB) yet!
-        l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
         // TODO HackID1: Fixed kernel stack for interrupts (starts at 20 MByte)
-        l2_page_directory_table.entry[510] = 10 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
+        self.l2_page_directory_table.entry[510] = 10 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
 
-        l3_page_directory_pointer_table.entry[511] =
+        self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
-                &l2_page_directory_table as *const _ as u64,
+                &self.l2_page_directory_table as *const _ as u64,
             ) | 0b111;
-        l4_page_map_l4_table.entry[511] = Process::get_physical_address_for_virtual_address(
-            &l3_page_directory_pointer_table as *const _ as u64,
+        self.l4_page_map_l4_table.entry[511] = Process::get_physical_address_for_virtual_address(
+            &self.l3_page_directory_pointer_table as *const _ as u64,
         ) | 0b111;
 
         // allocate two pages page at beginning of virtual memory for elf loading
         // TODO allocate more if needed
-        let mut l2_page_directory_table_beginning: PageTable = PageTable::new();
-        let mut l3_page_directory_pointer_table_beginning: PageTable = PageTable::new();
 
-        l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        l3_page_directory_pointer_table_beginning.entry[0] =
+        self.l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
-                &l2_page_directory_table_beginning as *const _ as u64,
+                &self.l2_page_directory_table_beginning as *const _ as u64,
             ) | 0b111;
-        l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
-            &l3_page_directory_pointer_table_beginning as *const _ as u64,
+        self.l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
+            &self.l3_page_directory_pointer_table_beginning as *const _ as u64,
         ) | 0b111;
 
         // TODO Hack? map the kernel pages from main.asm to process
@@ -189,31 +212,33 @@ impl Process {
 
             kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
 
-            l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
+            self.l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
         }
 
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
-        let process_cr3 = Process::get_physical_address_for_virtual_address(
-            &l4_page_map_l4_table as *const _ as u64,
+        self.cr3 = Process::get_physical_address_for_virtual_address(
+            &self.l4_page_map_l4_table as *const _ as u64,
         );
 
-        kprint!("Process CR3: {:x}\n", process_cr3);
+        kprint!("Process CR3: {:x}\n", self.cr3);
 
+        unsafe {
+            print_page_table_tree(KERNEL_CR3 as u64);
+        }
         // FIXME THIS IS BROKEN!
 
         unsafe {
             asm!(
                 "mov cr3, {}",
-                in(reg) process_cr3
+                in(reg) self.cr3
             );
         }
 
-        print_page_table_tree(&l4_page_map_l4_table as *const _ as u64);
+        print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
-        let registers = RegistersStruct::default();
-        let rsp = 0xffff_ffff_ffff_ffff;
+        self.rsp = 0xffff_ffff_ffff_ffff;
 
-        let entry_ip = Process::load_elf_from_bin();
+        self.rip = Process::load_elf_from_bin();
 
         unsafe {
             asm!(
@@ -222,19 +247,10 @@ impl Process {
             );
         }
 
-        Self {
-            _registers: registers,
-            _l2_page_directory_table: l2_page_directory_table,
-            _l3_page_directory_pointer_table: l3_page_directory_pointer_table,
-            l4_page_map_l4_table: l4_page_map_l4_table,
-            rip: entry_ip,
-            cr3: process_cr3,
-            ss: 0x1b,
-            cs: 0x23,
-            rflags: 0x202,
-            rsp: rsp,
-            state: ProcessState::Prepared,
-        }
+        self.ss = 0x1b;
+        self.cs = 0x23;
+        self.rflags = 0x202;
+        self.state = ProcessState::Prepared;
     }
 
     pub fn launch(&mut self) {
@@ -243,25 +259,35 @@ impl Process {
 
     pub fn activate(&mut self, initial_start: bool) {
         extern "C" {
-            static mut pushed_registers: *mut RegistersStruct;
+            static mut pushed_registers: RegistersStruct;
             static mut stack_frame: *mut u64;
         }
 
         unsafe {
             //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+            //kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
 
             if !initial_start {
-                core::ptr::copy_nonoverlapping(
-                    &self._registers,
-                    pushed_registers,
-                    core::mem::size_of::<RegistersStruct>(),
-                );
+                pushed_registers.r15 = self.registers.r15;
+                pushed_registers.r14 = self.registers.r14;
+                pushed_registers.r13 = self.registers.r13;
+                pushed_registers.r12 = self.registers.r12;
+                pushed_registers.r11 = self.registers.r11;
+                pushed_registers.r10 = self.registers.r10;
+                pushed_registers.r9 = self.registers.r9;
+                pushed_registers.r8 = self.registers.r8;
+                pushed_registers.rbp = self.registers.rbp;
+                pushed_registers.rsi = self.registers.rsi;
+                pushed_registers.rdx = self.registers.rdx;
+                pushed_registers.rcx = self.registers.rcx;
+                pushed_registers.rbx = self.registers.rbx;
+                pushed_registers.rax = self.registers.rax;
 
-                core::ptr::copy_nonoverlapping(&self.rip, stack_frame.add(0), 8);
-                core::ptr::copy_nonoverlapping(&self.cs, stack_frame.add(1), 8);
-                core::ptr::copy_nonoverlapping(&self.rflags, stack_frame.add(2), 8);
-                core::ptr::copy_nonoverlapping(&self.rsp, stack_frame.add(3), 8);
-                core::ptr::copy_nonoverlapping(&self.ss, stack_frame.add(4), 8);
+                *(stack_frame.add(0)) = self.rip;
+                *(stack_frame.add(1)) = self.cs;
+                *(stack_frame.add(2)) = self.rflags;
+                *(stack_frame.add(3)) = self.rsp;
+                *(stack_frame.add(4)) = self.ss;
             }
 
             // HIER!!!!!!!!
@@ -274,26 +300,35 @@ impl Process {
                 self.cr3
             );
 
-            TSS_ENTRY.rsp0 = self.get_tss_rsp0();
+            //TSS_ENTRY.rsp0 = self.get_tss_rsp0();
         }
 
         self.state = ProcessState::Active;
     }
 
     pub fn passivate(&mut self) {
-        self.state = ProcessState::Passive;
-
         extern "C" {
-            static mut pushed_registers: *const RegistersStruct;
+            static mut pushed_registers: RegistersStruct;
             static mut stack_frame: *const u64;
         }
 
         unsafe {
-            core::ptr::copy_nonoverlapping(
-                pushed_registers,
-                &mut self._registers,
-                core::mem::size_of::<RegistersStruct>(),
-            );
+            //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+
+            self.registers.r15 = pushed_registers.r15;
+            self.registers.r14 = pushed_registers.r14;
+            self.registers.r13 = pushed_registers.r13;
+            self.registers.r12 = pushed_registers.r12;
+            self.registers.r11 = pushed_registers.r11;
+            self.registers.r10 = pushed_registers.r10;
+            self.registers.r9 = pushed_registers.r9;
+            self.registers.r8 = pushed_registers.r8;
+            self.registers.rbp = pushed_registers.rbp;
+            self.registers.rsi = pushed_registers.rsi;
+            self.registers.rdx = pushed_registers.rdx;
+            self.registers.rcx = pushed_registers.rcx;
+            self.registers.rbx = pushed_registers.rbx;
+            self.registers.rax = pushed_registers.rax;
 
             self.rip = *(stack_frame.add(0));
             self.cs = *(stack_frame.add(1));
@@ -301,6 +336,8 @@ impl Process {
             self.rsp = *(stack_frame.add(3));
             self.ss = *(stack_frame.add(4));
         }
+
+        self.state = ProcessState::Passive;
     }
 
     pub fn activatable(&self) -> bool {

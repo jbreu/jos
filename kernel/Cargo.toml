@@ -3,6 +3,7 @@ name = "jos-kernel"
 version = "0.1.0"
 
 [dependencies]
+heapless = "0.8.0"
 
 [dependencies.spin]
 version = "0.9.8"
