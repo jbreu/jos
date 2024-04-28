@@ -2,6 +2,7 @@ use crate::logging;
 use core::arch::asm;
 use core::arch::global_asm;
 use core::mem;
+use core::ptr::addr_of;
 
 // https://wiki.osdev.org/GDT_Tutorial
 // https://en.wikipedia.org/wiki/Global_Descriptor_Table#GDT_in_64-bit
@@ -110,15 +111,15 @@ pub fn init_gdt() {
             }),
             //  Task State Segment
             encode_gdt_entry(GDT {
-                base: &TSS_ENTRY as *const _ as u32,
-                limit: &TSS_ENTRY as *const _ as u32 + mem::size_of::<Tss>() as u32 - 1,
+                base: addr_of!(TSS_ENTRY) as *const _ as u32,
+                limit: addr_of!(TSS_ENTRY) as *const _ as u32 + mem::size_of::<Tss>() as u32 - 1,
                 access_byte: 0x89,
                 flags: 0xc,
             }),
             //  Task State Segment, 2nd part --> special treatment for system segment descriptor in long mode
             encode_gdt_entry(GDT {
-                base: (&TSS_ENTRY as *const _ as u64 >> 48) as u32,
-                limit: (&TSS_ENTRY as *const _ as u64 >> 32) as u32,
+                base: (addr_of!(TSS_ENTRY) as *const _ as u64 >> 48) as u32,
+                limit: (addr_of!(TSS_ENTRY) as *const _ as u64 >> 32) as u32,
                 access_byte: 0x0,
                 flags: 0x0,
             }),

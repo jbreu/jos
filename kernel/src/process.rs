@@ -1,6 +1,6 @@
-use crate::gdt::TSS_ENTRY;
 use crate::kprint;
 use core::arch::asm;
+use core::ptr::addr_of;
 
 static mut KERNEL_CR3: u64 = 0;
 
@@ -350,7 +350,7 @@ impl Process {
         }
     }
 
-    fn get_tss_rsp0(&self) -> u64 {
+    fn _get_tss_rsp0(&self) -> u64 {
         0xffff_ffff_ffcf_ffff
     }
 
@@ -415,19 +415,19 @@ impl Process {
         unsafe {
             kprint!(
                 "embedded elf file\nstart: {:x}\n  end: {:x}\n",
-                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start as *const u8
-                    as usize,
-                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end as *const u8
-                    as usize
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
+                    as *const u8 as usize,
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
+                    as *const u8 as usize
             );
 
-            let size = &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end
+            let size = addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
                 as *const u8 as usize
-                - &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start as *const u8
-                    as usize;
+                - addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
+                    as *const u8 as usize;
 
             let slice = core::slice::from_raw_parts(
-                &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start,
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start),
                 size,
             );
 
@@ -459,7 +459,7 @@ impl Process {
                     mov rdi, {}
                     rep movsb",
                     in(reg) phdr.p_memsz,
-                    in(reg) &_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start as *const u8 as usize + phdr.p_offset as usize,
+                    in(reg) addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start) as *const u8 as usize + phdr.p_offset as usize,
                     in(reg) phdr.p_vaddr,
                     out("rcx") _,
                     out("rsi") _,

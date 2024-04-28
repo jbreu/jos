@@ -9,17 +9,21 @@ global_asm!(include_str!("switch_to_ring3.S"));
 
 //#[derive(Default)]
 pub struct Userland {
-    processes: Vec<Process, 2>,
+    processes: Vec<Process, 4>,
     current_process: usize,
 }
 
 impl Userland {
     pub fn new() -> Self {
-        let mut processes = Vec::<_, 2>::new();
-        processes.push(Process::new());
+        let mut processes = Vec::<_, 4>::new();
+        let _ = processes.push(Process::new());
         processes[0].initialize();
-        processes.push(Process::new());
+        let _ = processes.push(Process::new());
         processes[1].initialize();
+        let _ = processes.push(Process::new());
+        processes[2].initialize();
+        let _ = processes.push(Process::new());
+        processes[3].initialize();
 
         Self {
             processes: processes,
@@ -37,6 +41,8 @@ impl Userland {
 
             self.processes[0].launch();
             self.processes[1].launch();
+            self.processes[2].launch();
+            self.processes[3].launch();
             self.processes[0].activate(true);
 
             // FIXME this feels very wrong!
@@ -56,9 +62,7 @@ impl Userland {
 
         loop {
             self.current_process += 1;
-            if self.current_process == 2
-            /*self.processes.len()*/
-            {
+            if self.current_process == self.processes.len() {
                 self.current_process = 0;
             }
             if self.processes[self.current_process].activatable() {

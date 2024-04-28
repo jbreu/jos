@@ -1,7 +1,6 @@
-use crate::{kprint, USERLAND};
+use crate::USERLAND;
 use crate::{kprintln, logging::log};
 use core::arch::asm;
-use core::str::Utf8Error;
 
 #[no_mangle]
 pub extern "C" fn system_call() -> u64 {
@@ -32,7 +31,6 @@ fn syscall_write() -> u64 {
     let mut filedescriptor: i64;
     let mut payload: i64;
     let mut len: i64;
-    let bytes: &str;
 
     unsafe {
         // TODO this must be possible more elegantly

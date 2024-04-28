@@ -1,7 +1,7 @@
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
-use core::{arch::asm, panic::PanicInfo};
+use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 

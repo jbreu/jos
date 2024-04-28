@@ -155,7 +155,7 @@ isr_common_stub:
 	pop rsi
 	pop rdi
 
-	add rsp, 16 // "pop" the two longs we have pushed originally // TODO check if this is correct!
+	add rsp, 16 // "pop" the two longs we have pushed originally
 	sti
 	iretq
 
