@@ -84,9 +84,9 @@ pub extern "C" fn irq_handler(int_no: u64) {
         static mut stack_frame: *const u64;
     }
 
-    /* TODO make this a verbose log
-    unsafe {
-        //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+    // TODO make this a verbose log
+    /*unsafe {
+        kprint!("Stack frame: {:x}\n", stack_frame as u64);
         kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
         kprint!(" RSP: {:x}\n", *(stack_frame.add(3)) as u64);
 
@@ -119,9 +119,9 @@ pub extern "C" fn irq_handler(int_no: u64) {
         _ => {}
     }
 
-    /* TODO make this a verbose log
-    unsafe {
-        //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+    // TODO make this a verbose log
+    /*unsafe {
+        kprint!("Stack frame: {:x}\n", stack_frame as u64);
         kprint!(" RIP: {:x}\n", *(stack_frame.add(0)) as u64);
         kprint!(" RSP: {:x}\n", *(stack_frame.add(3)) as u64);
 

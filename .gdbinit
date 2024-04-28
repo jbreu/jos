@@ -12,7 +12,7 @@ display/20xg $sp
 #disable 1
 #if *($rsp) == 0x0
 #disable 2
-#b isr_common_stub
+b isr_common_stub
 #b irq_common_stub
 #b *(irq_common_stub+44)
 #b *(irq_common_stub+46)

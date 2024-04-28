@@ -76,6 +76,7 @@ int_no:
         cli
         mov qword ptr [rip + int_no], \number
         mov [rip + stack_frame], rsp
+        push_all_registers
         jmp irq_common_stub
 .endm
 
@@ -159,7 +160,6 @@ isr_common_stub:
 	iretq
 
 irq_common_stub:
-    push_all_registers
 
     mov rdi, [rip + int_no]
 

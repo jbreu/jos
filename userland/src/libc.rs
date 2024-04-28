@@ -1,12 +1,14 @@
 use core::arch::asm;
 
 //pid_t getppid(void);
+
 pub fn getpid() -> u64 {
-    let mut _pid = core::u64::MAX;
+    let mut _pid = 0xdeadbeef;
 
     unsafe {
         asm!("
-            mov rdx, 2
+            push rdi
+            mov rdi, 2
 
             push r11
             push rcx
@@ -15,18 +17,21 @@ pub fn getpid() -> u64 {
         
             pop rcx
             pop r11
+            pop rdi
             ",
-            out("r12") _pid,
+            out("rax") _pid,
+            options(nostack)
         );
     }
 
     return _pid;
 }
 
-pub fn write(filedescriptor: i64, payload: &[u8]) {
+pub fn write(filedescriptor: i64, payload: *const u64, len: usize) {
     unsafe {
         asm!("
-            mov rdx, 1
+            push rdi
+            mov rdi, 1
 
             push r11
             push rcx
@@ -35,11 +40,14 @@ pub fn write(filedescriptor: i64, payload: &[u8]) {
         
             pop rcx
             pop r11
+            
+            pop rdi
         ",
-            in("r14") filedescriptor,
-            in("r12") payload.as_ptr(),
-            in("r13") payload.len(),
-            options(nostack,nomem)
+            in("r8") filedescriptor,
+            in("r9") payload as u64,
+            in("r10") len,
+            options(nostack),
+            clobber_abi("C")
         );
     }
 }
@@ -48,7 +56,7 @@ pub struct Printer {}
 
 impl core::fmt::Write for Printer {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        write(1, s.as_bytes());
+        write(1, s.as_bytes().as_ptr() as *const u64, s.len());
         Ok(())
     }
 }

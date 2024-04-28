@@ -261,45 +261,46 @@ impl Process {
 
     pub fn activate(&mut self, initial_start: bool) {
         extern "C" {
-            static mut pushed_registers: RegistersStruct;
+            static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
         }
 
         unsafe {
-            //kprint!("Stack frame: {:x}\n", stack_frame as u64);
-            //kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
+            kprint!("Stack frame: {:x}\n", stack_frame as u64);
+            kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
 
             if !initial_start {
-                pushed_registers.r15 = self.registers.r15;
-                pushed_registers.r14 = self.registers.r14;
-                pushed_registers.r13 = self.registers.r13;
-                pushed_registers.r12 = self.registers.r12;
-                pushed_registers.r11 = self.registers.r11;
-                pushed_registers.r10 = self.registers.r10;
-                pushed_registers.r9 = self.registers.r9;
-                pushed_registers.r8 = self.registers.r8;
-                pushed_registers.rbp = self.registers.rbp;
-                pushed_registers.rsi = self.registers.rsi;
-                pushed_registers.rdx = self.registers.rdx;
-                pushed_registers.rcx = self.registers.rcx;
-                pushed_registers.rbx = self.registers.rbx;
-                pushed_registers.rax = self.registers.rax;
+                (*pushed_registers).r15 = self.registers.r15;
+                (*pushed_registers).r14 = self.registers.r14;
+                (*pushed_registers).r13 = self.registers.r13;
+                (*pushed_registers).r12 = self.registers.r12;
+                (*pushed_registers).r11 = self.registers.r11;
+                (*pushed_registers).r10 = self.registers.r10;
+                (*pushed_registers).r9 = self.registers.r9;
+                (*pushed_registers).r8 = self.registers.r8;
+                (*pushed_registers).rbp = self.registers.rbp;
+                (*pushed_registers).rsi = self.registers.rsi;
+                (*pushed_registers).rdx = self.registers.rdx;
+                (*pushed_registers).rcx = self.registers.rcx;
+                (*pushed_registers).rbx = self.registers.rbx;
+                (*pushed_registers).rax = self.registers.rax;
 
-                *(stack_frame.add(0)) = self.rip;
-                *(stack_frame.add(1)) = self.cs;
-                *(stack_frame.add(2)) = self.rflags;
-                *(stack_frame.add(3)) = self.rsp;
-                *(stack_frame.add(4)) = self.ss;
+                core::ptr::write_volatile(stack_frame.add(0), self.rip);
+                core::ptr::write_volatile(stack_frame.add(1), self.cs);
+                core::ptr::write_volatile(stack_frame.add(2), self.rflags);
+                core::ptr::write_volatile(stack_frame.add(3), self.rsp);
+                core::ptr::write_volatile(stack_frame.add(4), self.ss);
             }
 
-            // HIER!!!!!!!!
+            //  HIER!!!!!!!!
             //schreibe zwar was in den Stack, aber dann lade ich per cr3 ja neues paging!!!!
 
             // x /20xg 0xffffffffffcfffb8
             asm!(
                 "mov cr3, r15",
                 in("r15") self.cr3,
-                options(nostack, preserves_flags)
+                options(nostack, preserves_flags),
+                clobber_abi("C")
             );
 
             //TSS_ENTRY.rsp0 = self.get_tss_rsp0();
@@ -310,27 +311,27 @@ impl Process {
 
     pub fn passivate(&mut self) {
         extern "C" {
-            static mut pushed_registers: RegistersStruct;
-            static mut stack_frame: *const u64;
+            static pushed_registers: *const RegistersStruct;
+            static stack_frame: *const u64;
         }
 
         unsafe {
             //kprint!("Stack frame: {:x}\n", stack_frame as u64);
 
-            self.registers.r15 = pushed_registers.r15;
-            self.registers.r14 = pushed_registers.r14;
-            self.registers.r13 = pushed_registers.r13;
-            self.registers.r12 = pushed_registers.r12;
-            self.registers.r11 = pushed_registers.r11;
-            self.registers.r10 = pushed_registers.r10;
-            self.registers.r9 = pushed_registers.r9;
-            self.registers.r8 = pushed_registers.r8;
-            self.registers.rbp = pushed_registers.rbp;
-            self.registers.rsi = pushed_registers.rsi;
-            self.registers.rdx = pushed_registers.rdx;
-            self.registers.rcx = pushed_registers.rcx;
-            self.registers.rbx = pushed_registers.rbx;
-            self.registers.rax = pushed_registers.rax;
+            self.registers.r15 = (*pushed_registers).r15;
+            self.registers.r14 = (*pushed_registers).r14;
+            self.registers.r13 = (*pushed_registers).r13;
+            self.registers.r12 = (*pushed_registers).r12;
+            self.registers.r11 = (*pushed_registers).r11;
+            self.registers.r10 = (*pushed_registers).r10;
+            self.registers.r9 = (*pushed_registers).r9;
+            self.registers.r8 = (*pushed_registers).r8;
+            self.registers.rbp = (*pushed_registers).rbp;
+            self.registers.rsi = (*pushed_registers).rsi;
+            self.registers.rdx = (*pushed_registers).rdx;
+            self.registers.rcx = (*pushed_registers).rcx;
+            self.registers.rbx = (*pushed_registers).rbx;
+            self.registers.rax = (*pushed_registers).rax;
 
             self.rip = *(stack_frame.add(0));
             self.cs = *(stack_frame.add(1));
