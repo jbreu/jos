@@ -14,6 +14,8 @@ mod process;
 mod syscall;
 mod time;
 mod userland;
+mod util;
+mod vga;
 
 /// This function is called on panic.
 #[panic_handler]
@@ -33,6 +35,9 @@ lazy_static! {
 pub extern "C" fn kernel_main() -> ! {
     gdt::init_gdt();
     interrupt::init_idt();
+
+    vga::vga_write_regs();
+    vga::vga_clear_screen();
 
     clear_console!();
     kprintln!("successfull boot!");
