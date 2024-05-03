@@ -36,9 +36,10 @@ pub extern "C" fn kernel_main() -> ! {
     gdt::init_gdt();
     interrupt::init_idt();
 
-    vga::vga_write_regs();
+    vga::vga_enter();
     vga::vga_clear_screen();
 
+    vga::vga_exit();
     clear_console!();
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
