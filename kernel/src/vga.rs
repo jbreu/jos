@@ -260,24 +260,7 @@ static mut _SBUFFERS: [Buffer; 2] = [Buffer {
 }; 2];
 static mut _SBACK: usize = 0;
 
-/*fn color(_r: u8, _g: u8, _b: u8) -> u8 {
-    ((_r & 0x7) << 5) | ((_g & 0x7) << 2) | (_b & 0x3) << 0
-}
-
-fn value_to_color(value: u8) -> u8 {
-    color(value >> 5 & 0x7, value >> 2 & 0x7, value & 0x3)
-}
-
-fn vga_xor() {
-    for x in 0..VGA_SCREEN_WIDTH {
-        for y in 0..VGA_SCREEN_HEIGHT {
-            let color = value_to_color(x ^ y);
-            vga_plot_pixel(x, y, color);
-        }
-    }
-}*/
-
-fn vga_flip() {
+pub fn vga_flip() {
     unsafe {
         core::ptr::write_volatile(
             (0xffff80003fc00000 + VGA_MEM_ADDR) as *mut Buffer,
@@ -293,12 +276,6 @@ pub fn vga_enter() {
     vga_backup_vidmem();
     vga_backup_text_mode_palette();
     vga_write_regs(true);
-
-    //vga_xor();
-    //vga_flip();
-
-    // TODO store the "shell memory" somewhere else to get it back if vga is left
-    // TODO do likewise for vga memory when leaving it
 }
 
 pub fn vga_exit() {
@@ -321,7 +298,14 @@ pub fn vga_exit() {
 pub fn vga_clear_screen() {
     for i in 0..VGA_SCREEN_WIDTH {
         for j in 0..VGA_SCREEN_HEIGHT {
-            vga_plot_pixel(i, j, 0x2);
+            vga_plot_pixel(i, j, 0x0f);
+        }
+    }
+    vga_flip();
+
+    for i in 0..VGA_SCREEN_WIDTH {
+        for j in 0..VGA_SCREEN_HEIGHT {
+            vga_plot_pixel(i, j, 0x0f);
         }
     }
     vga_flip();
