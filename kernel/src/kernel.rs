@@ -36,13 +36,15 @@ pub extern "C" fn kernel_main() -> ! {
     gdt::init_gdt();
     interrupt::init_idt();
 
+    clear_console!();
+    kprintln!("successfull boot!");
+    kprintln!("Hellö Wörld!");
+
     vga::vga_enter();
     vga::vga_clear_screen();
 
     vga::vga_exit();
-    clear_console!();
-    kprintln!("successfull boot!");
-    kprintln!("Hellö Wörld!");
+    kprintln!("Back in text mode");
 
     // Trigger test exception
     //unsafe {

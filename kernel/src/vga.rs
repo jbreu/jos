@@ -710,30 +710,24 @@ fn vga_write_font(font_height: u8) {
     vga_set_plane(2);
     /* write font 0 */
     for i in 0..256 {
-        let dst: *mut u128 = (0xffff80003fc00000 + REGION3 + 16384 * 0 + i * 32) as *mut u128;
+        /*let dst: *mut u128 = (0xffff80003fc00000 + REGION3 + 16384 * 0 + i * 32) as *mut u128;
         // HACK using here a fixed 16*8 = 128 type; will not work if font_height is not 16
         let src: u128 = buf[i as usize * font_height as usize] as u128;
         unsafe {
             core::ptr::write_volatile(dst, src);
-        }
-    }
+        }*/
 
-    /*
-
-    for(i = 0; i < 256; i++)
-    {
-        vmemwr(16384u * 0 + i * 32, buf, font_height, 0xB8000);
-        buf += font_height;
+        vga_vmemwr(
+            16384 * 0 + i * 32,
+            u128::from_le_bytes(
+                buf[(i as usize * font_height as usize)..(i as usize * font_height as usize) + 16]
+                    .try_into()
+                    .expect("slice with incorrect length"),
+            ),
+            font_height as u64,
+            0xB8000,
+        );
     }
-
-    void vmemwr(uint32_t dst_off, uint8_t *src, uint32_t count, uint32_t base_addr)
-    {
-        uint8_t *dst = (uint8_t *)(base_addr + dst_off);
-        while (count--) {
-            *dst++ = *src++;
-        }
-    }
-     */
 
     /* restore registers */
     out_port_b(VGA_SEQ_INDEX, 2);
@@ -748,6 +742,14 @@ fn vga_write_font(font_height: u8) {
     out_port_b(VGA_GC_DATA, gc6);
 }
 
+fn vga_vmemwr(dst_off: u64, src: u128, count: u64, base_addr: u64) {
+    let mut dst = (base_addr + dst_off) as *mut u128;
+
+    unsafe {
+        core::ptr::write_volatile(dst, src);
+    }
+}
+
 fn vga_set_plane(p: u8) {
     let pp = p & 3;
     let pmask = 1 << pp;
@@ -757,32 +759,4 @@ fn vga_set_plane(p: u8) {
     /* set write plane */
     out_port_b(VGA_SEQ_INDEX, 2);
     out_port_b(VGA_SEQ_DATA, pmask);
-}
-
-fn vga_set_text_mode_palette() {
-    // The default palette for text mode
-    let palette: [u8; 48] = [
-        0x00, 0x00, 0x00, // black
-        0x00, 0x00, 0x2A, // blue
-        0x00, 0x2A, 0x00, // green
-        0x00, 0x2A, 0x2A, // cyan
-        0x2A, 0x00, 0x00, // red
-        0x2A, 0x00, 0x2A, // magenta
-        0x2A, 0x2A, 0x00, // brown
-        0x2A, 0x2A, 0x2A, // light gray
-        0x00, 0x00, 0x15, // dark gray
-        0x00, 0x00, 0x3F, // light blue
-        0x00, 0x2A, 0x15, // light green
-        0x00, 0x2A, 0x3F, // light cyan
-        0x2A, 0x00, 0x15, // light red
-        0x2A, 0x00, 0x3F, // light magenta
-        0x2A, 0x2A, 0x15, // yellow
-        0x2A, 0x2A, 0x3F, // white
-    ];
-
-    // Write the palette to the DAC
-    out_port_b(0x3C8, 0); // Start at the first color
-    for i in 0..48 {
-        out_port_b(0x3C9, palette[i]);
-    }
 }
