@@ -2,20 +2,17 @@ use crate::kprint;
 use crate::util::in_port_b;
 use crate::util::out_port_b;
 
-const VGA_ADDRESS: u64 = 0xB8000;
 const REGION0: u64 = 0xA0000;
-const REGION1: u64 = 0xA0000;
-const REGION2: u64 = 0xB0000;
+const _REGION1: u64 = 0xA0000;
+const _REGION2: u64 = 0xB0000;
 const REGION3: u64 = 0xB8000;
 
 const VGA_MEM_ADDR: u64 = REGION0;
 
 const VGA_AC_INDEX: u32 = 0x3C0;
 const VGA_AC_WRITE: u32 = 0x3C0;
-const VGA_AC_READ: u32 = 0x3C1;
 const VGA_INSTAT_READ: u32 = 0x3DA;
 const VGA_MISC_WRITE: u32 = 0x3C2;
-const VGA_MISC_READ: u32 = 0x3CC;
 
 /*COLOR emulation	 MONO emulation */
 const VGA_CRTC_INDEX: u32 = 0x3D4; /* 0x3B4 */
@@ -25,9 +22,6 @@ const VGA_GC_DATA: u32 = 0x3CF;
 const VGA_SEQ_INDEX: u32 = 0x3C4;
 const VGA_SEQ_DATA: u32 = 0x3C5;
 
-const VGA_PALETTE_MASK: u32 = 0x3C6;
-const VGA_PALETTE_READ: u32 = 0x3C7;
-const VGA_PALETTE_WRITE: u32 = 0x3C8;
 const VGA_PALETTE_DATA: u32 = 0x3C9;
 
 const VGA_NUM_AC_REGS: u32 = 21;
@@ -40,6 +34,8 @@ const VGA_SCREEN_HEIGHT: u32 = 200;
 const VGA_SCREEN_SIZE: usize = 320 * 200;
 
 // migrated from https://github.com/pagekey/pkos/blob/vid/os015/src/vga/vga.c#L93-L146
+// see http://www.osdever.net/FreeVGA/vga/graphreg.htm
+// see https://github.com/pagekey/pkos/blob/609c02c259ce5c98bff719795f7ff58244cbe109/src/vga/vga.c
 pub fn vga_write_regs(enter: bool) {
     let g_320x200x256: [u8; 61] = [
         /* MISC */
@@ -158,27 +154,6 @@ pub fn vga_write_regs(enter: bool) {
     }*/
 }
 
-const GRAPHICS_REG_ADDR: u32 = 0x3ce;
-const GRAPHICS_REG_DATA: u32 = 0x3cf;
-const GRAPHICS_IDX_MISC: u8 = 0x06;
-
-// Graphics Registers: 0x3ce = addr, 0x3cf = data
-// see http://www.osdever.net/FreeVGA/vga/graphreg.htm
-// see https://github.com/pagekey/pkos/blob/609c02c259ce5c98bff719795f7ff58244cbe109/src/vga/vga.c
-fn get_graphics_reg(index: u8) -> u8 {
-    let saved_addr_reg = in_port_b(GRAPHICS_REG_ADDR);
-    out_port_b(GRAPHICS_REG_ADDR, index);
-    let graphics_reg_value = in_port_b(GRAPHICS_REG_DATA);
-    out_port_b(GRAPHICS_REG_ADDR, saved_addr_reg); // restore address register
-    return graphics_reg_value;
-}
-fn set_graphics_reg(index: u8, value: u8) {
-    let saved_addr_reg = in_port_b(GRAPHICS_REG_ADDR);
-    out_port_b(GRAPHICS_REG_ADDR, index);
-    out_port_b(GRAPHICS_REG_DATA, value);
-    out_port_b(GRAPHICS_REG_ADDR, saved_addr_reg); // restore address register
-}
-
 const VGA_PALETTE_INDEX: u32 = 0x3C8;
 
 static mut PALETTE_256_BACKUP_DATA: [u8; 256 * 3] = [0; 256 * 3];
@@ -259,17 +234,6 @@ fn vga_backup_vidmem() {
     let text_ptr: *const u16 = (0xffff80003fc00000 + REGION3) as *const u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
-            let cell = *text_ptr.add(i);
-            let ch = cell & 0xFF; // Extract character
-            let attr = (cell >> 8) & 0xFF; // Extract attribute
-                                           /*kprint!(
-                                               "Backing up character ({}, {:x}) with attribute {:x} at {:x}\n",
-                                               ch,
-                                               ch,
-                                               attr,
-                                               *text_ptr.add(i)
-                                           );*/
-
             VGA_TEXT_MODE_BACKUP[i] = *text_ptr.add(i);
         }
     }
@@ -279,16 +243,6 @@ fn vga_restore_vidmem() {
     let text_ptr: *mut u16 = (0xffff80003fc00000 + REGION3) as *mut u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
-            let cell = VGA_TEXT_MODE_BACKUP[i];
-            let ch = cell & 0xFF; // Extract character
-            let attr = (cell >> 8) & 0xFF; // Extract attribute
-                                           /*kprint!(
-                                           "Restoring  up character ({}, {:x}) with attribute {:x} at {:x}\n",
-                                           ch,
-                                           ch,
-                                           attr,
-                                           *text_ptr.add(i));*/
-
             core::ptr::write_volatile(text_ptr.add(i), VGA_TEXT_MODE_BACKUP[i]);
         }
     }
@@ -361,12 +315,6 @@ pub fn vga_exit() {
     out_port_b(VGA_SEQ_INDEX, 0x01);
     out_port_b(VGA_SEQ_DATA, seq1 & !0x20); // Reset bit 5 to 0 (Screen On)
 
-    /*let mut misc_reg = get_graphics_reg(GRAPHICS_IDX_MISC);
-    misc_reg &= 0; // set alphanum disable back to 0
-    misc_reg |= 0b10; // bit 1 is RAM enable, set it to 1
-    misc_reg |= 0b1100; // set mem map select to 11
-    set_graphics_reg(GRAPHICS_IDX_MISC, misc_reg);*/
-
     vga_restore_vidmem();
 }
 
@@ -383,16 +331,6 @@ pub fn vga_plot_pixel(x: u32, y: u32, color: u8) {
     let offset = (x + VGA_SCREEN_WIDTH * y) as usize;
 
     unsafe {
-        /*core::ptr::write_volatile(
-            (0xffff80003fc00000 + VGA_MEM_ADDR + offset) as *mut u16,
-            color as u16,
-        );*/
-
-        /*core::ptr::write_volatile(
-            core::ptr::addr_of!(_SBUFFERS[_SBACK].buf[offset]) as *mut u8,
-            color,
-        );*/
-
         _SBUFFERS[_SBACK].buf[offset] = color;
     }
 }
@@ -710,13 +648,6 @@ fn vga_write_font(font_height: u8) {
     vga_set_plane(2);
     /* write font 0 */
     for i in 0..256 {
-        /*let dst: *mut u128 = (0xffff80003fc00000 + REGION3 + 16384 * 0 + i * 32) as *mut u128;
-        // HACK using here a fixed 16*8 = 128 type; will not work if font_height is not 16
-        let src: u128 = buf[i as usize * font_height as usize] as u128;
-        unsafe {
-            core::ptr::write_volatile(dst, src);
-        }*/
-
         vga_vmemwr(
             16384 * 0 + i * 32,
             u128::from_le_bytes(
@@ -724,7 +655,6 @@ fn vga_write_font(font_height: u8) {
                     .try_into()
                     .expect("slice with incorrect length"),
             ),
-            font_height as u64,
             0xB8000,
         );
     }
@@ -742,8 +672,8 @@ fn vga_write_font(font_height: u8) {
     out_port_b(VGA_GC_DATA, gc6);
 }
 
-fn vga_vmemwr(dst_off: u64, src: u128, count: u64, base_addr: u64) {
-    let mut dst = (base_addr + dst_off) as *mut u128;
+fn vga_vmemwr(dst_off: u64, src: u128, base_addr: u64) {
+    let dst = (base_addr + dst_off) as *mut u128;
 
     unsafe {
         core::ptr::write_volatile(dst, src);
