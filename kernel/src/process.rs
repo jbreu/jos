@@ -1,4 +1,5 @@
 use crate::kprint;
+use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
 
@@ -36,45 +37,6 @@ impl PageTable {
     fn default() -> Self {
         Self { entry: [0; 512] }
     }
-}
-
-// TODO make more elegant
-// available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
-
-const MAX_PAGE_FRAMES: usize = 64;
-static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
-    let mut array = [false; MAX_PAGE_FRAMES];
-
-    // some page frames are already allocated in main.asm -> setup_page_tables
-    array[0] = true;
-    array[1] = true;
-    array[2] = true;
-    array[3] = true;
-    array[4] = true;
-    array[5] = true;
-    array[6] = true;
-    array[7] = true;
-    array[8] = true;
-    array[9] = true;
-
-    // TODO Stack for interrupts, see HackID1
-    array[10] = true;
-    array
-};
-
-fn allocate_page_frame() -> u64 {
-    // TODO make safe
-    // TODO make faster by not iterating instead storing next free page frame
-    unsafe {
-        for i in 0..MAX_PAGE_FRAMES - 1 {
-            if AVAILABLE_MEMORY[i] == false {
-                AVAILABLE_MEMORY[i] = true;
-                return i as u64 * 0x200000 as u64;
-            }
-        }
-    }
-
-    return 0;
 }
 
 fn _print_page_table_tree_for_cr3() {
@@ -357,7 +319,8 @@ impl Process {
     // According to AMD Volume 2, page 146
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         // Simple variant, only works for kernel memory
-        vaddr - 0xffff800000000000
+        // adding 1 page frame as heap has different mapping
+        vaddr - 0xffff800000000000 + 0x200000
 
         // TODO get this running
         /*let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 38;
