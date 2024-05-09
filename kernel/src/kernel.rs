@@ -35,7 +35,7 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
-    heap::init_heap();
+    heap::init_kernel_heap();
     gdt::init_gdt();
     interrupt::init_idt();
 

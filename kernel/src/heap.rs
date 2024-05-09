@@ -36,7 +36,7 @@ fn add_kernel_lower_l2_page_directory_table() -> u64 {
     return 0xffff800001400000;
 }
 
-pub fn init_heap() {
+pub fn init_kernel_heap() {
     // TODO add more / dynamic page frames
     // TODO do not start with new page frame, but start where kernel ends
 
