@@ -187,7 +187,6 @@ impl Process {
         unsafe {
             print_page_table_tree(KERNEL_CR3 as u64);
         }
-        // FIXME THIS IS BROKEN!
 
         unsafe {
             asm!(
@@ -254,18 +253,12 @@ impl Process {
                 core::ptr::write_volatile(stack_frame.add(4), self.ss);
             }
 
-            //  HIER!!!!!!!!
-            //schreibe zwar was in den Stack, aber dann lade ich per cr3 ja neues paging!!!!
-
-            // x /20xg 0xffffffffffcfffb8
             asm!(
                 "mov cr3, r15",
                 in("r15") self.cr3,
                 options(nostack, preserves_flags),
                 clobber_abi("C")
             );
-
-            //TSS_ENTRY.rsp0 = self.get_tss_rsp0();
         }
 
         self.state = ProcessState::Active;
@@ -320,22 +313,22 @@ impl Process {
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         // Simple variant, only works for kernel memory
         // adding 1 page frame as heap has different mapping
-        vaddr - 0xffff800000000000 + 0x200000
+        //vaddr - 0xffff800000000000 + 0x200000
 
         // TODO get this running
-        /*let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 38;
-        let page_directory_pointer_offset = (vaddr & 0x0000_007f_f000_0000) >> 29;
-        let page_directory_offset = (vaddr & 0x0000_000_ff80_0000) >> 20;
-        let page_offset = vaddr & 0x0000_000_007f_ffff;
+        let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 39;
+        let page_directory_pointer_offset = (vaddr & 0x0000_007f_c000_0000) >> 30;
+        let page_directory_offset = (vaddr & 0x0000_0000_3fe0_0000) >> 21;
+        let page_offset = vaddr & 0x0000_000_001f_f000;
 
         unsafe {
             let mut cr3: u64;
 
             asm!("mov {}, cr3", out(reg) cr3);
 
-            let page_map_l4_base_address = cr3 & 0x0008_ffff_ffff_f800;
+            let page_map_l4_base_address = cr3;
 
-            let entry_mask = 0x0008_ffff_ffff_f800;
+            let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 
             let page_directory_pointer_table_address =
                 *((page_map_l4_base_address + page_map_l4_table_offset * 8) as *const u64)
@@ -350,8 +343,8 @@ impl Process {
                 as *const u64)
                 & entry_mask;
 
-            return *((physical_page_address + page_offset) as *const u64);
-        }*/
+            return physical_page_address + page_offset;
+        }
     }
 
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {

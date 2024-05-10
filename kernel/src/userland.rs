@@ -45,13 +45,16 @@ impl Userland {
             self.processes[1].launch();
             self.processes[2].launch();
             self.processes[3].launch();
+
+            let c3_page_map_l4_base_address = self.processes[0].get_c3_page_map_l4_base_address();
+
             self.processes[0].activate(true);
 
             // FIXME this feels very wrong!
             mutex.force_unlock();
 
             jump_usermode(
-                self.processes[0].get_c3_page_map_l4_base_address(),
+                c3_page_map_l4_base_address,
                 self.processes[0].get_stack_top_address(),
                 self.processes[0].get_entry_ip(),
             );
