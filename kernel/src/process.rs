@@ -221,8 +221,8 @@ impl Process {
         self.rflags = 0x202;
         self.state = ProcessState::Prepared;
 
-        self.init_process_heap(v_addr, p_memsz);
-        kprint!("test alloc 5 bytes: {:x}\n", self.malloc(5));
+        //self.init_process_heap(v_addr, p_memsz);
+        //kprint!("test alloc 5 bytes: {:x}\n", self.malloc(5));
     }
 
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
