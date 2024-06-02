@@ -2,6 +2,7 @@ use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
+use linked_list_allocator;
 
 static mut KERNEL_CR3: u64 = 0;
 
@@ -112,6 +113,8 @@ pub struct Process {
     rflags: u64,
 
     state: ProcessState,
+
+    heap_allocator: linked_list_allocator::Heap,
 }
 
 impl Process {
@@ -131,6 +134,8 @@ impl Process {
             rflags: 0x202,
             rsp: 0,
             state: ProcessState::New,
+
+            heap_allocator: linked_list_allocator::Heap::empty(),
         }
     }
 
@@ -200,7 +205,8 @@ impl Process {
 
         self.rsp = 0xffff_ffff_ffff_ffff;
 
-        self.rip = Process::load_elf_from_bin();
+        let (entry, v_addr, p_memsz) = Process::load_elf_from_bin();
+        self.rip = entry;
 
         unsafe {
             asm!(
@@ -214,6 +220,31 @@ impl Process {
         self.cs = 0x23;
         self.rflags = 0x202;
         self.state = ProcessState::Prepared;
+
+        self.init_process_heap(v_addr, p_memsz);
+        kprint!("test alloc 5 bytes: {:x}\n", self.malloc(5));
+    }
+
+    fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        // TODO add more / dynamic page frames
+        // TODO do not start with new page frame, but start where kernel ends
+        unsafe {
+            self.heap_allocator = linked_list_allocator::Heap::new(
+                (v_addr + p_memsz) as *mut u8,
+                0x200000, // FIXME!!! This is too much, will lead to page faults; need to calculate end of page frame
+            );
+        }
+    }
+
+    pub fn malloc(&mut self, size: usize) -> u64 {
+        //core::alloc::GlobalAlloc::alloc_zeroed(&self, layout)
+        unsafe {
+            let layout = core::alloc::Layout::from_size_align_unchecked(size, 0);
+            match self.heap_allocator.allocate_first_fit(layout) {
+                Ok(address) => return address.as_ptr() as u64,
+                Err(error) => panic!("Problem allocating memory: {:?}", error),
+            }
+        }
     }
 
     pub fn launch(&mut self) {
@@ -362,7 +393,7 @@ impl Process {
         self.rip
     }
 
-    pub fn load_elf_from_bin() -> u64 {
+    pub fn load_elf_from_bin() -> (u64, u64, u64) {
         extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
@@ -402,6 +433,9 @@ impl Process {
                 .iter()
                 .filter(|phdr| phdr.p_type == PT_LOAD);
 
+            let mut last_v_addr: u64 = 0;
+            let mut last_p_memsz: u64 = 0;
+
             for phdr in program_headers {
                 kprint!(
                     "Load segment is at: {:x}\nMem Size is: {:x}\n",
@@ -420,10 +454,15 @@ impl Process {
                     out("rcx") _,
                     out("rsi") _,
                     out("rdi") _
-                )
+                );
+
+                if last_v_addr < phdr.p_vaddr {
+                    last_v_addr = phdr.p_vaddr;
+                    last_p_memsz = phdr.p_memsz;
+                }
             }
 
-            elf_header.e_entry
+            return (elf_header.e_entry, last_v_addr, last_p_memsz);
         }
     }
 }

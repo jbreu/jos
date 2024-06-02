@@ -1,8 +1,8 @@
-use core::{arch::asm, ops::Add};
+use core::arch::asm;
 
 use linked_list_allocator::LockedHeap;
 
-use crate::{kprint, mem::allocate_page_frame};
+use crate::mem::allocate_page_frame;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();

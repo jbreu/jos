@@ -1,4 +1,7 @@
-use core::arch::asm;
+use core::{
+    alloc::{self, Layout},
+    arch::asm,
+};
 
 //pid_t getppid(void);
 
@@ -87,12 +90,12 @@ pub fn malloc(size: usize) -> u64 {
 
             push r11
             push rcx
-        
+
             syscall
-        
+
             pop rcx
             pop r11
-            
+
             pop rdi
         ",
             in("r8") size,
