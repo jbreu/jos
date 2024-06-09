@@ -1,7 +1,4 @@
-use core::{
-    alloc::{self, Layout},
-    arch::asm,
-};
+use core::arch::asm;
 
 //pid_t getppid(void);
 

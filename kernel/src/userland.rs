@@ -24,6 +24,10 @@ impl Userland {
         }
     }
 
+    pub fn process_malloc(&mut self, size: usize) -> u64 {
+        return self.processes[self.current_process].malloc(size);
+    }
+
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
         extern "C" {
             fn jump_usermode(process_base_address: u64, stack_top_address: u64, entry_address: u64);
