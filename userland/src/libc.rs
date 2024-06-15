@@ -77,6 +77,34 @@ pub fn draw_pixel(x: u32, y: u32, color: u8) {
     }
 }
 
+pub fn malloc(size: usize) -> u64 {
+    let mut address: u64 = 0;
+
+    unsafe {
+        asm!("
+            push rdi
+            mov rdi, 4
+
+            push r11
+            push rcx
+
+            syscall
+
+            pop rcx
+            pop r11
+
+            pop rdi
+        ",
+            in("r8") size,
+            out("rax") address,
+            options(nostack),
+            clobber_abi("C")
+        );
+    }
+
+    return address;
+}
+
 pub struct Printer {}
 
 impl core::fmt::Write for Printer {
