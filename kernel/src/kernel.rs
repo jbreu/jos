@@ -40,8 +40,8 @@ pub extern "C" fn kernel_main() -> ! {
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
 
-    vga::vga_enter();
-    vga::vga_clear_screen();
+    //vga::vga_enter();
+    //vga::vga_clear_screen();
 
     //vga::vga_exit();
     //kprintln!("Back in text mode");
