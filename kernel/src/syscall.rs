@@ -18,11 +18,24 @@ pub extern "C" fn system_call() -> u64 {
         1 => return syscall_write(),
         2 => return syscall_getpid(),
         3 => return syscall_plot_pixel(),
+        4 => return syscall_malloc(),
         _ => {
             kprintln!("Undefined system call triggered");
             return 0xdeadbeef;
         }
     }
+}
+
+fn syscall_malloc() -> u64 {
+    let mut size: usize;
+
+    unsafe {
+        asm!("",
+            out("r8") size
+        );
+    }
+
+    return USERLAND.lock().process_malloc(size);
 }
 
 fn syscall_plot_pixel() -> u64 {

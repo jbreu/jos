@@ -6,3 +6,6 @@ version = "0.1.0"
 name = "helloworld"
 edition = "2021"
 path = "src/main.rs"
+
+[dependencies.linked_list_allocator]
+version = "0.10.5"
