@@ -6,10 +6,12 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 
 mod gdt;
+mod heap;
 mod interrupt;
 mod keyboard;
 mod kprint;
 mod logging;
+mod mem;
 mod process;
 mod syscall;
 mod time;
@@ -33,6 +35,7 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
+    heap::init_kernel_heap();
     gdt::init_gdt();
     interrupt::init_idt();
 
