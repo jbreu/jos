@@ -9,7 +9,7 @@
             "type": "gdb",
             "request": "attach",
             "executable": "dist/x86_64/kernel.bin",
-            "cwd": "${workspaceRoot}",
+            "cwd": "${workspaceFolder}",
             "valuesFormatting": "prettyPrinters",
             "target": ":1234",
             "remote": true,

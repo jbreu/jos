@@ -4,9 +4,8 @@ version = "0.1.0"
 
 [dependencies]
 
-[dependencies.heapless]
-version = "0.8.0"
-default-features = false
+[dependencies.linked_list_allocator]
+version = "0.10.5"
 
 [dependencies.spin]
 version = "0.9.8"

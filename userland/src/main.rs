@@ -14,7 +14,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub fn _start() {
     let mut x: u32 = 0;
-    let mut y: u32 = 0;
+    let mut y: u32 = libc::getpid() as u32 * 10;
 
     loop {
         libc::getpid();
