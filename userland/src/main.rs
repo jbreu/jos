@@ -22,8 +22,6 @@ pub fn _start() {
         printf!("Hellö Wörld! I am process {}", libc::getpid());
         libc::draw_pixel(x, y, libc::getpid() as u8);
 
-        printf!("test alloc 5 bytes: {:x}\n", libc::malloc(5));
-
         x += 1;
 
         if x == 320 {
