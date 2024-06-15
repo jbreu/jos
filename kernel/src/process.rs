@@ -208,6 +208,9 @@ impl Process {
         let (entry, v_addr, p_memsz) = Process::load_elf_from_bin();
         self.rip = entry;
 
+        self.init_process_heap(v_addr, p_memsz);
+        kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+
         unsafe {
             asm!(
                 "mov cr3, r15",
@@ -220,9 +223,6 @@ impl Process {
         self.cs = 0x23;
         self.rflags = 0x202;
         self.state = ProcessState::Prepared;
-
-        self.init_process_heap(v_addr, p_memsz);
-        kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
     }
 
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
@@ -230,7 +230,7 @@ impl Process {
         unsafe {
             self.heap_allocator.lock().init(
                 (v_addr + p_memsz + 1) as *mut u8,
-                0x200000, // FIXME!!! This is too much, will lead to page faults; need to calculate end of page frame
+                0x10000, // FIXME!!! This is a random value, will likely lead to page faults if bigger amounts will be allocated; need to calculate end of page frame
             );
         }
     }
