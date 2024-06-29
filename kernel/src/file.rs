@@ -12,7 +12,7 @@ pub fn fopen() -> u64 {
 
     unsafe {
         kprint!(
-            "embedded elf file\nstart: {:x}\n  end: {:x}\n",
+            "embedded doom1.wad file\nstart: {:x}\n  end: {:x}\n",
             addr_of!(_binary_doom1_wad_start) as *const u8 as usize,
             addr_of!(_binary_doom1_wad_end) as *const u8 as usize
         );
@@ -24,6 +24,7 @@ pub fn fopen() -> u64 {
 
         let first_page = allocate_page_frame();
         let second_page = allocate_page_frame();
+        let third_page = allocate_page_frame();
 
         asm!(
             "mov rcx, {}
