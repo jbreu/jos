@@ -13,6 +13,8 @@ build-x86_64: $(x86_64_asm_object_files)
 	cargo rustc --manifest-path userland/Cargo.toml --target-dir build/userspace/ -- -C relocation-model=static -C no-redzone=on -C target-feature=-sse
 	mkdir -p dist/x86_64 && \
 	objcopy --input binary --output elf64-x86-64 --binary-architecture i386 build/userspace/x86_64-unknown-none/debug/helloworld build/userspace/x86_64-unknown-none/debug/helloworld.o && \
-	x86_64-elf-ld -n -o dist/x86_64/kernel.bin --unresolved-symbols=report-all -z noexecstack -T targets/x86_64/linker.ld $(x86_64_asm_object_files) build/kernel/x86_64-unknown-none/debug/libjos.a build/userspace/x86_64-unknown-none/debug/helloworld.o && \
+	wget https://github.com/Daivuk/PureDOOM/raw/master/doom1.wad -N
+	objcopy --input binary --output elf64-x86-64 --binary-architecture i386 doom1.wad build/userspace/x86_64-unknown-none/debug/doom1.o && \
+	x86_64-elf-ld -n -o dist/x86_64/kernel.bin --unresolved-symbols=report-all -z noexecstack -T targets/x86_64/linker.ld $(x86_64_asm_object_files) build/kernel/x86_64-unknown-none/debug/libjos.a build/userspace/x86_64-unknown-none/debug/helloworld.o build/userspace/x86_64-unknown-none/debug/doom1.o && \
 	cp dist/x86_64/kernel.bin targets/x86_64/iso/boot/kernel.bin && \
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso targets/x86_64/iso

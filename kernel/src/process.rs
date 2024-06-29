@@ -1,3 +1,4 @@
+use crate::file;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
@@ -210,6 +211,8 @@ impl Process {
 
         self.init_process_heap(v_addr, p_memsz);
         kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+
+        file::fopen();
 
         unsafe {
             asm!(
