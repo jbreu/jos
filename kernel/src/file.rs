@@ -20,25 +20,6 @@ pub fn fopen() -> u64 {
         let size = addr_of!(_binary_doom1_wad_end) as *const u8 as usize
             - addr_of!(_binary_doom1_wad_start) as *const u8 as usize;
 
-        let slice = core::slice::from_raw_parts(addr_of!(_binary_doom1_wad_start), size);
-
-        let first_page = allocate_page_frame();
-        let second_page = allocate_page_frame();
-        let third_page = allocate_page_frame();
-
-        asm!(
-            "mov rcx, {}
-            mov rsi, {}
-            mov rdi, {}
-            rep movsb",
-            in(reg) size,
-            in(reg) _binary_doom1_wad_start as usize,
-            in(reg) first_page,
-            out("rcx") _,
-            out("rsi") _,
-            out("rdi") _
-        );
-
-        return first_page;
+        return 0;
     }
 }
