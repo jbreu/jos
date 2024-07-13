@@ -56,3 +56,7 @@ pub fn fseek(offset: usize, origin: usize) {
         }
     }
 }
+
+pub fn ftell() -> usize {
+    return unsafe { FILE_POSITION };
+}

@@ -177,6 +177,32 @@ pub fn fseek(offset: usize, origin: usize) {
     }
 }
 
+pub fn ftell() -> u64 {
+    let mut position: u64 = 0;
+
+    unsafe {
+        asm!(
+            "
+            push rdi
+            mov rdi, 8
+
+            push r11
+            push rcx
+        
+            syscall
+        
+            pop rcx
+            pop r11
+            pop rdi
+            ",
+            options(nostack),
+            out("rax") position,
+        );
+    }
+
+    return position;
+}
+
 //size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 pub fn fread(ptr: *mut u8, size: usize, nmemb: usize) {
     unsafe {
