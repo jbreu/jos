@@ -1,4 +1,4 @@
-use crate::file::{self, fopen, fread, fseek, ftell};
+use crate::file::{self, feof, fopen, fread, fseek, ftell};
 use crate::vga::{vga_flip, vga_plot_pixel};
 use crate::USERLAND;
 use crate::{kprintln, logging::log};
@@ -24,11 +24,16 @@ pub extern "C" fn system_call() -> u64 {
         6 => return syscall_fread(),
         7 => return syscall_fseek(),
         8 => return syscall_ftell(),
+        9 => return syscall_feof(),
         _ => {
             kprintln!("Undefined system call triggered");
             return 0xdeadbeef;
         }
     }
+}
+
+fn syscall_feof() -> u64 {
+    return feof();
 }
 
 fn syscall_ftell() -> u64 {

@@ -38,5 +38,6 @@ pub fn _start() {
         libc::fread(heap_mem as *mut u8, 8, 8);
         libc::fseek(64, 0);
         printf!("ftell: {}\n", libc::ftell());
+        printf!("feof: {}\n", libc::feof());
     }
 }

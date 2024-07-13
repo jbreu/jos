@@ -44,14 +44,18 @@ pub fn fread(ptr: *mut u8, num_bytes: usize) {
 
 pub fn fseek(offset: usize, origin: usize) {
     extern "C" {
-        static mut _binary_doom1_wad_end: usize;
+        static mut _binary_doom1_wad_start: u8;
+        static mut _binary_doom1_wad_end: u8;
     }
 
     unsafe {
+        let size = addr_of!(_binary_doom1_wad_end) as *const u8 as usize
+            - addr_of!(_binary_doom1_wad_start) as *const u8 as usize;
+
         match origin {
             0 => FILE_POSITION = offset,
             1 => FILE_POSITION = FILE_POSITION + offset,
-            2 => FILE_POSITION = _binary_doom1_wad_end - offset,
+            2 => FILE_POSITION = size - offset,
             _ => panic!("undefined fseek"),
         }
     }
@@ -59,4 +63,22 @@ pub fn fseek(offset: usize, origin: usize) {
 
 pub fn ftell() -> usize {
     return unsafe { FILE_POSITION };
+}
+
+pub fn feof() -> u64 {
+    extern "C" {
+        static mut _binary_doom1_wad_start: u8;
+        static mut _binary_doom1_wad_end: u8;
+    }
+
+    unsafe {
+        let size = addr_of!(_binary_doom1_wad_end) as *const u8 as usize
+            - addr_of!(_binary_doom1_wad_start) as *const u8 as usize;
+
+        if FILE_POSITION > size {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
 }

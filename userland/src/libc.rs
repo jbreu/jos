@@ -177,6 +177,32 @@ pub fn fseek(offset: usize, origin: usize) {
     }
 }
 
+pub fn feof() -> u64 {
+    let mut eof: u64 = 0;
+
+    unsafe {
+        asm!(
+            "
+            push rdi
+            mov rdi, 9
+
+            push r11
+            push rcx
+        
+            syscall
+        
+            pop rcx
+            pop r11
+            pop rdi
+            ",
+            options(nostack),
+            out("rax") eof,
+        );
+    }
+
+    return eof;
+}
+
 pub fn ftell() -> u64 {
     let mut position: u64 = 0;
 
