@@ -16,6 +16,8 @@ pub fn _start() {
     let mut x: u32 = 0;
     let mut y: u32 = libc::getpid() as u32 * 10;
 
+    let heap_mem = libc::malloc(64);
+
     loop {
         libc::getpid();
         printf!("Test\n");
@@ -32,5 +34,8 @@ pub fn _start() {
         if y == 200 {
             y = 0;
         }
+
+        libc::fread(heap_mem as *mut u8, 8, 8);
+        libc::fseek(64, 0);
     }
 }

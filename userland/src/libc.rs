@@ -1,6 +1,26 @@
-use core::arch::asm;
+extern crate alloc;
+use alloc::vec::Vec;
+use core::alloc::{GlobalAlloc, Layout};
+use core::{arch::asm, str::Bytes};
 
-//pid_t getppid(void);
+pub struct ProcessAllocator {}
+
+impl ProcessAllocator {
+    pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {}
+}
+
+unsafe impl GlobalAlloc for ProcessAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        malloc(layout.size()) as *mut u8
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        todo!();
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: ProcessAllocator = ProcessAllocator {};
 
 pub fn getpid() -> u64 {
     let mut _pid = 0xdeadbeef;
@@ -103,6 +123,82 @@ pub fn malloc(size: usize) -> u64 {
     }
 
     return address;
+}
+
+pub fn fopen() {
+    unsafe {
+        asm!(
+            "
+            push rdi
+            mov rdi, 5
+
+            push r11
+            push rcx
+        
+            syscall
+        
+            pop rcx
+            pop r11
+            pop rdi
+            ",
+            options(nostack)
+        );
+    }
+}
+
+pub fn fclose() {
+    // TODO does nothing for now
+}
+
+pub fn fwrite() {
+    // TODO does nothing for now
+}
+
+pub fn fseek(offset: usize, origin: usize) {
+    unsafe {
+        asm!(
+            "
+            push rdi
+            mov rdi, 7
+
+            push r11
+            push rcx
+        
+            syscall
+        
+            pop rcx
+            pop r11
+            pop rdi
+            ",
+            options(nostack),
+            in("r8") offset,
+            in("r9") origin,
+        );
+    }
+}
+
+//size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+pub fn fread(ptr: *mut u8, size: usize, nmemb: usize) {
+    unsafe {
+        asm!(
+            "
+            push rdi
+            mov rdi, 6
+
+            push r11
+            push rcx
+        
+            syscall
+        
+            pop rcx
+            pop r11
+            pop rdi
+            ",
+            options(nostack),
+            in("r8") ptr,
+            in("r9") size*nmemb,
+        );
+    }
 }
 
 pub struct Printer {}
