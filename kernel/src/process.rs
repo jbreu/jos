@@ -1,3 +1,4 @@
+use crate::file;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
@@ -146,8 +147,8 @@ impl Process {
         // TODO only one page (2MB) yet!
         self.l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
-        // TODO HackID1: Fixed kernel stack for interrupts (starts at 20 MByte)
-        self.l2_page_directory_table.entry[510] = 10 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
+        // TODO HackID1: Fixed kernel stack for interrupts (starts at 40 MByte)
+        self.l2_page_directory_table.entry[510] = 20 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
 
         self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
@@ -210,6 +211,8 @@ impl Process {
 
         self.init_process_heap(v_addr, p_memsz);
         kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+
+        file::fopen();
 
         unsafe {
             asm!(

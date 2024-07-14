@@ -20,20 +20,20 @@ fn add_kernel_lower_l2_page_directory_table() -> u64 {
         let l2_page_directory_table_start =
             (*l3_page_directory_pointer_table_start & entry_mask) as *mut u64;
 
-        *l2_page_directory_table_start.add(10) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(11) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(12) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(13) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(14) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(15) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(16) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(17) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(18) = allocate_page_frame() | 0x83;
-        *l2_page_directory_table_start.add(19) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(20) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(21) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(22) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(23) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(24) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(25) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(26) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(27) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(28) = allocate_page_frame() | 0x83;
+        *l2_page_directory_table_start.add(29) = allocate_page_frame() | 0x83;
     }
 
-    // TODO this is hard coded, as we are adding to the 10th entry above --> make it dynmic
-    return 0xffff800001400000;
+    // TODO this is hard coded, as we are adding to the 10th entry above --> make it dynamic
+    return 0xffff800002800000;
 }
 
 pub fn init_kernel_heap() {
