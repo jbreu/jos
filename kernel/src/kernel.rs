@@ -5,6 +5,7 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+mod file;
 mod gdt;
 mod heap;
 mod interrupt;
@@ -43,8 +44,8 @@ pub extern "C" fn kernel_main() -> ! {
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
 
-    vga::vga_enter();
-    vga::vga_clear_screen();
+    //vga::vga_enter();
+    //vga::vga_clear_screen();
 
     //vga::vga_exit();
     //kprintln!("Back in text mode");

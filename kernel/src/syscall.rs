@@ -1,3 +1,4 @@
+use crate::file::{self, feof, fopen, fread, fseek, ftell};
 use crate::vga::{vga_flip, vga_plot_pixel};
 use crate::USERLAND;
 use crate::{kprintln, logging::log};
@@ -19,11 +20,62 @@ pub extern "C" fn system_call() -> u64 {
         2 => return syscall_getpid(),
         3 => return syscall_plot_pixel(),
         4 => return syscall_malloc(),
+        5 => return syscall_fopen(),
+        6 => return syscall_fread(),
+        7 => return syscall_fseek(),
+        8 => return syscall_ftell(),
+        9 => return syscall_feof(),
         _ => {
             kprintln!("Undefined system call triggered");
             return 0xdeadbeef;
         }
     }
+}
+
+fn syscall_feof() -> u64 {
+    return feof();
+}
+
+fn syscall_ftell() -> u64 {
+    return ftell() as u64;
+}
+
+fn syscall_fseek() -> u64 {
+    let mut offset: usize;
+    let mut origin: usize;
+
+    unsafe {
+        asm!("",
+            out("r8") offset,
+            out("r9") origin,
+        );
+    }
+
+    fseek(offset, origin);
+
+    return 0;
+}
+
+fn syscall_fread() -> u64 {
+    let mut ptr: u64;
+    let mut num_bytes: usize;
+
+    unsafe {
+        asm!("",
+            out("r8") ptr,
+            out("r9") num_bytes,
+        );
+    }
+
+    fread(ptr as *mut u8, num_bytes);
+
+    return 0;
+}
+
+fn syscall_fopen() -> u64 {
+    fopen();
+
+    return 0;
 }
 
 fn syscall_malloc() -> u64 {

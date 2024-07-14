@@ -17,8 +17,19 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array[8] = true;
     array[9] = true;
 
-    // TODO Stack for interrupts, see HackID1
     array[10] = true;
+    array[11] = true;
+    array[12] = true;
+    array[13] = true;
+    array[14] = true;
+    array[15] = true;
+    array[16] = true;
+    array[17] = true;
+    array[18] = true;
+    array[19] = true;
+
+    // TODO Stack for interrupts, see HackID1
+    array[20] = true;
     array
 };
 

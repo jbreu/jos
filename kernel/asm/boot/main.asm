@@ -83,7 +83,7 @@ setup_page_tables:
 	mov [page_table_l2 + ecx * 8], eax
 
 	inc ecx ; increment counter
-	cmp ecx, 10 ; checks if the whole table is mapped
+	cmp ecx, 20 ; checks if the whole table is mapped
 	; cmp ecx, 512 ; checks if the whole table is mapped
 	jne .loop ; if not, continue
 
