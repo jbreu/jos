@@ -1,6 +1,9 @@
+use crate::file;
 use crate::kprint;
+use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
+use linked_list_allocator::LockedHeap;
 
 static mut KERNEL_CR3: u64 = 0;
 
@@ -36,45 +39,6 @@ impl PageTable {
     fn default() -> Self {
         Self { entry: [0; 512] }
     }
-}
-
-// TODO make more elegant
-// available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
-
-const MAX_PAGE_FRAMES: usize = 64;
-static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
-    let mut array = [false; MAX_PAGE_FRAMES];
-
-    // some page frames are already allocated in main.asm -> setup_page_tables
-    array[0] = true;
-    array[1] = true;
-    array[2] = true;
-    array[3] = true;
-    array[4] = true;
-    array[5] = true;
-    array[6] = true;
-    array[7] = true;
-    array[8] = true;
-    array[9] = true;
-
-    // TODO Stack for interrupts, see HackID1
-    array[10] = true;
-    array
-};
-
-fn allocate_page_frame() -> u64 {
-    // TODO make safe
-    // TODO make faster by not iterating instead storing next free page frame
-    unsafe {
-        for i in 0..MAX_PAGE_FRAMES - 1 {
-            if AVAILABLE_MEMORY[i] == false {
-                AVAILABLE_MEMORY[i] = true;
-                return i as u64 * 0x200000 as u64;
-            }
-        }
-    }
-
-    return 0;
 }
 
 fn _print_page_table_tree_for_cr3() {
@@ -150,6 +114,8 @@ pub struct Process {
     rflags: u64,
 
     state: ProcessState,
+
+    heap_allocator: linked_list_allocator::LockedHeap,
 }
 
 impl Process {
@@ -169,6 +135,8 @@ impl Process {
             rflags: 0x202,
             rsp: 0,
             state: ProcessState::New,
+
+            heap_allocator: linked_list_allocator::LockedHeap::empty(),
         }
     }
 
@@ -179,8 +147,8 @@ impl Process {
         // TODO only one page (2MB) yet!
         self.l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
-        // TODO HackID1: Fixed kernel stack for interrupts (starts at 20 MByte)
-        self.l2_page_directory_table.entry[510] = 10 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
+        // TODO HackID1: Fixed kernel stack for interrupts (starts at 40 MByte)
+        self.l2_page_directory_table.entry[510] = 20 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
 
         self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
@@ -225,7 +193,6 @@ impl Process {
         unsafe {
             print_page_table_tree(KERNEL_CR3 as u64);
         }
-        // FIXME THIS IS BROKEN!
 
         unsafe {
             asm!(
@@ -239,7 +206,13 @@ impl Process {
 
         self.rsp = 0xffff_ffff_ffff_ffff;
 
-        self.rip = Process::load_elf_from_bin();
+        let (entry, v_addr, p_memsz) = Process::load_elf_from_bin();
+        self.rip = entry;
+
+        self.init_process_heap(v_addr, p_memsz);
+        kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+
+        file::fopen();
 
         unsafe {
             asm!(
@@ -253,6 +226,26 @@ impl Process {
         self.cs = 0x23;
         self.rflags = 0x202;
         self.state = ProcessState::Prepared;
+    }
+
+    fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        // TODO add more / dynamic page frames
+        unsafe {
+            self.heap_allocator.lock().init(
+                (v_addr + p_memsz + 1) as *mut u8,
+                0x10000, // FIXME!!! This is a random value, will likely lead to page faults if bigger amounts will be allocated; need to calculate end of page frame
+            );
+        }
+    }
+
+    pub fn malloc(&mut self, size: usize) -> u64 {
+        unsafe {
+            let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
+            match self.heap_allocator.lock().allocate_first_fit(layout) {
+                Ok(address) => return address.as_ptr() as u64,
+                Err(error) => panic!("Problem allocating memory: {:?}", error), //TODO allocate more memory if not sufficient amount is available
+            }
+        }
     }
 
     pub fn launch(&mut self) {
@@ -292,18 +285,12 @@ impl Process {
                 core::ptr::write_volatile(stack_frame.add(4), self.ss);
             }
 
-            //  HIER!!!!!!!!
-            //schreibe zwar was in den Stack, aber dann lade ich per cr3 ja neues paging!!!!
-
-            // x /20xg 0xffffffffffcfffb8
             asm!(
                 "mov cr3, r15",
                 in("r15") self.cr3,
                 options(nostack, preserves_flags),
                 clobber_abi("C")
             );
-
-            //TSS_ENTRY.rsp0 = self.get_tss_rsp0();
         }
 
         self.state = ProcessState::Active;
@@ -357,22 +344,23 @@ impl Process {
     // According to AMD Volume 2, page 146
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         // Simple variant, only works for kernel memory
-        vaddr - 0xffff800000000000
+        // adding 1 page frame as heap has different mapping
+        //vaddr - 0xffff800000000000 + 0x200000
 
         // TODO get this running
-        /*let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 38;
-        let page_directory_pointer_offset = (vaddr & 0x0000_007f_f000_0000) >> 29;
-        let page_directory_offset = (vaddr & 0x0000_000_ff80_0000) >> 20;
-        let page_offset = vaddr & 0x0000_000_007f_ffff;
+        let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 39;
+        let page_directory_pointer_offset = (vaddr & 0x0000_007f_c000_0000) >> 30;
+        let page_directory_offset = (vaddr & 0x0000_0000_3fe0_0000) >> 21;
+        let page_offset = vaddr & 0x0000_000_001f_f000;
 
         unsafe {
             let mut cr3: u64;
 
             asm!("mov {}, cr3", out(reg) cr3);
 
-            let page_map_l4_base_address = cr3 & 0x0008_ffff_ffff_f800;
+            let page_map_l4_base_address = cr3;
 
-            let entry_mask = 0x0008_ffff_ffff_f800;
+            let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 
             let page_directory_pointer_table_address =
                 *((page_map_l4_base_address + page_map_l4_table_offset * 8) as *const u64)
@@ -387,8 +375,8 @@ impl Process {
                 as *const u64)
                 & entry_mask;
 
-            return *((physical_page_address + page_offset) as *const u64);
-        }*/
+            return physical_page_address + page_offset;
+        }
     }
 
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
@@ -406,7 +394,7 @@ impl Process {
         self.rip
     }
 
-    pub fn load_elf_from_bin() -> u64 {
+    pub fn load_elf_from_bin() -> (u64, u64, u64) {
         extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
@@ -446,6 +434,9 @@ impl Process {
                 .iter()
                 .filter(|phdr| phdr.p_type == PT_LOAD);
 
+            let mut last_v_addr: u64 = 0;
+            let mut last_p_memsz: u64 = 0;
+
             for phdr in program_headers {
                 kprint!(
                     "Load segment is at: {:x}\nMem Size is: {:x}\n",
@@ -464,10 +455,15 @@ impl Process {
                     out("rcx") _,
                     out("rsi") _,
                     out("rdi") _
-                )
+                );
+
+                if last_v_addr < phdr.p_vaddr {
+                    last_v_addr = phdr.p_vaddr;
+                    last_p_memsz = phdr.p_memsz;
+                }
             }
 
-            elf_header.e_entry
+            return (elf_header.e_entry, last_v_addr, last_p_memsz);
         }
     }
 }

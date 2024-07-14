@@ -1,34 +1,31 @@
-use heapless::Vec;
 use spin::Mutex;
 
 use crate::process::Process;
 use crate::USERLAND;
+
+extern crate alloc;
+use alloc::vec::Vec;
+
 use core::arch::global_asm;
 
 global_asm!(include_str!("switch_to_ring3.S"));
 
 //#[derive(Default)]
 pub struct Userland {
-    processes: Vec<Process, 4>,
+    processes: Vec<Process>,
     current_process: usize,
 }
 
 impl Userland {
     pub fn new() -> Self {
-        let mut processes = Vec::<_, 4>::new();
-        let _ = processes.push(Process::new());
-        processes[0].initialize();
-        let _ = processes.push(Process::new());
-        processes[1].initialize();
-        let _ = processes.push(Process::new());
-        processes[2].initialize();
-        let _ = processes.push(Process::new());
-        processes[3].initialize();
-
         Self {
-            processes: processes,
+            processes: Vec::new(),
             current_process: 0,
         }
+    }
+
+    pub fn process_malloc(&mut self, size: usize) -> u64 {
+        return self.processes[self.current_process].malloc(size);
     }
 
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
@@ -37,19 +34,31 @@ impl Userland {
         }
 
         unsafe {
+            self.processes.push(Process::new());
+            self.processes.push(Process::new());
+            self.processes.push(Process::new());
+            self.processes.push(Process::new());
+
+            for process in &mut self.processes {
+                process.initialize();
+            }
+
             self.current_process = 0;
 
             self.processes[0].launch();
             self.processes[1].launch();
             self.processes[2].launch();
             self.processes[3].launch();
+
+            let c3_page_map_l4_base_address = self.processes[0].get_c3_page_map_l4_base_address();
+
             self.processes[0].activate(true);
 
             // FIXME this feels very wrong!
             mutex.force_unlock();
 
             jump_usermode(
-                self.processes[0].get_c3_page_map_l4_base_address(),
+                c3_page_map_l4_base_address,
                 self.processes[0].get_stack_top_address(),
                 self.processes[0].get_entry_ip(),
             );
