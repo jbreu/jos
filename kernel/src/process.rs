@@ -12,6 +12,14 @@ static mut KERNEL_CR3: u64 = 0;
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
+    xmm7: u128,
+    xmm6: u128,
+    xmm5: u128,
+    xmm4: u128,
+    xmm3: u128,
+    xmm2: u128,
+    xmm1: u128,
+    xmm0: u128,
     r15: u64,
     r14: u64,
     r13: u64,
@@ -163,6 +171,8 @@ impl Process {
 
         self.l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[2] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[3] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table_beginning as *const _ as u64,
@@ -263,6 +273,14 @@ impl Process {
             kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
 
             if !initial_start {
+                (*pushed_registers).xmm7 = self.registers.xmm7;
+                (*pushed_registers).xmm6 = self.registers.xmm6;
+                (*pushed_registers).xmm5 = self.registers.xmm5;
+                (*pushed_registers).xmm4 = self.registers.xmm4;
+                (*pushed_registers).xmm3 = self.registers.xmm3;
+                (*pushed_registers).xmm2 = self.registers.xmm2;
+                (*pushed_registers).xmm1 = self.registers.xmm1;
+                (*pushed_registers).xmm0 = self.registers.xmm0;
                 (*pushed_registers).r15 = self.registers.r15;
                 (*pushed_registers).r14 = self.registers.r14;
                 (*pushed_registers).r13 = self.registers.r13;
@@ -304,7 +322,14 @@ impl Process {
 
         unsafe {
             //kprint!("Stack frame: {:x}\n", stack_frame as u64);
-
+            self.registers.xmm7 = (*pushed_registers).xmm7;
+            self.registers.xmm6 = (*pushed_registers).xmm6;
+            self.registers.xmm5 = (*pushed_registers).xmm5;
+            self.registers.xmm4 = (*pushed_registers).xmm4;
+            self.registers.xmm3 = (*pushed_registers).xmm3;
+            self.registers.xmm2 = (*pushed_registers).xmm2;
+            self.registers.xmm1 = (*pushed_registers).xmm1;
+            self.registers.xmm0 = (*pushed_registers).xmm0;
             self.registers.r15 = (*pushed_registers).r15;
             self.registers.r14 = (*pushed_registers).r14;
             self.registers.r13 = (*pushed_registers).r13;
