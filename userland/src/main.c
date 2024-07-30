@@ -1,4 +1,3 @@
-//#include <string.h>
 #include "libc.h"
 #define DOOM_IMPLEMENTATION 
 //#include "PureDOOM.h"
@@ -25,7 +24,7 @@ char* mini_getenv(const char* var) {
 
 //#define DOOM_IMPLEMENT_PRINT
 void mini_print(const char* str) {
-    write(1, str, 5); // FIXME: strlen(str));
+    write(1, str, strlen(str));
 }
 
 //#define DOOM_IMPLEMENT_EXIT 

@@ -1,11 +1,22 @@
-void write(int filedescriptor, const char* payload, int len) {
-    register int r8 asm("r8") = filedescriptor;
-    register int r9 asm("r9") = (int) payload;
-    register int r10 asm("r10") = len;
+#include <inttypes.h> 
+
+uint64_t strlen( const char* str ) {
+    int len = 0;
+
+    while (str[len] != '\0') {
+        len++;
+    }
+
+    return len;
+}
+
+void write(uint64_t filedescriptor, const char* payload, uint64_t len) {
+    register uint64_t r8 asm("r8") = filedescriptor;
+    register uintptr_t r9 asm("r9") = (uintptr_t) payload;
+    register uint64_t r10 asm("r10") = len;
 
     asm volatile (
         ".intel_syntax noprefix;"
-        "mov %1, %0;"
         "push rdi;"
         "mov rdi, 1;"
         "push r11;"
