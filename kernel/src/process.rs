@@ -173,6 +173,11 @@ impl Process {
         self.l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l2_page_directory_table_beginning.entry[2] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l2_page_directory_table_beginning.entry[3] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[4] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[5] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[6] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[7] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[8] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table_beginning as *const _ as u64,
@@ -239,11 +244,14 @@ impl Process {
     }
 
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        let heap_bottom = (v_addr + p_memsz + 1);
+        let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
+
         // TODO add more / dynamic page frames
         unsafe {
             self.heap_allocator.lock().init(
-                (v_addr + p_memsz + 1) as *mut u8,
-                0x10000, // FIXME!!! This is a random value, will likely lead to page faults if bigger amounts will be allocated; need to calculate end of page frame
+                heap_bottom as *mut u8,
+                heap_size as usize, // TODO Heap only uses the rest of the current page frame
             );
         }
     }
@@ -253,7 +261,11 @@ impl Process {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
             match self.heap_allocator.lock().allocate_first_fit(layout) {
                 Ok(address) => return address.as_ptr() as u64,
-                Err(error) => panic!("Problem allocating memory: {:?}", error), //TODO allocate more memory if not sufficient amount is available
+                Err(error) => {
+                    kprint!("Allocating memory failed!\n");
+                    kprint!("   Size: 0x{:x}\n", size);
+                    panic!("Problem allocating memory: {:?}", error) //TODO allocate more memory if not sufficient amount is available
+                }
             }
         }
     }
