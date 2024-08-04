@@ -26,7 +26,7 @@ pub extern "C" fn system_call() -> u64 {
         8 => return syscall_ftell(),
         9 => return syscall_feof(),
         _ => {
-            kprintln!("Undefined system call triggered");
+            kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
         }
     }
