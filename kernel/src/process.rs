@@ -494,6 +494,25 @@ impl Process {
                     out("rdi") _
                 );
 
+                if phdr.p_flags & 0x2 != 0 {
+                    // Writable segment --> BSS
+                    let bss_start = phdr.p_vaddr + phdr.p_filesz;
+                    let bss_size = phdr.p_memsz - phdr.p_filesz;
+
+                    // Zeroes the bss region
+                    asm!(
+                        "mov rcx, {}
+                        xor rsi, rsi
+                        mov rdi, {}
+                        rep movsb",
+                        in(reg) bss_size,
+                        in(reg) bss_start,
+                        out("rcx") _,
+                        out("rsi") _,
+                        out("rdi") _
+                    );
+                }
+
                 if last_v_addr < phdr.p_vaddr {
                     last_v_addr = phdr.p_vaddr;
                     last_p_memsz = phdr.p_memsz;

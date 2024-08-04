@@ -36,7 +36,12 @@ void _start() {
                       ftell,
                       feof);
 
-    doom_init(0, 0, 0);
+    const char * argv[] = {
+    "main",
+    "-shdev",
+    };
+
+    doom_init(2, argv, 0);
     while (true)
     {
         doom_update();
