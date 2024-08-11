@@ -1,5 +1,5 @@
 use crate::file::{self, feof, fopen, fread, fseek, ftell};
-use crate::vga::{vga_flip, vga_plot_pixel};
+use crate::vga::{vga_flip, vga_plot_framebuffer, vga_plot_pixel};
 use crate::USERLAND;
 use crate::{kprintln, logging::log};
 use core::arch::asm;
@@ -25,6 +25,7 @@ pub extern "C" fn system_call() -> u64 {
         7 => return syscall_fseek(),
         8 => return syscall_ftell(),
         9 => return syscall_feof(),
+        10 => return syscall_plot_framebuffer(),
         _ => {
             kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -135,6 +136,22 @@ fn syscall_write() -> u64 {
             Err(_) => kprintln!("\nCouldnt reconstruct string!\n"),
         }
     }
+
+    return 0;
+}
+
+fn syscall_plot_framebuffer() -> u64 {
+    let mut framebuffer: u64;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") framebuffer,
+        );
+    }
+
+    vga_plot_framebuffer(framebuffer as *const u8);
+    vga_flip();
 
     return 0;
 }

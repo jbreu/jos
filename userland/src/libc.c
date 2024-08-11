@@ -254,3 +254,25 @@ uint64_t fread(void* handle, void* ptr, uint64_t size) {
 
     return read_bytes;
 }
+
+uint64_t draw_framebuffer(const uint8_t* framebuffer) {
+    register uintptr_t r8 asm("r8") = (uintptr_t) framebuffer;
+
+    asm volatile (
+        ".intel_syntax noprefix;"
+        "push rdi;"
+        "mov rdi, 10;"
+        "push r11;"
+        "push rcx;"
+        "syscall;"
+        "pop rcx;"
+        "pop r11;"
+        "pop rdi;"
+        ".att_syntax;"
+        :
+        : "r" (r8)
+        : "rdi", "r11", "rcx"
+    );
+
+    return 0;
+}

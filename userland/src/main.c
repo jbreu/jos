@@ -46,6 +46,8 @@ void _start() {
     doom_init(2, argv, 0);
     while (true)
     {
-        doom_update();
+        doom_force_update();
+        draw_framebuffer(doom_get_framebuffer(1));
+        //doom_key_down(DOOM_KEY_DOWN_ARROW);
     }
 }

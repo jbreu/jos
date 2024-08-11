@@ -12,5 +12,6 @@ uint64_t fseek(void* handle, uint64_t offset, uint64_t origin);
 uint64_t feof(void* handle);
 uint64_t ftell(void* handle);
 uint64_t fread(void* handle, void* ptr, uint64_t size);
+uint64_t draw_framebuffer(const uint8_t* framebuffer);
 
 void write(int filedescriptor, const char* payload, int len);
