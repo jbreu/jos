@@ -51,9 +51,7 @@ fn syscall_fseek() -> u64 {
         );
     }
 
-    fseek(offset, origin);
-
-    return 0;
+    return fseek(offset, origin);
 }
 
 fn syscall_fread() -> u64 {
@@ -67,15 +65,11 @@ fn syscall_fread() -> u64 {
         );
     }
 
-    fread(ptr as *mut u8, num_bytes);
-
-    return 0;
+    return fread(ptr as *mut u8, num_bytes);
 }
 
 fn syscall_fopen() -> u64 {
-    fopen();
-
-    return 0;
+    return fopen();
 }
 
 fn syscall_malloc() -> u64 {

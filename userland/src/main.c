@@ -3,6 +3,8 @@
 #include "PureDOOM.h"
 
 char* mini_getenv(const char* var) {
+    write(1, "getenv: ", strlen("getenv: "));
+    write(1, var, strlen(var));
     return ".";
 }
 

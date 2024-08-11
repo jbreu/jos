@@ -1,13 +1,14 @@
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
+use core::ops::Deref;
 use core::ptr::addr_of;
 use core::{mem, num};
 use core::{panic, ptr};
 
 static mut FILE_POSITION: usize = 0;
 
-pub fn fopen() {
+pub fn fopen() -> u64 {
     extern "C" {
         static mut _binary_doom1_wad_start: u8;
         static mut _binary_doom1_wad_end: u8;
@@ -23,26 +24,30 @@ pub fn fopen() {
         let size = addr_of!(_binary_doom1_wad_end) as *const u8 as usize
             - addr_of!(_binary_doom1_wad_start) as *const u8 as usize;
     }
+
+    return 0;
 }
 
-pub fn fread(ptr: *mut u8, num_bytes: usize) {
+pub fn fread(ptr: *mut u8, num_bytes: usize) -> u64 {
     extern "C" {
-        static mut _binary_doom1_wad_start: *mut u8;
+        static mut _binary_doom1_wad_start: u8;
     }
 
     unsafe {
         for i in 0..num_bytes {
-            core::ptr::write_volatile(
-                ptr.add(i),
-                _binary_doom1_wad_start.add(FILE_POSITION + i) as u8,
-            );
+            let dst = ptr.add(i);
+            let src = addr_of!(_binary_doom1_wad_start).byte_add(FILE_POSITION + i);
+
+            core::ptr::write_volatile(dst, *src);
         }
 
         FILE_POSITION += num_bytes;
     }
+
+    return num_bytes as u64;
 }
 
-pub fn fseek(offset: usize, origin: usize) {
+pub fn fseek(offset: usize, origin: usize) -> u64 {
     extern "C" {
         static mut _binary_doom1_wad_start: u8;
         static mut _binary_doom1_wad_end: u8;
@@ -59,6 +64,8 @@ pub fn fseek(offset: usize, origin: usize) {
             _ => panic!("undefined fseek"),
         }
     }
+
+    return 0;
 }
 
 pub fn ftell() -> usize {
