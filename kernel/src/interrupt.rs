@@ -107,13 +107,30 @@ pub extern "C" fn irq_handler(int_no: u64) {
         }
         // Keyboard action
         1 => {
-            let mut key: i8;
+            let mut scancode: i8;
 
             unsafe {
-                asm!("in al, dx", out("al") key, in("rdx") 0x60);
+                asm!("in al, dx", out("al") scancode, in("rdx") 0x60);
             }
 
-            kprint!("{}", keyboard::get_key_for_scancode(key as u8));
+            let key = keyboard::get_key_for_scancode(scancode as u8);
+
+            kprint!("{}", key);
+
+            let lcontrol: char = 0x1d as char;
+
+            unsafe {
+                match key {
+                    'w' => keyboard::KEYSTATES[0] = true,
+                    'a' => keyboard::KEYSTATES[1] = true,
+                    's' => keyboard::KEYSTATES[2] = true,
+                    'd' => keyboard::KEYSTATES[3] = true,
+                    ' ' => keyboard::KEYSTATES[5] = true,
+                    _ if key == lcontrol => keyboard::KEYSTATES[4] = true,
+                    _ if key == '\n' => keyboard::KEYSTATES[6] = true,
+                    _ => {}
+                }
+            }
 
             userland::schedule();
         }

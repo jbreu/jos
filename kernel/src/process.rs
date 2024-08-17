@@ -3,7 +3,6 @@ use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
-use linked_list_allocator::LockedHeap;
 
 static mut KERNEL_CR3: u64 = 0;
 
@@ -12,6 +11,14 @@ static mut KERNEL_CR3: u64 = 0;
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
+    xmm7: u128,
+    xmm6: u128,
+    xmm5: u128,
+    xmm4: u128,
+    xmm3: u128,
+    xmm2: u128,
+    xmm1: u128,
+    xmm0: u128,
     r15: u64,
     r14: u64,
     r13: u64,
@@ -163,6 +170,13 @@ impl Process {
 
         self.l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[2] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[3] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[4] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[5] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[6] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[7] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table_beginning.entry[8] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table_beginning as *const _ as u64,
@@ -210,7 +224,7 @@ impl Process {
         self.rip = entry;
 
         self.init_process_heap(v_addr, p_memsz);
-        kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+        //kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
 
         file::fopen();
 
@@ -229,11 +243,14 @@ impl Process {
     }
 
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        let heap_bottom = v_addr + p_memsz + 1;
+        let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
+
         // TODO add more / dynamic page frames
         unsafe {
             self.heap_allocator.lock().init(
-                (v_addr + p_memsz + 1) as *mut u8,
-                0x10000, // FIXME!!! This is a random value, will likely lead to page faults if bigger amounts will be allocated; need to calculate end of page frame
+                heap_bottom as *mut u8,
+                heap_size as usize, // TODO Heap only uses the rest of the current page frame
             );
         }
     }
@@ -243,7 +260,11 @@ impl Process {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
             match self.heap_allocator.lock().allocate_first_fit(layout) {
                 Ok(address) => return address.as_ptr() as u64,
-                Err(error) => panic!("Problem allocating memory: {:?}", error), //TODO allocate more memory if not sufficient amount is available
+                Err(error) => {
+                    kprint!("Allocating memory failed!\n");
+                    kprint!("   Size: 0x{:x}\n", size);
+                    panic!("Problem allocating memory: {:?}", error) //TODO allocate more memory if not sufficient amount is available
+                }
             }
         }
     }
@@ -263,6 +284,14 @@ impl Process {
             kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
 
             if !initial_start {
+                (*pushed_registers).xmm7 = self.registers.xmm7;
+                (*pushed_registers).xmm6 = self.registers.xmm6;
+                (*pushed_registers).xmm5 = self.registers.xmm5;
+                (*pushed_registers).xmm4 = self.registers.xmm4;
+                (*pushed_registers).xmm3 = self.registers.xmm3;
+                (*pushed_registers).xmm2 = self.registers.xmm2;
+                (*pushed_registers).xmm1 = self.registers.xmm1;
+                (*pushed_registers).xmm0 = self.registers.xmm0;
                 (*pushed_registers).r15 = self.registers.r15;
                 (*pushed_registers).r14 = self.registers.r14;
                 (*pushed_registers).r13 = self.registers.r13;
@@ -304,7 +333,14 @@ impl Process {
 
         unsafe {
             //kprint!("Stack frame: {:x}\n", stack_frame as u64);
-
+            self.registers.xmm7 = (*pushed_registers).xmm7;
+            self.registers.xmm6 = (*pushed_registers).xmm6;
+            self.registers.xmm5 = (*pushed_registers).xmm5;
+            self.registers.xmm4 = (*pushed_registers).xmm4;
+            self.registers.xmm3 = (*pushed_registers).xmm3;
+            self.registers.xmm2 = (*pushed_registers).xmm2;
+            self.registers.xmm1 = (*pushed_registers).xmm1;
+            self.registers.xmm0 = (*pushed_registers).xmm0;
             self.registers.r15 = (*pushed_registers).r15;
             self.registers.r14 = (*pushed_registers).r14;
             self.registers.r13 = (*pushed_registers).r13;
@@ -456,6 +492,25 @@ impl Process {
                     out("rsi") _,
                     out("rdi") _
                 );
+
+                if phdr.p_flags & 0x2 != 0 {
+                    // Writable segment --> BSS
+                    let bss_start = phdr.p_vaddr + phdr.p_filesz;
+                    let bss_size = phdr.p_memsz - phdr.p_filesz;
+
+                    // Zeroes the bss region
+                    asm!(
+                        "mov rcx, {}
+                        xor rsi, rsi
+                        mov rdi, {}
+                        rep movsb",
+                        in(reg) bss_size,
+                        in(reg) bss_start,
+                        out("rcx") _,
+                        out("rsi") _,
+                        out("rdi") _
+                    );
+                }
 
                 if last_v_addr < phdr.p_vaddr {
                     last_v_addr = phdr.p_vaddr;

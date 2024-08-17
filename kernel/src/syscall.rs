@@ -1,6 +1,6 @@
-use crate::file::{self, feof, fopen, fread, fseek, ftell};
-use crate::vga::{vga_flip, vga_plot_pixel};
+use crate::file::{feof, fopen, fread, fseek, ftell};
 use crate::USERLAND;
+use crate::{keyboard, vga};
 use crate::{kprintln, logging::log};
 use core::arch::asm;
 
@@ -25,8 +25,11 @@ pub extern "C" fn system_call() -> u64 {
         7 => return syscall_fseek(),
         8 => return syscall_ftell(),
         9 => return syscall_feof(),
+        10 => return syscall_plot_framebuffer(),
+        11 => return syscall_switch_vga_mode(),
+        12 => return syscall_get_keystate(),
         _ => {
-            kprintln!("Undefined system call triggered");
+            kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
         }
     }
@@ -51,9 +54,7 @@ fn syscall_fseek() -> u64 {
         );
     }
 
-    fseek(offset, origin);
-
-    return 0;
+    return fseek(offset, origin);
 }
 
 fn syscall_fread() -> u64 {
@@ -67,15 +68,11 @@ fn syscall_fread() -> u64 {
         );
     }
 
-    fread(ptr as *mut u8, num_bytes);
-
-    return 0;
+    return fread(ptr as *mut u8, num_bytes);
 }
 
 fn syscall_fopen() -> u64 {
-    fopen();
-
-    return 0;
+    return fopen();
 }
 
 fn syscall_malloc() -> u64 {
@@ -104,8 +101,8 @@ fn syscall_plot_pixel() -> u64 {
         );
     }
 
-    vga_plot_pixel(x, y, color as u8);
-    vga_flip();
+    vga::vga_plot_pixel(x, y, color as u8);
+    vga::vga_flip();
 
     return 0;
 }
@@ -143,4 +140,60 @@ fn syscall_write() -> u64 {
     }
 
     return 0;
+}
+
+fn syscall_plot_framebuffer() -> u64 {
+    let mut framebuffer: u64;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") framebuffer,
+        );
+    }
+
+    vga::vga_plot_framebuffer(framebuffer as *const u8);
+    vga::vga_flip();
+
+    return 0;
+}
+
+fn syscall_switch_vga_mode() -> u64 {
+    let mut vga_on: u64;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") vga_on,
+        );
+    }
+
+    if vga_on != 0 {
+        vga::vga_enter();
+        vga::vga_clear_screen();
+    } else {
+        vga::vga_exit();
+    }
+
+    return 0;
+}
+
+fn syscall_get_keystate() -> u64 {
+    let mut key: usize;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") key,
+        );
+    }
+
+    let keystate;
+
+    unsafe {
+        keystate = keyboard::KEYSTATES[key];
+        keyboard::KEYSTATES[key] = false;
+    }
+
+    return keystate as u64;
 }
