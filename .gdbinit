@@ -28,3 +28,11 @@ define log_instructions
     stepi
   end
 end
+
+define print_palette
+  set $i = 0
+  while $i < 768
+    printf "%02x %02x %02x\n", *(palette + $i), *(palette + $i + 1), *(palette + $i + 2)
+    set $i = $i + 3
+  end
+end

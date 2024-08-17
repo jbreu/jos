@@ -32,10 +32,45 @@ int_no:
     push r13
     push r14
     push r15
+    
+    sub rsp,0x10
+    movdqu [rsp],xmm0
+    sub rsp,0x10
+    movdqu [rsp],xmm1
+    sub rsp,0x10
+    movdqu [rsp],xmm2
+    sub rsp,0x10
+    movdqu [rsp],xmm3
+    sub rsp,0x10
+    movdqu [rsp],xmm4
+    sub rsp,0x10
+    movdqu [rsp],xmm5
+    sub rsp,0x10
+    movdqu [rsp],xmm6
+    sub rsp,0x10
+    movdqu [rsp],xmm7
+    
     mov [rip + pushed_registers], rsp
 .endm
 
 .macro pop_all_registers
+    movdqu xmm7,[rsp]
+    add rsp,0x10
+    movdqu xmm6,[rsp]
+    add rsp,0x10
+    movdqu xmm5,[rsp]
+    add rsp,0x10
+    movdqu xmm4,[rsp]
+    add rsp,0x10
+    movdqu xmm3,[rsp]
+    add rsp,0x10
+    movdqu xmm2,[rsp]
+    add rsp,0x10
+    movdqu xmm1,[rsp]
+    add rsp,0x10
+    movdqu xmm0,[rsp]
+    add rsp,0x10
+
     pop r15
     pop r14 
     pop r13 
