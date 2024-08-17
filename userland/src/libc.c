@@ -95,12 +95,12 @@ void draw_pixel(uint32_t x, uint32_t y, uint8_t color) {
     );
 }
 
-uint64_t malloc(uint64_t size) {
+void * malloc(int size) {
     // DBG write(1, "malloc: ", strlen("malloc: "));
     // DBG write(1, doom_itoa(size, 10), strlen(doom_itoa(size, 10)));
 
     uint64_t address = 0;
-    register uint64_t r8 asm("r8") = size;
+    register int r8 asm("r8") = size;
 
     asm volatile (
         ".intel_syntax noprefix;"
@@ -118,15 +118,16 @@ uint64_t malloc(uint64_t size) {
         : "rdi", "r11", "rcx"
     );
 
-    return address;
+    return (void *) address;
 }
 
-uint64_t free(uint64_t address) {
+void free(void * address) {
     // TODO: does nothing for now
 }
 
-uint64_t fopen(const char* filename) {
+void * fopen(const char* filename, const char* options) {
 
+    // TODO Hack
     if (!strcmp(filename, "devdatadoom1.wad")) {
         return 0;
     }
@@ -150,7 +151,7 @@ uint64_t fopen(const char* filename) {
         : "rdi", "r11", "rcx"
     );
 
-    return 1; // TODO return non-null; dont hardcode
+    return (void *) 1; // TODO return non-null; dont hardcode
 }
 
 void fclose(void* handle) {
@@ -158,12 +159,12 @@ void fclose(void* handle) {
 }
 
 
-void fwrite(void* handle) {
+int fwrite(void* handle, const void * foo, int bar) {
     // TODO: does nothing for now
     write(1, "fwrite: ", strlen("fwrite: "));
 }
 
-void fseek(void* handle, uint64_t offset, uint64_t origin) {
+int fseek(void* handle, int offset, doom_seek_t origin) {
     register uint64_t r8 asm("r8") = offset;
     register uint64_t r9 asm("r9") = origin;
 
@@ -185,7 +186,7 @@ void fseek(void* handle, uint64_t offset, uint64_t origin) {
 }
 
 
-uint64_t feof(void* handle) {
+int feof(void* handle) {
     uint64_t eof = 0;
 
     asm volatile (
@@ -207,7 +208,7 @@ uint64_t feof(void* handle) {
     return eof;
 }
 
-uint64_t ftell(void* handle) {
+int ftell(void* handle) {
     uint64_t position = 0;
 
     asm volatile (
@@ -230,10 +231,10 @@ uint64_t ftell(void* handle) {
 }
 
 
-uint64_t fread(void* handle, void* ptr, uint64_t size) {
+int fread(void* handle, void* ptr, int size) {
     register uintptr_t r8 asm("r8") = (uintptr_t) ptr;
-    register uint64_t r9 asm("r9") = size;
-    uint64_t read_bytes = 0;
+    register uintptr_t r9 asm("r9") = size;
+    int read_bytes = 0;
 
     asm volatile (
         ".intel_syntax noprefix;"

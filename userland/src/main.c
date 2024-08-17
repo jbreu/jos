@@ -39,7 +39,7 @@ void _start() {
                       ftell,
                       feof);
 
-    const char * argv[] = {
+    char * argv[] = {
     "main",
     "-shdev",
     };

@@ -10,15 +10,15 @@
 uint64_t strlen( const char* str );
 uint64_t getpid();
 void draw_pixel(uint32_t x, uint32_t y, uint8_t color);
-uint64_t malloc(uint64_t size);
-uint64_t free(uint64_t address);
-uint64_t fopen(const char* filename);
+void * malloc(int size);
+void free(void * address);
+void * fopen(const char* filename, const char* options);
 void fclose(void* handle);
-void fwrite(void* handle);
-void fseek(void* handle, uint64_t offset, uint64_t origin);
-uint64_t feof(void* handle);
-uint64_t ftell(void* handle);
-uint64_t fread(void* handle, void* ptr, uint64_t size);
+int fwrite(void* handle, const void * foo, int bar);
+int fseek(void* handle, int offset, doom_seek_t origin);
+int feof(void* handle);
+int ftell(void* handle);
+int fread(void* handle, void* ptr, int size);
 uint64_t draw_framebuffer(const uint8_t* framebuffer);
 uint64_t switch_vga_mode(bool vga_on);
 
