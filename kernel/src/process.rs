@@ -3,7 +3,6 @@ use crate::kprint;
 use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
-use linked_list_allocator::LockedHeap;
 
 static mut KERNEL_CR3: u64 = 0;
 
@@ -244,7 +243,7 @@ impl Process {
     }
 
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
-        let heap_bottom = (v_addr + p_memsz + 1);
+        let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
 
         // TODO add more / dynamic page frames

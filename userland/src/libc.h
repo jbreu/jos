@@ -21,6 +21,7 @@ int ftell(void* handle);
 int fread(void* handle, void* ptr, int size);
 uint64_t draw_framebuffer(const uint8_t* framebuffer);
 uint64_t switch_vga_mode(bool vga_on);
+bool get_keystate(int key);
 
 void write(uint64_t filedescriptor, const char* payload, uint64_t len);
 

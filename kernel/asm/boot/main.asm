@@ -4,7 +4,7 @@ extern long_mode_start
 section .boottext exec
 bits 32
 start:
-	mov esp, stack_top
+ 	mov esp, stack_top
 
 	call check_multiboot
 	call check_cpuid

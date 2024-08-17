@@ -1,10 +1,6 @@
 use crate::kprint;
-use crate::mem::allocate_page_frame;
-use core::arch::asm;
-use core::ops::Deref;
+use core::panic;
 use core::ptr::addr_of;
-use core::{mem, num};
-use core::{panic, ptr};
 
 static mut FILE_POSITION: usize = 0;
 
@@ -20,9 +16,6 @@ pub fn fopen() -> u64 {
             addr_of!(_binary_doom1_wad_start) as *const u8 as usize,
             addr_of!(_binary_doom1_wad_end) as *const u8 as usize
         );
-
-        let size = addr_of!(_binary_doom1_wad_end) as *const u8 as usize
-            - addr_of!(_binary_doom1_wad_start) as *const u8 as usize;
     }
 
     return 0;

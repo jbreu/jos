@@ -1,6 +1,6 @@
-use crate::file::{self, feof, fopen, fread, fseek, ftell};
-use crate::vga;
+use crate::file::{feof, fopen, fread, fseek, ftell};
 use crate::USERLAND;
+use crate::{keyboard, vga};
 use crate::{kprintln, logging::log};
 use core::arch::asm;
 
@@ -27,6 +27,7 @@ pub extern "C" fn system_call() -> u64 {
         9 => return syscall_feof(),
         10 => return syscall_plot_framebuffer(),
         11 => return syscall_switch_vga_mode(),
+        12 => return syscall_get_keystate(),
         _ => {
             kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -175,4 +176,24 @@ fn syscall_switch_vga_mode() -> u64 {
     }
 
     return 0;
+}
+
+fn syscall_get_keystate() -> u64 {
+    let mut key: usize;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") key,
+        );
+    }
+
+    let keystate;
+
+    unsafe {
+        keystate = keyboard::KEYSTATES[key];
+        keyboard::KEYSTATES[key] = false;
+    }
+
+    return keystate as u64;
 }

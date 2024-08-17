@@ -1,4 +1,6 @@
 #include "libc.h"
+#include <inttypes.h> 
+#include <stdbool.h>
 
 uint64_t strlen( const char* str ) {
     int len = 0;
@@ -297,4 +299,27 @@ uint64_t switch_vga_mode(bool vga_on) {
     );
 
     return 0;
+}
+
+bool get_keystate(int key) {
+    register uint64_t r8 asm("r8") = key;
+    int state = 0;
+
+    asm volatile (
+        ".intel_syntax noprefix;"
+        "push rdi;"
+        "mov rdi, 12;"
+        "push r11;"
+        "push rcx;"
+        "syscall;"
+        "pop rcx;"
+        "pop r11;"
+        "pop rdi;"
+        ".att_syntax;"
+        : "=a" (state)
+        : "r" (r8)
+        : "rdi", "r11", "rcx"
+    );
+
+    return (bool) state;
 }

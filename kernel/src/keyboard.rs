@@ -29,8 +29,8 @@ static SCANCODES: [char; 69] = [
     'p',
     0xfe as char,
     0xfe as char,
-    '\n', //VK_RETURN -> map to ascii line feed
-    0xfe as char,
+    '\n',         //VK_RETURN -> map to ascii line feed
+    0x1d as char, //VK_LCONTROL
     'a',
     's',
     'd',
@@ -71,6 +71,8 @@ static SCANCODES: [char; 69] = [
     0xfe as char,
     0xfe as char,
 ];
+
+pub static mut KEYSTATES: [bool; 10] = [false; 10];
 
 pub fn get_key_for_scancode(scancode: u8) -> char {
     match scancode as u8 {

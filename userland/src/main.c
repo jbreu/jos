@@ -51,6 +51,45 @@ void _start() {
     {
         doom_force_update();
         draw_framebuffer(doom_get_framebuffer(1));
-        //doom_key_down(DOOM_KEY_DOWN_ARROW);
+
+        if (get_keystate(0)) {
+            doom_key_down(DOOM_KEY_UP_ARROW);
+        } else {
+            doom_key_up(DOOM_KEY_UP_ARROW);
+        }
+        
+        if (get_keystate(1)) {
+            doom_key_down(DOOM_KEY_LEFT_ARROW);
+        } else {
+            doom_key_up(DOOM_KEY_LEFT_ARROW);
+        }
+
+        if (get_keystate(2)) {
+            doom_key_down(DOOM_KEY_DOWN_ARROW);
+        } else {
+            doom_key_up(DOOM_KEY_DOWN_ARROW);
+        }
+
+        if (get_keystate(3)) {
+            doom_key_down(DOOM_KEY_RIGHT_ARROW);
+        } else {
+            doom_key_up(DOOM_KEY_RIGHT_ARROW);
+        }
+
+        if (get_keystate(4)) {
+            doom_key_down(DOOM_KEY_CTRL);
+        } else {
+            doom_key_up(DOOM_KEY_CTRL);
+        }
+
+        if (get_keystate(5)) {
+            doom_key_down(DOOM_KEY_SPACE);
+        } else {
+            doom_key_up(DOOM_KEY_SPACE);
+        }
+
+        if (get_keystate(6)) {
+            doom_key_down(DOOM_KEY_ENTER);
+        }
     }
 }
