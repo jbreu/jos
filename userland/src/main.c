@@ -1,5 +1,6 @@
 #include "libc.h"
-#define DOOM_IMPLEMENTATION 
+#include <inttypes.h> 
+#include <stdbool.h>
 #include "PureDOOM.h"
 
 char* mini_getenv(const char* var) {
@@ -44,6 +45,8 @@ void _start() {
     };
 
     doom_init(2, argv, 0);
+    switch_vga_mode(true);
+
     while (true)
     {
         doom_force_update();

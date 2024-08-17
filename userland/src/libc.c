@@ -1,5 +1,4 @@
-#include <inttypes.h> 
-#include "PureDOOM.h"
+#include "libc.h"
 
 uint64_t strlen( const char* str ) {
     int len = 0;
@@ -97,8 +96,8 @@ void draw_pixel(uint32_t x, uint32_t y, uint8_t color) {
 }
 
 uint64_t malloc(uint64_t size) {
-    write(1, "malloc: ", strlen("malloc: "));
-    write(1, doom_itoa(size, 10), strlen(doom_itoa(size, 10)));
+    // DBG write(1, "malloc: ", strlen("malloc: "));
+    // DBG write(1, doom_itoa(size, 10), strlen(doom_itoa(size, 10)));
 
     uint64_t address = 0;
     register uint64_t r8 asm("r8") = size;
@@ -262,6 +261,28 @@ uint64_t draw_framebuffer(const uint8_t* framebuffer) {
         ".intel_syntax noprefix;"
         "push rdi;"
         "mov rdi, 10;"
+        "push r11;"
+        "push rcx;"
+        "syscall;"
+        "pop rcx;"
+        "pop r11;"
+        "pop rdi;"
+        ".att_syntax;"
+        :
+        : "r" (r8)
+        : "rdi", "r11", "rcx"
+    );
+
+    return 0;
+}
+
+uint64_t switch_vga_mode(bool vga_on) {
+    register uint64_t r8 asm("r8") = vga_on;
+
+    asm volatile (
+        ".intel_syntax noprefix;"
+        "push rdi;"
+        "mov rdi, 11;"
         "push r11;"
         "push rcx;"
         "syscall;"

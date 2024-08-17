@@ -1,5 +1,5 @@
 use crate::file::{self, feof, fopen, fread, fseek, ftell};
-use crate::vga::{vga_flip, vga_plot_framebuffer, vga_plot_pixel};
+use crate::vga;
 use crate::USERLAND;
 use crate::{kprintln, logging::log};
 use core::arch::asm;
@@ -26,6 +26,7 @@ pub extern "C" fn system_call() -> u64 {
         8 => return syscall_ftell(),
         9 => return syscall_feof(),
         10 => return syscall_plot_framebuffer(),
+        11 => return syscall_switch_vga_mode(),
         _ => {
             kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -99,8 +100,8 @@ fn syscall_plot_pixel() -> u64 {
         );
     }
 
-    vga_plot_pixel(x, y, color as u8);
-    vga_flip();
+    vga::vga_plot_pixel(x, y, color as u8);
+    vga::vga_flip();
 
     return 0;
 }
@@ -150,8 +151,28 @@ fn syscall_plot_framebuffer() -> u64 {
         );
     }
 
-    vga_plot_framebuffer(framebuffer as *const u8);
-    vga_flip();
+    vga::vga_plot_framebuffer(framebuffer as *const u8);
+    vga::vga_flip();
+
+    return 0;
+}
+
+fn syscall_switch_vga_mode() -> u64 {
+    let mut vga_on: u64;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") vga_on,
+        );
+    }
+
+    if vga_on != 0 {
+        vga::vga_enter();
+        vga::vga_clear_screen();
+    } else {
+        vga::vga_exit();
+    }
 
     return 0;
 }

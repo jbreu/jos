@@ -35,9 +35,9 @@ impl Userland {
 
         unsafe {
             self.processes.push(Process::new());
-            self.processes.push(Process::new());
-            self.processes.push(Process::new());
-            self.processes.push(Process::new());
+            //self.processes.push(Process::new());
+            //self.processes.push(Process::new());
+            //self.processes.push(Process::new());
 
             for process in &mut self.processes {
                 process.initialize();
@@ -46,9 +46,9 @@ impl Userland {
             self.current_process = 0;
 
             self.processes[0].launch();
-            self.processes[1].launch();
-            self.processes[2].launch();
-            self.processes[3].launch();
+            //self.processes[1].launch();
+            //self.processes[2].launch();
+            //self.processes[3].launch();
 
             let c3_page_map_l4_base_address = self.processes[0].get_c3_page_map_l4_base_address();
 

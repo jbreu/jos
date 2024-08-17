@@ -225,7 +225,7 @@ impl Process {
         self.rip = entry;
 
         self.init_process_heap(v_addr, p_memsz);
-        kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
+        //kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
 
         file::fopen();
 
