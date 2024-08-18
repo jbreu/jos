@@ -1,7 +1,6 @@
 extern crate alloc;
-use alloc::vec::Vec;
 use core::alloc::{GlobalAlloc, Layout};
-use core::{arch::asm, str::Bytes};
+use core::arch::asm;
 
 pub struct ProcessAllocator {}
 
@@ -98,7 +97,7 @@ pub fn draw_pixel(x: u32, y: u32, color: u8) {
 }
 
 pub fn malloc(size: usize) -> u64 {
-    let mut address: u64 = 0;
+    let mut address: u64;
 
     unsafe {
         asm!("
