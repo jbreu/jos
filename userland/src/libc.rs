@@ -177,7 +177,7 @@ pub fn fseek(offset: usize, origin: usize) {
 }
 
 pub fn feof() -> u64 {
-    let mut eof: u64 = 0;
+    let mut eof: u64;
 
     unsafe {
         asm!(
@@ -203,7 +203,7 @@ pub fn feof() -> u64 {
 }
 
 pub fn ftell() -> u64 {
-    let mut position: u64 = 0;
+    let mut position: u64;
 
     unsafe {
         asm!(
