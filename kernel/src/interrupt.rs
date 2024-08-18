@@ -168,21 +168,6 @@ fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     }
 }
 
-/*
-// could work with nightly
-// https://doc.rust-lang.org/src/core/macros/mod.rs.html#1009
-macro_rules! setIdtGate {
-    ($num: expr) => {
-        extern "C" { fn isr$num();    }
-
-        let isr$num: unsafe extern "C" fn() = isr$num;
-        let addr_isr$num = isr0 as u64;
-
-        setIdtGate_($num, addr_isr$num, 0x08, 0x8e);
-    };
-}
-*/
-
 pub fn init_idt() {
     // https://www.eeeguide.com/8259-programmable-interrupt-controller/
     // https://stackoverflow.com/a/283033
@@ -206,7 +191,6 @@ pub fn init_idt() {
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
-    // FIXME comment
     //out_port_b(0x21, 0xfd);
     //out_port_b(0xA1, 0xff);
 
