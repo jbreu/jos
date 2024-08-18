@@ -210,359 +210,72 @@ pub fn init_idt() {
     //out_port_b(0x21, 0xfd);
     //out_port_b(0xA1, 0xff);
 
-    // Generated with http://www.mynikko.com/tools/tool_incrementstr.html
     // flags are set according to https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Descriptor_2
     // TODO: Check Gate Type setting: https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Types
-
-    extern "C" {
-        fn isr0();
+    macro_rules! set_isr {
+        ($id:expr, $isr:ident) => {
+            extern "C" {
+                fn $isr();
+            }
+            let $isr: unsafe extern "C" fn() = $isr;
+            let addr = $isr as u64;
+            set_idt_gate($id, addr, 0x08, 0x8e);
+        };
     }
-    let isr0: unsafe extern "C" fn() = isr0;
-    let addr_isr0 = isr0 as u64;
-    set_idt_gate(0, addr_isr0, 0x08, 0x8e);
 
-    extern "C" {
-        fn isr1();
-    }
-    let isr1: unsafe extern "C" fn() = isr1;
-    let addr_isr1 = isr1 as u64;
-    set_idt_gate(1, addr_isr1, 0x08, 0x8e);
+    // Manually list each ISR and IRQ function with its corresponding ID
+    set_isr!(0, isr0);
+    set_isr!(1, isr1);
+    set_isr!(2, isr2);
+    set_isr!(3, isr3);
+    set_isr!(4, isr4);
+    set_isr!(5, isr5);
+    set_isr!(6, isr6);
+    set_isr!(7, isr7);
+    set_isr!(8, isr8);
+    set_isr!(9, isr9);
+    set_isr!(10, isr10);
+    set_isr!(11, isr11);
+    set_isr!(12, isr12);
+    set_isr!(13, isr13);
+    set_isr!(14, isr14);
+    set_isr!(15, isr15);
+    set_isr!(16, isr16);
+    set_isr!(17, isr17);
+    set_isr!(18, isr18);
+    set_isr!(19, isr19);
+    set_isr!(20, isr20);
+    set_isr!(21, isr21);
+    set_isr!(22, isr22);
+    set_isr!(23, isr23);
+    set_isr!(24, isr24);
+    set_isr!(25, isr25);
+    set_isr!(26, isr26);
+    set_isr!(27, isr27);
+    set_isr!(28, isr28);
+    set_isr!(29, isr29);
+    set_isr!(30, isr30);
+    set_isr!(31, isr31);
 
-    extern "C" {
-        fn isr2();
-    }
-    let isr2: unsafe extern "C" fn() = isr2;
-    let addr_isr2 = isr2 as u64;
-    set_idt_gate(2, addr_isr2, 0x08, 0x8e);
+    set_isr!(32, irq0);
+    set_isr!(33, irq1);
+    set_isr!(34, irq2);
+    set_isr!(35, irq3);
+    set_isr!(36, irq4);
+    set_isr!(37, irq5);
+    set_isr!(38, irq6);
+    set_isr!(39, irq7);
+    set_isr!(40, irq8);
+    set_isr!(41, irq9);
+    set_isr!(42, irq10);
+    set_isr!(43, irq11);
+    set_isr!(44, irq12);
+    set_isr!(45, irq13);
+    set_isr!(46, irq14);
+    set_isr!(47, irq15);
 
-    extern "C" {
-        fn isr3();
-    }
-    let isr3: unsafe extern "C" fn() = isr3;
-    let addr_isr3 = isr3 as u64;
-    set_idt_gate(3, addr_isr3, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr4();
-    }
-    let isr4: unsafe extern "C" fn() = isr4;
-    let addr_isr4 = isr4 as u64;
-    set_idt_gate(4, addr_isr4, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr5();
-    }
-    let isr5: unsafe extern "C" fn() = isr5;
-    let addr_isr5 = isr5 as u64;
-    set_idt_gate(5, addr_isr5, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr6();
-    }
-    let isr6: unsafe extern "C" fn() = isr6;
-    let addr_isr6 = isr6 as u64;
-    set_idt_gate(6, addr_isr6, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr7();
-    }
-    let isr7: unsafe extern "C" fn() = isr7;
-    let addr_isr7 = isr7 as u64;
-    set_idt_gate(7, addr_isr7, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr8();
-    }
-    let isr8: unsafe extern "C" fn() = isr8;
-    let addr_isr8 = isr8 as u64;
-    set_idt_gate(8, addr_isr8, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr9();
-    }
-    let isr9: unsafe extern "C" fn() = isr9;
-    let addr_isr9 = isr9 as u64;
-    set_idt_gate(9, addr_isr9, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr10();
-    }
-    let isr10: unsafe extern "C" fn() = isr10;
-    let addr_isr10 = isr10 as u64;
-    set_idt_gate(10, addr_isr10, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr11();
-    }
-    let isr11: unsafe extern "C" fn() = isr11;
-    let addr_isr11 = isr11 as u64;
-    set_idt_gate(11, addr_isr11, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr12();
-    }
-    let isr12: unsafe extern "C" fn() = isr12;
-    let addr_isr12 = isr12 as u64;
-    set_idt_gate(12, addr_isr12, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr13();
-    }
-    let isr13: unsafe extern "C" fn() = isr13;
-    let addr_isr13 = isr13 as u64;
-    set_idt_gate(13, addr_isr13, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr14();
-    }
-    let isr14: unsafe extern "C" fn() = isr14;
-    let addr_isr14 = isr14 as u64;
-    set_idt_gate(14, addr_isr14, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr15();
-    }
-    let isr15: unsafe extern "C" fn() = isr15;
-    let addr_isr15 = isr15 as u64;
-    set_idt_gate(15, addr_isr15, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr16();
-    }
-    let isr16: unsafe extern "C" fn() = isr16;
-    let addr_isr16 = isr16 as u64;
-    set_idt_gate(16, addr_isr16, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr17();
-    }
-    let isr17: unsafe extern "C" fn() = isr17;
-    let addr_isr17 = isr17 as u64;
-    set_idt_gate(17, addr_isr17, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr18();
-    }
-    let isr18: unsafe extern "C" fn() = isr18;
-    let addr_isr18 = isr18 as u64;
-    set_idt_gate(18, addr_isr18, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr19();
-    }
-    let isr19: unsafe extern "C" fn() = isr19;
-    let addr_isr19 = isr19 as u64;
-    set_idt_gate(19, addr_isr19, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr20();
-    }
-    let isr20: unsafe extern "C" fn() = isr20;
-    let addr_isr20 = isr20 as u64;
-    set_idt_gate(20, addr_isr20, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr21();
-    }
-    let isr21: unsafe extern "C" fn() = isr21;
-    let addr_isr21 = isr21 as u64;
-    set_idt_gate(21, addr_isr21, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr22();
-    }
-    let isr22: unsafe extern "C" fn() = isr22;
-    let addr_isr22 = isr22 as u64;
-    set_idt_gate(22, addr_isr22, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr23();
-    }
-    let isr23: unsafe extern "C" fn() = isr23;
-    let addr_isr23 = isr23 as u64;
-    set_idt_gate(23, addr_isr23, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr24();
-    }
-    let isr24: unsafe extern "C" fn() = isr24;
-    let addr_isr24 = isr24 as u64;
-    set_idt_gate(24, addr_isr24, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr25();
-    }
-    let isr25: unsafe extern "C" fn() = isr25;
-    let addr_isr25 = isr25 as u64;
-    set_idt_gate(25, addr_isr25, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr26();
-    }
-    let isr26: unsafe extern "C" fn() = isr26;
-    let addr_isr26 = isr26 as u64;
-    set_idt_gate(26, addr_isr26, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr27();
-    }
-    let isr27: unsafe extern "C" fn() = isr27;
-    let addr_isr27 = isr27 as u64;
-    set_idt_gate(27, addr_isr27, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr28();
-    }
-    let isr28: unsafe extern "C" fn() = isr28;
-    let addr_isr28 = isr28 as u64;
-    set_idt_gate(28, addr_isr28, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr29();
-    }
-    let isr29: unsafe extern "C" fn() = isr29;
-    let addr_isr29 = isr29 as u64;
-    set_idt_gate(29, addr_isr29, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr30();
-    }
-    let isr30: unsafe extern "C" fn() = isr30;
-    let addr_isr30 = isr30 as u64;
-    set_idt_gate(30, addr_isr30, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr31();
-    }
-    let isr31: unsafe extern "C" fn() = isr31;
-    let addr_isr31 = isr31 as u64;
-    set_idt_gate(31, addr_isr31, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq0();
-    }
-    let irq0: unsafe extern "C" fn() = irq0;
-    let addr_irq0 = irq0 as u64;
-    set_idt_gate(32, addr_irq0, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq1();
-    }
-    let irq1: unsafe extern "C" fn() = irq1;
-    let addr_irq1 = irq1 as u64;
-    set_idt_gate(33, addr_irq1, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq2();
-    }
-    let irq2: unsafe extern "C" fn() = irq2;
-    let addr_irq2 = irq2 as u64;
-    set_idt_gate(34, addr_irq2, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq3();
-    }
-    let irq3: unsafe extern "C" fn() = irq3;
-    let addr_irq3 = irq3 as u64;
-    set_idt_gate(35, addr_irq3, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq4();
-    }
-    let irq4: unsafe extern "C" fn() = irq4;
-    let addr_irq4 = irq4 as u64;
-    set_idt_gate(36, addr_irq4, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq5();
-    }
-    let irq5: unsafe extern "C" fn() = irq5;
-    let addr_irq5 = irq5 as u64;
-    set_idt_gate(37, addr_irq5, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq6();
-    }
-    let irq6: unsafe extern "C" fn() = irq6;
-    let addr_irq6 = irq6 as u64;
-    set_idt_gate(38, addr_irq6, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq7();
-    }
-    let irq7: unsafe extern "C" fn() = irq7;
-    let addr_irq7 = irq7 as u64;
-    set_idt_gate(39, addr_irq7, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq8();
-    }
-    let irq8: unsafe extern "C" fn() = irq8;
-    let addr_irq8 = irq8 as u64;
-    set_idt_gate(40, addr_irq8, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq9();
-    }
-    let irq9: unsafe extern "C" fn() = irq9;
-    let addr_irq9 = irq9 as u64;
-    set_idt_gate(41, addr_irq9, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq10();
-    }
-    let irq10: unsafe extern "C" fn() = irq10;
-    let addr_irq10 = irq10 as u64;
-    set_idt_gate(42, addr_irq10, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq11();
-    }
-    let irq11: unsafe extern "C" fn() = irq11;
-    let addr_irq11 = irq11 as u64;
-    set_idt_gate(43, addr_irq11, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq12();
-    }
-    let irq12: unsafe extern "C" fn() = irq12;
-    let addr_irq12 = irq12 as u64;
-    set_idt_gate(44, addr_irq12, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq13();
-    }
-    let irq13: unsafe extern "C" fn() = irq13;
-    let addr_irq13 = irq13 as u64;
-    set_idt_gate(45, addr_irq13, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq14();
-    }
-    let irq14: unsafe extern "C" fn() = irq14;
-    let addr_irq14 = irq14 as u64;
-    set_idt_gate(46, addr_irq14, 0x08, 0x8e);
-
-    extern "C" {
-        fn irq15();
-    }
-    let irq15: unsafe extern "C" fn() = irq15;
-    let addr_irq15 = irq15 as u64;
-    set_idt_gate(47, addr_irq15, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr128();
-    }
-    let isr128: unsafe extern "C" fn() = isr128;
-    let addr_isr128 = isr128 as u64;
-    set_idt_gate(128, addr_isr128, 0x08, 0x8e);
-
-    extern "C" {
-        fn isr177();
-    }
-    let isr177: unsafe extern "C" fn() = isr177;
-    let addr_isr177 = isr177 as u64;
-    set_idt_gate(177, addr_isr177, 0x08, 0x8e);
+    set_isr!(128, isr128);
+    set_isr!(177, isr177);
 
     unsafe {
         let idt_ptr: IdtPtrStruct = IdtPtrStruct {
