@@ -18,7 +18,7 @@ pub fn fopen() -> u64 {
         );
     }
 
-    return 0;
+    return 1;
 }
 
 pub fn fread(ptr: *mut u8, num_bytes: usize) -> u64 {
