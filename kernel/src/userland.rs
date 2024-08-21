@@ -35,7 +35,7 @@ impl Userland {
 
         unsafe {
             self.processes.push(Process::new());
-            //self.processes.push(Process::new());
+            self.processes.push(Process::new());
             //self.processes.push(Process::new());
             //self.processes.push(Process::new());
 
@@ -46,7 +46,7 @@ impl Userland {
             self.current_process = 0;
 
             self.processes[0].launch();
-            //self.processes[1].launch();
+            self.processes[1].launch();
             //self.processes[2].launch();
             //self.processes[3].launch();
 

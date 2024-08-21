@@ -44,6 +44,9 @@ pub extern "C" fn kernel_main() -> ! {
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
 
+    //vga::vga_enter();
+    //vga::vga_clear_screen();
+
     // Trigger test exception
     //unsafe {
     //    asm!("int3", options(nomem, nostack));

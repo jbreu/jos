@@ -280,8 +280,8 @@ impl Process {
         }
 
         unsafe {
-            kprint!("Stack frame: {:x}\n", stack_frame as u64);
-            kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
+            //kprint!("Stack frame: {:x}\n", stack_frame as u64);
+            //kprint!("Pushed registers: {:x}\n", pushed_registers as u64);
 
             if !initial_start {
                 (*pushed_registers).xmm7 = self.registers.xmm7;

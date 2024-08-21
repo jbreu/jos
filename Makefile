@@ -5,7 +5,7 @@ $(x86_64_asm_object_files): build/x86_64/%.o : kernel/asm/%.asm
 	mkdir -p $(dir $@) && \
 	nasm -f elf64 -g -F dwarf $(patsubst build/x86_64/%.o, kernel/asm/%.asm, $@) -o $@
 
-# TODO --allow-multiple-definition is a hack to have two static libs (kernel and helloworld) both with a panic handler. As helloworld should be a separate executable this will not be required
+# #gcc userland/src/main.c userland/src/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/helloworld -Wl,--gc-sections
 .PHONY: build-x86_64
 build-x86_64: $(x86_64_asm_object_files)
 	mkdir -p build/kernel
@@ -13,7 +13,7 @@ build-x86_64: $(x86_64_asm_object_files)
 	wget https://github.com/Daivuk/PureDOOM/raw/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/doom1.wad -N
 	wget -P userland/src/ https://raw.githubusercontent.com/Daivuk/PureDOOM/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/PureDOOM.h -N
 	cargo rustc --manifest-path kernel/Cargo.toml --target-dir build/kernel/ -- -C no-redzone=on -C target-feature=-sse -C link-arg=-Ttargets/x86_64/linker.ld 
-	gcc userland/src/main.c userland/src/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/helloworld -Wl,--gc-sections
+	cargo rustc --manifest-path userland/Cargo.toml --target-dir build/userspace/ -- -C relocation-model=static -C no-redzone=on -C target-feature=-sse
 	mkdir -p dist/x86_64 && \
 	objcopy --input binary --output elf64-x86-64 --binary-architecture i386 build/userspace/x86_64-unknown-none/debug/helloworld build/userspace/x86_64-unknown-none/debug/helloworld.o && \
 	objcopy --input binary --output elf64-x86-64 --binary-architecture i386 doom1.wad build/userspace/x86_64-unknown-none/debug/doom1.o && \
