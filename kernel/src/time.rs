@@ -62,15 +62,37 @@ pub fn kprint_time() {
 }
 
 static mut MICROSECONDS_SINCE_BOOT: u64 = 0;
+static mut INITIAL_HOURS: i16 = 0;
+static mut INITIAL_MINUTES: i16 = 0;
+static mut INITIAL_SECONDS: i16 = 0;
 
 pub fn update_microsecond_counter() {
     unsafe {
-        MICROSECONDS_SINCE_BOOT += 100;
+        MICROSECONDS_SINCE_BOOT += 10000;
     }
 }
 
 pub fn get_microsecond_counter() -> u64 {
     unsafe { MICROSECONDS_SINCE_BOOT }
+}
+
+pub fn set_initial_time() {
+    let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
+
+    unsafe {
+        INITIAL_HOURS = read_cmos_i16(CmosRegister::Hours, bcd_enabled);
+        INITIAL_MINUTES = read_cmos_i16(CmosRegister::Minutes, bcd_enabled);
+        INITIAL_SECONDS = read_cmos_i16(CmosRegister::Seconds, bcd_enabled);
+    }
+}
+
+pub fn get_time() -> (u32, u32) {
+    let usec_since_boot = unsafe { MICROSECONDS_SINCE_BOOT };
+
+    (
+        ((usec_since_boot / 1000000 + unsafe { INITIAL_SECONDS } as u64) % 60) as u32,
+        (usec_since_boot % 1000000) as u32,
+    )
 }
 
 pub fn update_clock() {

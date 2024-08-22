@@ -6,6 +6,7 @@ use crate::kprint;
 use crate::kprintln;
 use crate::time;
 use crate::time::init_timer;
+use crate::time::set_initial_time;
 use crate::userland;
 use crate::util::out_port_b;
 use crate::USERLAND;
@@ -208,7 +209,7 @@ pub fn init_idt() {
     out_port_b(0xA1, 0x0);
 
     // Init timer in microsecond accuracy
-    init_timer(10000);
+    init_timer(100);
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
@@ -291,6 +292,7 @@ pub fn init_idt() {
             base: IDT_ENTRIES.as_ptr() as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
         };
         SCHEDULING_BLOCKED = 1;
+        set_initial_time();
         asm!(
             "lidt [{}]
             sti",
