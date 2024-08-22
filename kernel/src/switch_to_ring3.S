@@ -40,14 +40,12 @@ jump_usermode:
 	
 	mov rsp, rsi
 
-	
-	// TODO Investigate: Only enable interrupts here (pretty late), because otherwise during jump to usermode interrupt may appear, leading to weird behavior
-	sti
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 0
 
 	sysretq //use "o64 sysret" if you assemble with NASM
 
 syscall_handler:	
-	mov byte ptr [rip + SYSCALL_ONGOING], 1
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 1
 
     swapgs
 		
@@ -64,6 +62,6 @@ syscall_handler:
 
 	swapgs
 
-	mov byte ptr [rip + SYSCALL_ONGOING], 0
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 0
 
 	sysretq

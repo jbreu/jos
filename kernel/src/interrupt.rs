@@ -15,7 +15,7 @@ use core::arch::global_asm;
 global_asm!(include_str!("interrupt.S"));
 
 #[no_mangle]
-pub static mut SYSCALL_ONGOING: u8 = 0;
+pub static mut SCHEDULING_BLOCKED: u8 = 0;
 
 #[repr(C, packed(2))]
 #[derive(Clone, Copy)]
@@ -110,8 +110,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
             // Only every 10 ms do complex stuff
             if time::get_microsecond_counter() % 10_000 == 0 {
                 unsafe {
-                    if SYSCALL_ONGOING == 0 {
-                        kprint!("Scheduling...\n");
+                    if SCHEDULING_BLOCKED == 0 {
                         userland::schedule();
 
                         time::update_clock();
@@ -209,7 +208,7 @@ pub fn init_idt() {
     out_port_b(0xA1, 0x0);
 
     // Init timer in microsecond accuracy
-    init_timer(100);
+    init_timer(10000);
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems
@@ -291,8 +290,10 @@ pub fn init_idt() {
             // Complexity from last link probably not required
             base: IDT_ENTRIES.as_ptr() as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
         };
+        SCHEDULING_BLOCKED = 1;
         asm!(
-            "lidt [{}]",
+            "lidt [{}]
+            sti",
             in(reg) &idt_ptr, options(readonly, nostack, preserves_flags)
         );
     }

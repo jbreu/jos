@@ -65,7 +65,7 @@ static mut MICROSECONDS_SINCE_BOOT: u64 = 0;
 
 pub fn update_microsecond_counter() {
     unsafe {
-        MICROSECONDS_SINCE_BOOT += 10000;
+        MICROSECONDS_SINCE_BOOT += 100;
     }
 }
 
