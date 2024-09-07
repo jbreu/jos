@@ -5,6 +5,7 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+mod acpi;
 mod file;
 mod gdt;
 mod heap;
@@ -43,6 +44,8 @@ pub extern "C" fn kernel_main() -> ! {
     clear_console!();
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
+
+    acpi::init_acpi();
 
     //vga::vga_enter();
     //vga::vga_clear_screen();
