@@ -1,4 +1,7 @@
-use crate::kprint::{kprint_char, kprint_char_at_pos, kprint_integer, kprint_integer_at_pos};
+use crate::{
+    kprint::{kprint_char, kprint_char_at_pos, kprint_integer, kprint_integer_at_pos},
+    util::out_port_b,
+};
 use core::arch::asm;
 
 #[allow(dead_code)]
@@ -58,6 +61,41 @@ pub fn kprint_time() {
     kprint_integer(seconds.into());
 }
 
+static mut MICROSECONDS_SINCE_BOOT: u64 = 0;
+static mut INITIAL_HOURS: i16 = 0;
+static mut INITIAL_MINUTES: i16 = 0;
+static mut INITIAL_SECONDS: i16 = 0;
+
+pub fn update_microsecond_counter() {
+    unsafe {
+        MICROSECONDS_SINCE_BOOT += 10000;
+        //VERBESSERuNG FÜR HÖHERE FREQUENZ: WENN BEIM UPDATE FESTGESTSLLT WIRD DASS DIE UHRZEIT (SEKUNDEN) UND DIE MIKROSEKUNDEN NICHT ZUSAMMENPASSEN --> KORRIGIERE MICROSECONDS_SINCE_BOOT
+    }
+}
+
+pub fn get_microsecond_counter() -> u64 {
+    unsafe { MICROSECONDS_SINCE_BOOT }
+}
+
+pub fn set_initial_time() {
+    let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
+
+    unsafe {
+        INITIAL_HOURS = read_cmos_i16(CmosRegister::Hours, bcd_enabled);
+        INITIAL_MINUTES = read_cmos_i16(CmosRegister::Minutes, bcd_enabled);
+        INITIAL_SECONDS = read_cmos_i16(CmosRegister::Seconds, bcd_enabled);
+    }
+}
+
+pub fn get_time() -> (u32, u32) {
+    let usec_since_boot = unsafe { MICROSECONDS_SINCE_BOOT };
+
+    (
+        ((usec_since_boot / 1000000 + unsafe { INITIAL_SECONDS } as u64) % 60) as u32,
+        (usec_since_boot % 1000000) as u32,
+    )
+}
+
 pub fn update_clock() {
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
 
@@ -70,4 +108,43 @@ pub fn update_clock() {
     kprint_integer_at_pos(minutes.into(), 0, 73);
     kprint_char_at_pos(':', 0, 75);
     kprint_integer_at_pos(seconds.into(), 0, 76);
+}
+
+static PIC1_COMMAND: u32 = 0x20;
+static PIC1_DATA: u32 = 0x21;
+static PIC2_COMMAND: u32 = 0xA0;
+static PIC2_DATA: u32 = 0xA1;
+static PIT_COMMAND: u32 = 0x43;
+static PIT_CHANNEL0: u32 = 0x40;
+
+fn init_pic() {
+    // Initialize PIC1
+    out_port_b(PIC1_COMMAND, 0x11); // Start initialization sequence
+    out_port_b(PIC1_DATA, 0x20); // ICW2: Master PIC vector offset
+    out_port_b(PIC1_DATA, 0x04); // ICW3: Tell Master PIC there is a slave PIC at IRQ2
+    out_port_b(PIC1_DATA, 0x01); // ICW4: 8086/88 mode
+
+    // Initialize PIC2
+    out_port_b(PIC2_COMMAND, 0x11); // Start initialization sequence
+    out_port_b(PIC2_DATA, 0x28); // ICW2: Slave PIC vector offset
+    out_port_b(PIC2_DATA, 0x02); // ICW3: Tell Slave PIC its cascade identity
+    out_port_b(PIC2_DATA, 0x01); // ICW4: 8086/88 mode
+
+    // Unmask all interrupts
+    out_port_b(PIC1_DATA, 0x0);
+    out_port_b(PIC2_DATA, 0x0);
+}
+
+pub fn init_timer(frequency: usize) {
+    init_pic();
+
+    // Calculate the divisor for the desired frequency
+    let divisor = 1193180 / frequency;
+
+    // Send the command byte
+    out_port_b(PIT_COMMAND, 0x36);
+
+    // Send the frequency divisor
+    out_port_b(PIT_CHANNEL0, (divisor & 0xFF) as u8); // Low byte
+    out_port_b(PIT_CHANNEL0, ((divisor >> 8) & 0xFF) as u8); // High byte
 }

@@ -1,7 +1,7 @@
 use crate::file::{feof, fopen, fread, fseek, ftell};
-use crate::USERLAND;
 use crate::{keyboard, vga};
 use crate::{kprintln, logging::log};
+use crate::{time, USERLAND};
 use core::arch::asm;
 
 #[no_mangle]
@@ -28,6 +28,7 @@ pub extern "C" fn system_call() -> u64 {
         10 => return syscall_plot_framebuffer(),
         11 => return syscall_switch_vga_mode(),
         12 => return syscall_get_keystate(),
+        13 => return syscall_get_time(),
         _ => {
             kprintln!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -196,4 +197,23 @@ fn syscall_get_keystate() -> u64 {
     }
 
     return keystate as u64;
+}
+
+fn syscall_get_time() -> u64 {
+    let sec: *mut u32;
+    let usec: *mut u32;
+
+    unsafe {
+        // TODO this must be possible more elegantly
+        asm!("",
+            out("r8") sec,
+            out("r9") usec,
+        );
+    }
+
+    unsafe {
+        (*sec, *usec) = time::get_time();
+    }
+
+    return 1;
 }

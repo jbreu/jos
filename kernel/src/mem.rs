@@ -1,7 +1,10 @@
+use crate::process;
+use core::arch::asm;
+
 // TODO make more elegant
 // available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
 
-const MAX_PAGE_FRAMES: usize = 64;
+const MAX_PAGE_FRAMES: usize = 2048;
 static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     let mut array = [false; MAX_PAGE_FRAMES];
 
@@ -45,5 +48,31 @@ pub fn allocate_page_frame() -> u64 {
         }
     }
 
-    return 0;
+    panic!("No more page frames available!");
+}
+
+pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
+    unsafe {
+        let page = address / 0x200000;
+        AVAILABLE_MEMORY[page] = true;
+        return page as u64 * 0x200000 as u64;
+    }
+}
+
+pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitmask: u8) {
+    let entry_mask: u64 = 0x0008_ffff_ffff_f800;
+
+    unsafe {
+        if process::KERNEL_CR3 == 0 {
+            asm!("mov r15, cr3", out("r15") process::KERNEL_CR3);
+        }
+
+        let l4table = (process::KERNEL_CR3 & entry_mask) as *const process::PageTable;
+
+        let l3table = ((*l4table).entry[l4] & entry_mask) as *const process::PageTable;
+
+        let l2table = ((*l3table).entry[l3] & entry_mask) as *mut process::PageTable;
+
+        (*l2table).entry[l2] = page | bitmask as u64;
+    }
 }
