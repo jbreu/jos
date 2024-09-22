@@ -4,7 +4,7 @@ use crate::mem::allocate_page_frame;
 use core::arch::asm;
 use core::ptr::addr_of;
 
-static mut KERNEL_CR3: u64 = 0;
+pub static mut KERNEL_CR3: u64 = 0;
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
@@ -38,8 +38,8 @@ struct RegistersStruct {
 
 #[repr(C)]
 #[repr(align(4096))]
-struct PageTable {
-    entry: [u64; 512],
+pub struct PageTable {
+    pub entry: [u64; 512],
 }
 
 impl PageTable {
