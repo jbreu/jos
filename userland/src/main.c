@@ -15,18 +15,13 @@ void mini_print(const char* str) {
 
 void mini_exit(int i) {}
 
-void mini_get_time(int* sec, int* usec) {
-    *sec = 0;
-    *usec = 0;
-}
-
 __attribute__((force_align_arg_pointer))
 void _start() {
     mini_print("Hallo Carina\n");
 
     int a = getpid();
 
-    doom_set_gettime(mini_get_time);
+    doom_set_gettime(get_time);
     doom_set_getenv(mini_getenv);
     doom_set_print(mini_print);
     doom_set_exit(mini_exit);
@@ -49,7 +44,7 @@ void _start() {
 
     while (true)
     {
-        doom_force_update();
+        doom_update();
         draw_framebuffer(doom_get_framebuffer(1));
 
         if (get_keystate(0)) {

@@ -5,6 +5,7 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+mod acpi;
 mod file;
 mod gdt;
 mod heap;
@@ -39,10 +40,14 @@ pub extern "C" fn kernel_main() -> ! {
     heap::init_kernel_heap();
     gdt::init_gdt();
     interrupt::init_idt();
+    time::set_initial_time();
 
     clear_console!();
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
+
+    //vga::vga_enter();
+    //vga::vga_clear_screen();
 
     // Trigger test exception
     //unsafe {

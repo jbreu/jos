@@ -1,6 +1,7 @@
 #include "libc.h"
 #include <inttypes.h> 
 #include <stdbool.h>
+#include <stdint.h>
 
 uint64_t strlen( const char* str ) {
     int len = 0;
@@ -130,4 +131,9 @@ bool get_keystate(int key) {
     uint64_t state;
     DO_SYSCALL(12, state, key, 0, 0);
     return (bool)state;
+}
+
+void get_time(int* sec, int* usec) {
+    uint64_t result;
+    DO_SYSCALL(13, result, sec, usec, 0);
 }

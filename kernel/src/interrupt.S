@@ -108,7 +108,6 @@ int_no:
 .macro IRQ irq, number
     .globl irq\irq
     irq\irq\():
-        cli
         mov qword ptr [rip + int_no], \number
         mov [rip + stack_frame], rsp
         push_all_registers
@@ -203,5 +202,4 @@ irq_common_stub:
 
     pop_all_registers
 
-	sti
 	iretq

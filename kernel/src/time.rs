@@ -1,3 +1,4 @@
+use crate::acpi;
 use crate::kprint::{kprint_char, kprint_char_at_pos, kprint_integer, kprint_integer_at_pos};
 use core::arch::asm;
 
@@ -58,6 +59,22 @@ pub fn kprint_time() {
     kprint_integer(seconds.into());
 }
 
+static mut INITIAL_HOURS: i16 = 0;
+static mut INITIAL_MINUTES: i16 = 0;
+static mut INITIAL_SECONDS: i16 = 0;
+
+pub fn set_initial_time() {
+    acpi::init_acpi();
+
+    let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
+
+    unsafe {
+        INITIAL_HOURS = read_cmos_i16(CmosRegister::Hours, bcd_enabled);
+        INITIAL_MINUTES = read_cmos_i16(CmosRegister::Minutes, bcd_enabled);
+        INITIAL_SECONDS = read_cmos_i16(CmosRegister::Seconds, bcd_enabled);
+    }
+}
+
 pub fn update_clock() {
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
 
@@ -70,4 +87,23 @@ pub fn update_clock() {
     kprint_integer_at_pos(minutes.into(), 0, 73);
     kprint_char_at_pos(':', 0, 75);
     kprint_integer_at_pos(seconds.into(), 0, 76);
+}
+
+pub fn get_ns_since_boot() -> u64 {
+    unsafe { (*acpi::HPET_COUNTER_VALUE).main_counter_val * acpi::HPET_CLOCK_PERIOD_IN_NS }
+}
+
+pub fn get_us_since_boot() -> u64 {
+    get_ns_since_boot() / 1000
+}
+
+pub fn get_ms_since_boot() -> u64 {
+    get_ns_since_boot() / 1_000_000
+}
+
+pub fn get_time() -> (u32, u32) {
+    (
+        ((get_ms_since_boot() / 1000 + unsafe { INITIAL_SECONDS } as u64) % 60) as u32,
+        (get_us_since_boot() % 1000000) as u32,
+    )
 }

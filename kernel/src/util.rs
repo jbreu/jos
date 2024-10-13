@@ -18,3 +18,18 @@ pub fn in_port_b(port: u32) -> u8 {
     }
     return key;
 }
+
+pub fn compare_str_to_memory(s: &str, addr: usize) -> bool {
+    let bytes = s.as_bytes();
+    let ptr = addr as *const u8;
+
+    unsafe {
+        for i in 0..bytes.len() {
+            if *ptr.add(i) != bytes[i] {
+                return false; // Mismatch found
+            }
+        }
+    }
+
+    true // All bytes match
+}
