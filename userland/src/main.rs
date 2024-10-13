@@ -39,5 +39,8 @@ pub fn _start() {
         libc::fseek(64, 0);
         printf!("ftell: {}\n", libc::ftell());
         printf!("feof: {}\n", libc::feof());
+
+        // busy loop to not only spend time in syscalls :-)
+        for i in 0..1000000 {}
     }
 }

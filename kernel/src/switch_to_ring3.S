@@ -2,8 +2,8 @@
 // https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf p. 174
 // https://wiki.osdev.org/SYSENTER
 
-.section .text
 .code64
+.section .text
 
 .globl jump_usermode
 jump_usermode:
@@ -40,17 +40,15 @@ jump_usermode:
 	
 	mov rsp, rsi
 
-	
-	// TODO Investigate: Only enable interrupts here (pretty late), because otherwise during jump to usermode interrupt may appear, leading to weird behavior
-	sti
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 0
 
 	sysretq //use "o64 sysret" if you assemble with NASM
 
-syscall_handler:
-	cli // TODO Hack: No task switches during syscalls (due to stack issues)
-	
+syscall_handler:	
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 1
+
     swapgs
-	
+		
 	// FIXME SECURITY somewhere here we should change the stack pointer to kernel space; see e.g. https://supercip971.github.io/02-wingos-syscalls.html
 
 	push rcx // syscall has set ecx to the rip of the userland process
@@ -62,8 +60,8 @@ syscall_handler:
 	pop r11
 	pop rcx 
 
-    swapgs
+	swapgs
 
-	sti
+	mov byte ptr [rip + SCHEDULING_BLOCKED], 0
 
 	sysretq
