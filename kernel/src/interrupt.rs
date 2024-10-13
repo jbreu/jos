@@ -5,7 +5,6 @@ use crate::keyboard;
 use crate::kprint;
 use crate::kprintln;
 use crate::time;
-use crate::time::init_timer;
 use crate::time::set_initial_time;
 use crate::userland;
 use crate::util::out_port_b;
@@ -105,25 +104,18 @@ pub extern "C" fn irq_handler(int_no: u64) {
 
     match (int_no - 32) as u64 {
         // Clock
-        0 => {
-            time::update_microsecond_counter();
+        0 => unsafe {
+            if SCHEDULING_BLOCKED == 0 {
+                userland::schedule();
 
-            // Only every 10 ms do complex stuff
-            if time::get_microsecond_counter() % 10_000 == 0 {
-                unsafe {
-                    if SCHEDULING_BLOCKED == 0 {
-                        userland::schedule();
-
-                        time::update_clock();
-                        kprint::kprint_integer_at_pos(
-                            USERLAND.lock().get_current_process_id() as i64,
-                            1,
-                            70,
-                        );
-                    }
-                }
+                time::update_clock();
+                kprint::kprint_integer_at_pos(
+                    USERLAND.lock().get_current_process_id() as i64,
+                    1,
+                    70,
+                );
             }
-        }
+        },
         // Keyboard action
         1 => {
             let mut scancode: i8;
@@ -207,9 +199,6 @@ pub fn init_idt() {
 
     out_port_b(0x21, 0x0);
     out_port_b(0xA1, 0x0);
-
-    // Init timer in microsecond accuracy
-    init_timer(100);
 
     // Set PIC mask to only let keyboard irqs through
     // https://wiki.osdev.org/I_Can%27t_Get_Interrupts_Working#IRQ_problems

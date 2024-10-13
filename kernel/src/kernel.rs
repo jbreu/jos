@@ -40,12 +40,11 @@ pub extern "C" fn kernel_main() -> ! {
     heap::init_kernel_heap();
     gdt::init_gdt();
     interrupt::init_idt();
+    time::set_initial_time();
 
     clear_console!();
     kprintln!("successfull boot!");
     kprintln!("Hellö Wörld!");
-
-    acpi::init_acpi();
 
     //vga::vga_enter();
     //vga::vga_clear_screen();

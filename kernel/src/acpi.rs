@@ -71,8 +71,8 @@ struct GeneralInterruptsStatusRegister {
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
-struct MainCounterValueRegister {
-    main_counter_val: u64,
+pub struct MainCounterValueRegister {
+    pub main_counter_val: u64,
 }
 
 fn find_xsdp() -> *const XSDP_t {
@@ -170,28 +170,18 @@ pub fn init_acpi() {
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
         kprint!("frequency: {}\n", frequency);
 
-        hpet_clock_period_in_ns = ((*capabilities).counter_clk_period / 1_000_000) as u64;
+        HPET_CLOCK_PERIOD_IN_NS = ((*capabilities).counter_clk_period / 1_000_000) as u64;
 
         let configuration = ((((*hpet).base_address + 0x10) % 0x200000) + 0xffff_8000_3f80_0000)
             as *mut GeneralConfigurationRegister;
 
         (*configuration).config = 0x1;
 
-        hpet_counter_value = ((((*hpet).base_address + 0xf0) % 0x200000) + 0xffff_8000_3f80_0000)
+        HPET_COUNTER_VALUE = ((((*hpet).base_address + 0xf0) % 0x200000) + 0xffff_8000_3f80_0000)
             as *const MainCounterValueRegister;
-
-        kprint!("ns since boot: {} ns\n", get_ns_since_boot());
-        kprint!("ns since boot: {} ns\n", get_ns_since_boot());
-        kprint!("ns since boot: {} ns\n", get_ns_since_boot());
-        kprint!("ns since boot: {} ns\n", get_ns_since_boot());
-        kprint!("ns since boot: {} ns\n", get_ns_since_boot());
     }
 }
 
 // TODO better use lazy static
-static mut hpet_counter_value: *const MainCounterValueRegister = core::ptr::null();
-static mut hpet_clock_period_in_ns: u64 = 0;
-
-pub fn get_ns_since_boot() -> u64 {
-    unsafe { (*hpet_counter_value).main_counter_val * hpet_clock_period_in_ns }
-}
+pub static mut HPET_COUNTER_VALUE: *const MainCounterValueRegister = core::ptr::null();
+pub static mut HPET_CLOCK_PERIOD_IN_NS: u64 = 0;
