@@ -1,11 +1,13 @@
 use core::str;
 
-use crate::{kprint, mem, util::compare_str_to_memory};
+use crate::DEBUG;
+
+use crate::{mem, util::compare_str_to_memory};
 
 // https://wiki.osdev.org/RSDP
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
-struct XSDP_t {
+struct XsdpT {
     signature: [u8; 8],
     checksum: u8,
     oemid: [u8; 6],
@@ -75,7 +77,7 @@ pub struct MainCounterValueRegister {
     pub main_counter_val: u64,
 }
 
-fn find_xsdp() -> *const XSDP_t {
+fn find_xsdp() -> *const XsdpT {
     let ebda_address = 0x040E as *const u16;
     let bios_rom_start = 0xE0000 as u32;
     let bios_rom_end = 0xFFFFF as u32;
@@ -85,14 +87,14 @@ fn find_xsdp() -> *const XSDP_t {
     let ebda: u32 = (ebda_seg as u32) << 4;
     for address in (ebda..(ebda + 1024)).step_by(16) {
         if compare_str_to_memory("RSD PTR ", address as usize) {
-            return address as *const XSDP_t;
+            return address as *const XsdpT;
         }
     }
 
     // Search in BIOS ROM area
     for address in (bios_rom_start..bios_rom_end).step_by(16) {
         if compare_str_to_memory("RSD PTR ", address as usize) {
-            return address as *const XSDP_t;
+            return address as *const XsdpT;
         }
     }
 
@@ -128,7 +130,7 @@ fn find_hpet_table() -> *const HPET {
                 let virt_header =
                     ((header as u64 % 0x200000) + 0xffff_8000_3fa0_0000) as *const ACPISDTHeader;
 
-                kprint!(
+                DEBUG!(
                     "ACPI Entry: {:?}\n",
                     str::from_utf8(&(*virt_header).signature)
                 );
@@ -168,7 +170,7 @@ pub fn init_acpi() {
             as *const GeneralCapabilitiesAndIdRegister;
 
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
-        kprint!("frequency: {}\n", frequency);
+        DEBUG!("frequency: {}\n", frequency);
 
         HPET_CLOCK_PERIOD_IN_NS = ((*capabilities).counter_clk_period / 1_000_000) as u64;
 

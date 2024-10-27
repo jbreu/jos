@@ -32,40 +32,77 @@ fn get_video_byte_string(character: char, foreground: Colors, background: Colors
 static mut CURRENT_ROW: u64 = 0;
 static mut CURRENT_COL: u64 = 0;
 
-pub struct KPrinter {}
+pub struct KPrinter {
+    pub color: Colors,
+}
+
+impl KPrinter {
+    pub fn new(color: Colors) -> Self {
+        Self { color: color }
+    }
+}
 
 impl core::fmt::Write for KPrinter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        crate::kprint::kprint(s, Colors::KPrintColorBlack);
+        crate::kprint::kprint(s, self.color);
         Ok(())
     }
+}
+#[macro_export]
+macro_rules! kprint_internal {
+    ($color:expr, $with_newline:expr, $($arg:tt)*) => {{
+        let mut kprinter = crate::kprint::KPrinter { color: $color };
+        core::fmt::write(&mut kprinter, core::format_args!($($arg)*)).unwrap();
+        if $with_newline {
+            crate::kprint::kprint_char('\n', $color);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! kprintlncolor {
+    ($color:expr, $($arg:tt)*) => {
+        kprint_internal!($color, true, $($arg)*)
+    };
+    () => {
+        crate::kprint::kprint_char('\n', $color)
+    };
+}
+
+#[macro_export]
+macro_rules! kprintcolor {
+    ($color:expr, $($arg:tt)*) => {
+        crate::kprint_internal!($color, false, $($arg)*)
+    };
+    () => {
+        crate::kprint::kprint_char('\n')
+    };
 }
 
 #[macro_export]
 macro_rules! kprintln {
-    () => {
-        crate::kprint::kprint_char('\n');
+    ($($arg:tt)*) => {
+        crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, true, $($arg)*)
     };
-    ($($arg:tt)*) => {{
-        let mut kprinter = crate::kprint::KPrinter {};
-        core::fmt::write(&mut kprinter, core::format_args!($($arg)*)).unwrap();
-        crate::kprint::kprint_char('\n', crate::kprint::Colors::KPrintColorBlack);
-    }};
+    () => {
+        crate::kprint::kprint_char('\n')
+    };
 }
 
 #[macro_export]
 macro_rules! kprint {
-    () => {};
-    ($($arg:tt)*) => {{
-        let mut kprinter = crate::kprint::KPrinter {};
-        core::fmt::write(&mut kprinter, core::format_args!($($arg)*)).unwrap();
-    }};
+    ($($arg:tt)*) => {
+        crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, false, $($arg)*)
+    };
+    () => {
+        crate::kprint::kprint_char('\n')
+    };
 }
 
 #[macro_export]
 macro_rules! clear_console {
     () => {
-        crate::kprint::clear();
+        crate::kprint::clear()
     };
 }
 
@@ -121,11 +158,6 @@ pub fn kprint(text: &str, color: Colors) {
     for character in text.chars() {
         kprint_char(character, color);
     }
-}
-
-pub fn kprint_line(text: &str, color: Colors) {
-    kprint(text, color);
-    kprint_char('\n', color);
 }
 
 pub fn _kprint_text_at_pos(text: &str, row: u64, column: u64, color: Colors) {

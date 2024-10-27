@@ -1,24 +1,22 @@
-// TODO add timestamps
 #[macro_export]
-macro_rules! DEBUG {
-    () => {
-        kprint("[DEBUG] ", crate::kprint::Colors::KPrintColorGreen);
-        kprintln()
-    };
-    ($($arg:tt)*) => {{
-        crate::kprint::kprint("[DEBUG] ", crate::kprint::Colors::KPrintColorGreen);
+macro_rules! log_with_level {
+    ($color:expr, $level:expr, $($arg:tt)*) => {{
+        crate::kprintcolor!($color, $level);
+        crate::kprint!("[{}] ", crate::time::get_us_since_boot());
         crate::kprintln!($($arg)*);
     }};
 }
 
 #[macro_export]
-macro_rules! ERROR {
-    () => {
-        kprint("[ERROR] ", crate::kprint::Colors::KPrintColorRed);
-        kprintln()
+macro_rules! DEBUG {
+    ($($arg:tt)*) => {
+        crate::log_with_level!(crate::kprint::Colors::KPrintColorGreen, "[DEBUG] ", $($arg)*);
     };
-    ($($arg:tt)*) => {{
-        crate::kprint::kprint("[ERROR] ", crate::kprint::Colors::KPrintColorGreen);
-        crate::kprintln!($($arg)*);
-    }};
+}
+
+#[macro_export]
+macro_rules! ERROR {
+    ($($arg:tt)*) => {
+        crate::log_with_level!(crate::kprint::Colors::KPrintColorRed, "[ERROR] ", $($arg)*);
+    };
 }
