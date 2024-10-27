@@ -2,6 +2,7 @@
 
 #[allow(dead_code)]
 #[repr(u8)]
+#[derive(Copy, Clone)]
 pub enum Colors {
     KPrintColorBlack = 0,
     KPrintColorBlue = 1,
@@ -35,7 +36,7 @@ pub struct KPrinter {}
 
 impl core::fmt::Write for KPrinter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        crate::kprint::kprint(s);
+        crate::kprint::kprint(s, Colors::KPrintColorBlack);
         Ok(())
     }
 }
@@ -48,7 +49,7 @@ macro_rules! kprintln {
     ($($arg:tt)*) => {{
         let mut kprinter = crate::kprint::KPrinter {};
         core::fmt::write(&mut kprinter, core::format_args!($($arg)*)).unwrap();
-        crate::kprint::kprint_char('\n');
+        crate::kprint::kprint_char('\n', crate::kprint::Colors::KPrintColorBlack);
     }};
 }
 
@@ -116,26 +117,26 @@ fn scroll_line() {
     }
 }
 
-pub fn kprint(text: &str) {
+pub fn kprint(text: &str, color: Colors) {
     for character in text.chars() {
-        kprint_char(character);
+        kprint_char(character, color);
     }
 }
 
-pub fn kprint_line(text: &str) {
-    kprint(text);
-    kprint_char('\n');
+pub fn kprint_line(text: &str, color: Colors) {
+    kprint(text, color);
+    kprint_char('\n', color);
 }
 
-pub fn _kprint_text_at_pos(text: &str, row: u64, column: u64) {
+pub fn _kprint_text_at_pos(text: &str, row: u64, column: u64, color: Colors) {
     let mut i = 0;
     for character in text.chars() {
-        kprint_char_at_pos(character, row, column + i);
+        kprint_char_at_pos(character, row, column + i, color);
         i += 1;
     }
 }
 
-pub fn kprint_char_at_pos(character_in: char, row: u64, column: u64) {
+pub fn kprint_char_at_pos(character_in: char, row: u64, column: u64, color: Colors) {
     // TODO remove the unsafe
     unsafe {
         let old_row = CURRENT_ROW;
@@ -144,14 +145,14 @@ pub fn kprint_char_at_pos(character_in: char, row: u64, column: u64) {
         CURRENT_ROW = row;
         CURRENT_COL = column;
 
-        kprint_char(character_in);
+        kprint_char(character_in, color);
 
         CURRENT_COL = old_column;
         CURRENT_ROW = old_row;
     }
 }
 
-pub fn kprint_char(character_in: char) {
+pub fn kprint_char(character_in: char, color: Colors) {
     let mut character = character_in;
 
     match character as u8 {
@@ -175,11 +176,7 @@ pub fn kprint_char(character_in: char) {
         // https://en.wikipedia.org/wiki/VGA_text_mode
         core::ptr::write_volatile(
             (0xffff80003fc00000 + 0xb8000 + (CURRENT_COL + CURRENT_ROW * 80) * 2) as *mut u16,
-            get_video_byte_string(
-                character,
-                Colors::KPrintColorBlack,
-                Colors::KPrintColorWhite,
-            ),
+            get_video_byte_string(character, color, Colors::KPrintColorWhite),
         );
 
         if CURRENT_COL == 80 {
@@ -195,14 +192,14 @@ pub fn kprint_char(character_in: char) {
     }
 }
 
-pub fn kprint_integer(number: i64) {
+pub fn kprint_integer(number: i64, color: Colors) {
     if number > 10 {
-        kprint_integer(number / 10);
+        kprint_integer(number / 10, color);
     }
-    kprint_char((number % 10 + 0x30) as u8 as char);
+    kprint_char((number % 10 + 0x30) as u8 as char, color);
 }
 
-pub fn kprint_integer_at_pos(number: i64, row: u64, column: u64) {
+pub fn kprint_integer_at_pos(number: i64, row: u64, column: u64, color: Colors) {
     // TODO remove the unsafe
     unsafe {
         let old_row = CURRENT_ROW;
@@ -212,10 +209,10 @@ pub fn kprint_integer_at_pos(number: i64, row: u64, column: u64) {
         CURRENT_COL = column;
 
         if number > 10 {
-            kprint_integer_at_pos(number / 10, row, column);
+            kprint_integer_at_pos(number / 10, row, column, color);
             CURRENT_COL = column + 1;
         }
-        kprint_char((number % 10 + 0x30) as u8 as char);
+        kprint_char((number % 10 + 0x30) as u8 as char, color);
 
         CURRENT_COL = old_column;
         CURRENT_ROW = old_row;

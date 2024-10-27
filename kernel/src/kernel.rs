@@ -24,9 +24,9 @@ mod vga;
 /// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    logging::log("Kernel Panic!");
+    ERROR!("Kernel Panic!");
 
-    kprintln!("{}", info);
+    ERROR!("{}", info);
 
     loop {}
 }
@@ -43,8 +43,8 @@ pub extern "C" fn kernel_main() -> ! {
     time::set_initial_time();
 
     clear_console!();
-    kprintln!("successfull boot!");
-    kprintln!("Hellö Wörld!");
+    DEBUG!("successfull boot!");
+    DEBUG!("Hellö Wörld!");
 
     //vga::vga_enter();
     //vga::vga_clear_screen();

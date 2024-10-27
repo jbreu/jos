@@ -1,6 +1,7 @@
 use crate::file::{feof, fopen, fread, fseek, ftell};
+use crate::kprintln;
+use crate::ERROR;
 use crate::{keyboard, vga};
-use crate::{kprintln, logging::log};
 use crate::{time, USERLAND};
 use core::arch::asm;
 
@@ -30,7 +31,7 @@ pub extern "C" fn system_call() -> u64 {
         12 => return syscall_get_keystate(),
         13 => return syscall_get_time(),
         _ => {
-            kprintln!("Undefined system call triggered: {}", syscall_nr);
+            ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
         }
     }
@@ -134,9 +135,9 @@ fn syscall_write() -> u64 {
                 1 => {
                     kprintln!("{}", msg)
                 }
-                _ => log("Undefined filedescriptor!"),
+                _ => ERROR!("Undefined filedescriptor!"),
             },
-            Err(_) => kprintln!("\nCouldnt reconstruct string!\n"),
+            Err(_) => ERROR!("\nCouldnt reconstruct string!\n"),
         }
     }
 

@@ -3,11 +3,12 @@
 
 use crate::keyboard;
 use crate::kprint;
-use crate::kprintln;
 use crate::time;
 use crate::time::set_initial_time;
 use crate::userland;
 use crate::util::out_port_b;
+use crate::DEBUG;
+use crate::ERROR;
 use crate::USERLAND;
 use core::arch::asm;
 use core::arch::global_asm;
@@ -74,10 +75,10 @@ pub struct InterruptRegisters {
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
     match int_no as u64 {
         0..=31 => {
-            kprintln!("ISR {} error_code {:x?}", int_no, error_code);
-            kprintln!("{}", CPU_EXCEPTIONS[int_no as usize]);
+            ERROR!("ISR {} error_code {:x?}", int_no, error_code);
+            ERROR!("{}", CPU_EXCEPTIONS[int_no as usize]);
         }
-        _ => kprintln!("ISR {}", int_no),
+        _ => DEBUG!("ISR {}", int_no),
     };
 
     out_port_b(0x20, 0x20);
@@ -113,6 +114,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
                     USERLAND.lock().get_current_process_id() as i64,
                     1,
                     70,
+                    kprint::Colors::KPrintColorDarkGray,
                 );
             }
         },

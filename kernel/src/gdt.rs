@@ -1,4 +1,4 @@
-use crate::logging;
+use crate::ERROR;
 use core::arch::asm;
 use core::arch::global_asm;
 use core::mem;
@@ -156,7 +156,7 @@ fn encode_gdt_entry(source: GDT) -> [u8; 8] {
 
     // Check the limit to make sure that it can be encoded
     if source.limit > 0xFFFFF {
-        logging::log("GDT cannot encode limits larger than 0xFFFFF");
+        ERROR!("ERROR: GDT cannot encode limits larger than 0xFFFFF");
     }
 
     // Encode the limit
