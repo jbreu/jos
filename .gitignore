@@ -8,3 +8,4 @@ targets/x86_64/iso/boot/kernel.bin
 ldlog.txt
 doom1.wad
 **/a.out
+qemu.log
