@@ -37,12 +37,14 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
+    clear_console!();
+
+    time::set_initial_time();
+
     heap::init_kernel_heap();
     gdt::init_gdt();
     interrupt::init_idt();
-    time::set_initial_time();
 
-    clear_console!();
     DEBUG!("successfull boot!");
     DEBUG!("Hellö Wörld!");
 
