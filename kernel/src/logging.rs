@@ -1,11 +1,24 @@
-use crate::kprint;
-use crate::time;
+// TODO add timestamps
+#[macro_export]
+macro_rules! DEBUG {
+    () => {
+        kprint("[DEBUG] ", crate::kprint::Colors::KPrintColorGreen);
+        kprintln()
+    };
+    ($($arg:tt)*) => {{
+        crate::kprint::kprint("[DEBUG] ", crate::kprint::Colors::KPrintColorGreen);
+        crate::kprintln!($($arg)*);
+    }};
+}
 
-// TODO introduce log levels
-// TODO then also add colors for levels (Error --> red)
-pub fn log(text: &str) {
-    kprint::kprint_char('[');
-    time::kprint_time();
-    kprint::kprint("] ");
-    kprint::kprint_line(text);
+#[macro_export]
+macro_rules! ERROR {
+    () => {
+        kprint("[ERROR] ", crate::kprint::Colors::KPrintColorRed);
+        kprintln()
+    };
+    ($($arg:tt)*) => {{
+        crate::kprint::kprint("[ERROR] ", crate::kprint::Colors::KPrintColorGreen);
+        crate::kprintln!($($arg)*);
+    }};
 }
