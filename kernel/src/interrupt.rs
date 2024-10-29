@@ -4,7 +4,6 @@
 use crate::keyboard;
 use crate::kprint;
 use crate::time;
-use crate::time::set_initial_time;
 use crate::userland;
 use crate::util::out_port_b;
 use crate::DEBUG;
@@ -283,7 +282,6 @@ pub fn init_idt() {
             base: IDT_ENTRIES.as_ptr() as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
         };
         SCHEDULING_BLOCKED = 1;
-        set_initial_time();
         asm!(
             "lidt [{}]
             sti",
