@@ -4,6 +4,7 @@ Experimental busy dad's learning activity.
 
 Rough list of features
 
+- ✅ use Rust instead of C
 - ✅ interrupts (time, keyboard)
 - ✅ paging
 - ✅ heap memory
@@ -13,8 +14,10 @@ Rough list of features
 - ✅ syscalls with userspace libc in Rust and C
 - ✅ VGA mode
 - ✅ "fake file operations" (read files embedded in executable)
-- ✅ use Rust instead of C
 - ✅ run Doom
+- ✅ use High Precision Event Timer CPU feature to get nanosecond resolution timestamps
+- ✅ colored logging
+- ✅ pretty logo
 - enable userspace processes to communicate via an IPC
 - network stack
 - make running on RISC-V (ESP32-C3?) additionally to x86_64
