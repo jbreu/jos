@@ -131,7 +131,7 @@ fn find_hpet_table() -> *const HPET {
                     ((header as u64 % 0x200000) + 0xffff_8000_3fa0_0000) as *const ACPISDTHeader;
 
                 DEBUG!(
-                    "ACPI Entry: {:?}\n",
+                    "ACPI Entry: {:?}",
                     str::from_utf8(&(*virt_header).signature)
                 );
 
@@ -170,7 +170,7 @@ pub fn init_acpi() {
             as *const GeneralCapabilitiesAndIdRegister;
 
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
-        DEBUG!("frequency: {}\n", frequency);
+        DEBUG!("frequency: {}", frequency);
 
         HPET_CLOCK_PERIOD_IN_NS = ((*capabilities).counter_clk_period / 1_000_000) as u64;
 
