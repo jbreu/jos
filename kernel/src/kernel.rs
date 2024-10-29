@@ -38,15 +38,19 @@ lazy_static! {
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     clear_console!();
+    DEBUG!("Entering JOS Kernel");
 
     time::set_initial_time();
+    DEBUG!("Initialized High Precision Event Timer");
 
     heap::init_kernel_heap();
-    gdt::init_gdt();
-    interrupt::init_idt();
+    DEBUG!("Initialized Kernel Heap Memory");
 
-    DEBUG!("successfull boot!");
-    DEBUG!("Hellö Wörld!");
+    gdt::init_gdt();
+    DEBUG!("Initialized Global Descriptor Table");
+
+    interrupt::init_idt();
+    DEBUG!("Initialized Interrupt Descriptor Table");
 
     //vga::vga_enter();
     //vga::vga_clear_screen();
@@ -55,6 +59,30 @@ pub extern "C" fn kernel_main() -> ! {
     //unsafe {
     //    asm!("int3", options(nomem, nostack));
     //}
+
+    kprint!(
+        r#"
+        ,--.-,     _,.---._        ,-,--.  
+        |==' -|   ,-.' , -  `.    ,-.'-  _\ 
+        |==|- |  /==/_,  ,  - \  /==/_ ,_.' 
+      __|==|, | |==|   .=.     | \==\  \    
+   ,--.-'\=|- | |==|_ : ;=:  - |  \==\ -\   
+   |==|- |=/ ,| |==| , '='     |  _\==\ ,\  
+   |==|. /=| -|  \==\ -    ,_ /  /==/\/ _ | 
+   \==\, `-' /    '.='. -   .'   \==\ - , / 
+    `--`----'       `--`--''      `--`---'    
+    "#
+    );
+
+    kprint!("JOS by Jakob Breu");
+
+    if let Some(builddate) = option_env!("VERGEN_BUILD_DATE") {
+        kprint!("; build date {}", builddate);
+    }
+
+    kprintln!("");
+
+    DEBUG!("JOS Kernel initialized; switching to userland");
 
     USERLAND.lock().switch_to_userland(&USERLAND);
 
