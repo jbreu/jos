@@ -1,6 +1,10 @@
 [package]
 name = "jos-kernel"
 version = "0.1.0"
+build = "build.rs"
+
+[build-dependencies]
+vergen = { version = "9.0.1", features = ["build"] }
 
 [dependencies]
 
