@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "JOS Userland",
+            "includePath": [
+                "${workspaceFolder}/userland/include"
+            ]
+        }
+    ],
+    "version": 1
+}
