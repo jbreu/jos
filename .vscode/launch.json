@@ -8,7 +8,7 @@
             "name": "Debug",
             "type": "gdb",
             "request": "attach",
-            //"executable": "dist/x86_64/kernel.bin",
+            "executable": "dist/x86_64/kernel.bin",
             "cwd": "${workspaceFolder}",
             "valuesFormatting": "prettyPrinters",
             "target": ":1234",
