@@ -13,7 +13,7 @@ include_bytes_aligned = "0.1.4"
 version = "0.10.5"
 
 [dependencies.spin]
-version = "0.9.8"
+version = "0.10.0"
 default-features = false
 features = ["mutex", "spin_mutex"]
 
