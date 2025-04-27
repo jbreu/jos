@@ -1,0 +1,1 @@
+typedef long long int jmp_buf[8];

@@ -66,13 +66,6 @@ struct GeneralConfigurationRegister {
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
-struct GeneralInterruptsStatusRegister {
-    tn_int_status: u32,
-    reserved: u32,
-}
-
-#[repr(C, packed)]
-#[derive(Clone, Copy)]
 pub struct MainCounterValueRegister {
     pub main_counter_val: u64,
 }

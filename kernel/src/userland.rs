@@ -91,6 +91,10 @@ impl Userland {
     pub fn get_current_process_id(&self) -> usize {
         self.current_process
     }
+
+    pub fn get_current_process(&mut self) -> &mut Process {
+        &mut self.processes[self.current_process]
+    }
 }
 
 // very simple scheduler
