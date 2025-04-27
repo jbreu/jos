@@ -7,6 +7,7 @@ use spin::Mutex;
 
 mod acpi;
 mod file;
+mod filesystem;
 mod gdt;
 mod heap;
 mod interrupt;
@@ -21,12 +22,16 @@ mod userland;
 mod util;
 mod vga;
 
-/// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     ERROR!("Kernel Panic!");
 
     ERROR!("{}", info);
+
+    // Trigger a breakpoint for GDB
+    unsafe {
+        core::arch::asm!("int3", options(nomem, nostack));
+    }
 
     loop {}
 }
@@ -51,6 +56,9 @@ pub extern "C" fn kernel_main() -> ! {
 
     interrupt::init_idt();
     DEBUG!("Initialized Interrupt Descriptor Table");
+
+    filesystem::init_filesystem();
+    DEBUG!("Initialized Filesystem");
 
     //vga::vga_enter();
     //vga::vga_clear_screen();

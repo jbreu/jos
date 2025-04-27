@@ -1,6 +1,9 @@
-use crate::file;
+use crate::filesystem::FileHandle;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
+extern crate alloc;
+use crate::ERROR;
+use alloc::vec::Vec;
 use core::arch::asm;
 use core::ptr::addr_of;
 
@@ -123,6 +126,10 @@ pub struct Process {
     state: ProcessState,
 
     heap_allocator: linked_list_allocator::LockedHeap,
+
+    working_directory: &'static str,
+
+    file_handles: Vec<FileHandle>,
 }
 
 impl Process {
@@ -144,6 +151,9 @@ impl Process {
             state: ProcessState::New,
 
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
+
+            working_directory: "/",
+            file_handles: Vec::new(),
         }
     }
 
@@ -226,7 +236,8 @@ impl Process {
         self.init_process_heap(v_addr, p_memsz);
         //kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
 
-        file::fopen();
+        //todo!();
+        //file::fopen();
 
         unsafe {
             asm!(
@@ -520,5 +531,62 @@ impl Process {
 
             return (elf_header.e_entry, last_v_addr, last_p_memsz);
         }
+    }
+
+    pub fn set_working_directory(&mut self, path: &'static str) -> u64 {
+        self.working_directory = path;
+        return 0;
+    }
+
+    pub fn get_working_directory(&self) -> &'static str {
+        self.working_directory
+    }
+
+    pub fn fopen(&mut self, path: &str, mode: &str) -> u64 {
+        let mode_num = match mode {
+            "r" => 0,
+            "w" => 1,
+            "rw" => 2,
+            _ => 0, // default to read-only
+        };
+        match FileHandle::new(path, mode_num) {
+            Some(file_handle) => {
+                kprint!("File opened: {}\n", path);
+                self.file_handles.push(file_handle);
+                let file_handle_index = self.file_handles.len();
+                kprint!("File handle index: {}\n", file_handle_index);
+                return file_handle_index as u64;
+            }
+            None => {
+                kprint!("Error opening file: {}\n", path);
+                return 0;
+            }
+        }
+    }
+
+    pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
+        // file_handle_index is 1-based
+        if file_handle_index as usize > self.file_handles.len() {
+            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+            return 0;
+        }
+
+        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
+        let bytes_read = file_handle.read(buffer, size);
+        file_handle.offset += bytes_read as usize;
+        return bytes_read;
+    }
+
+    pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
+        // file_handle_index is 1-based
+        if file_handle_index as usize > self.file_handles.len() {
+            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+            return 0;
+        }
+        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
+
+        file_handle.fseek(offset, whence);
+
+        return 0;
     }
 }

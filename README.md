@@ -31,7 +31,7 @@ Rough list of ecosystem
 ## Compile and Run
 
 - `docker build buildenv_rust -t jos_buildenv`
-- `docker run --rm -it -v "${pwd}:/root/env" jos_buildenv`
+- `docker run --rm --privileged -it -v "${pwd}:/root/env" jos_buildenv`
 - `make build-x86_64`
 - (other shell) `qemu-system-x86_64 -no-reboot -cdrom dist/x86_64/kernel.iso`
 
