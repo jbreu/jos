@@ -11,7 +11,20 @@ class QEMUConnection:
         self.process = None
         self.log_file = None
         qemu_command = "qemu-system-x86_64"
-        if sys.platform == "win32":
+        # Check if running on Windows or WSL, as both might need .exe
+        is_windows = sys.platform == "win32"
+        is_wsl = False
+        if sys.platform == "linux":
+            try:
+                # A common way to detect WSL is checking /proc/version
+                with open("/proc/version", "r") as f:
+                    content = f.read().lower()
+                    if "microsoft" in content or "wsl" in content:
+                        is_wsl = True
+            except FileNotFoundError:
+                pass  # /proc/version doesn't exist, likely not WSL
+
+        if is_windows or is_wsl:
             qemu_command += ".exe"
 
         command = [
