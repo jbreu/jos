@@ -3,14 +3,19 @@ import socket
 import time
 from typing import Generator
 import subprocess
+import sys
 
 
 class QEMUConnection:
     def __init__(self, host: str = "127.0.0.1", port: int = 4444):
         self.process = None
         self.log_file = None
+        qemu_command = "qemu-system-x86_64"
+        if sys.platform == "win32":
+            qemu_command += ".exe"
+
         command = [
-            "qemu-system-x86_64.exe",
+            qemu_command,
             "-action",
             "panic=pause",
             "-no-reboot",
