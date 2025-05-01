@@ -45,5 +45,5 @@ jobs:
           options: -v ${{ github.workspace }}:/root/env --privileged
           run: |
             cd test
-            ./setup.sh
-            ./run.sh
+            sh ./setup.sh
+            sh ./run.sh
