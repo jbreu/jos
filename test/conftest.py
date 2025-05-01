@@ -64,6 +64,17 @@ class QEMUConnection:
             self.socket.close()
             self.socket = None
 
+        if self.process:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=5)  # Wait for the process to terminate
+            except subprocess.TimeoutExpired:
+                self.process.kill()  # Force kill if terminate doesn't work
+            except Exception as e:
+                print(f"Error terminating QEMU process: {e}")
+            finally:
+                self.process = None
+
     def read_until(self, marker: bytes, timeout: float = 5.0) -> bytes:
         """Read from socket until marker is found or timeout occurs"""
         self.socket.settimeout(timeout)
