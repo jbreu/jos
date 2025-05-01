@@ -28,11 +28,6 @@ fn panic(info: &PanicInfo) -> ! {
 
     ERROR!("{}", info);
 
-    // Trigger a breakpoint for GDB
-    unsafe {
-        core::arch::asm!("int3", options(nomem, nostack));
-    }
-
     loop {}
 }
 
