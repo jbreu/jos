@@ -38,7 +38,7 @@ class QEMUConnection:
             "-monitor",
             "stdio",
             "-cdrom",
-            "../dist/x86_64/kernel.iso",
+            "dist/x86_64/kernel.iso",
         ]
         try:
             # Ensure the log file is opened before starting the process
