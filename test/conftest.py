@@ -1,0 +1,94 @@
+import pytest
+import socket
+import time
+from typing import Generator
+import subprocess
+
+
+class QEMUConnection:
+    def __init__(self, host: str = "127.0.0.1", port: int = 4444):
+        self.process = None
+        self.log_file = None
+        command = [
+            "qemu-system-x86_64.exe",
+            "-action",
+            "panic=pause",
+            "-no-reboot",
+            "-serial",
+            "tcp:127.0.0.1:4444,server,nowait",
+            "-monitor",
+            "stdio",
+            "-cdrom",
+            "../dist/x86_64/kernel.iso",
+        ]
+        try:
+            # Ensure the log file is opened before starting the process
+            self.log_file = open("qemu.log", "wb")
+            self.process = subprocess.Popen(
+                command, stdout=self.log_file, stderr=self.log_file
+            )
+            # A small delay might be needed for QEMU to start the serial server
+            # Adjust the sleep duration if connection issues persist
+            time.sleep(1.0)
+        except FileNotFoundError:
+            print(
+                "Error: qemu-system-x86_64 command not found. Is QEMU installed and in PATH?"
+            )
+            if self.log_file:
+                self.log_file.close()  # Close the file if opened before error
+            raise
+        except Exception as e:
+            print(f"Failed to start QEMU: {e}")
+            if self.log_file:
+                self.log_file.close()  # Close the file if opened before error
+            raise
+        self.host = host
+        self.port = port
+        self.socket = None
+
+    def connect(self, retries: int = 5, delay: float = 1.0) -> None:
+        """Connect to QEMU's serial console with retries"""
+        for attempt in range(retries):
+            try:
+                self.socket = socket.create_connection((self.host, self.port))
+                return
+            except (ConnectionRefusedError, socket.error):
+                if attempt < retries - 1:
+                    time.sleep(delay)
+                    continue
+                raise
+
+    def disconnect(self) -> None:
+        """Close the connection"""
+        if self.socket:
+            self.socket.close()
+            self.socket = None
+
+    def read_until(self, marker: bytes, timeout: float = 5.0) -> bytes:
+        """Read from socket until marker is found or timeout occurs"""
+        self.socket.settimeout(timeout)
+        data = b""
+        start_time = time.time()
+
+        while True:
+            if time.time() - start_time > timeout:
+                raise TimeoutError(f"Timeout waiting for marker {marker}")
+
+            try:
+                chunk = self.socket.recv(1024)
+                if not chunk:
+                    raise ConnectionError("Connection closed by remote host")
+                data += chunk
+                if marker in data:
+                    return data
+            except socket.timeout:
+                raise TimeoutError(f"Timeout waiting for marker {marker}")
+
+
+@pytest.fixture
+def qemu() -> Generator[QEMUConnection, None, None]:
+    """Fixture that provides a QEMU serial connection"""
+    connection = QEMUConnection()
+    connection.connect()
+    yield connection
+    connection.disconnect()
