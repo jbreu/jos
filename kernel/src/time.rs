@@ -90,7 +90,12 @@ pub fn update_clock() {
 }
 
 pub fn get_ns_since_boot() -> u64 {
-    unsafe { (*acpi::HPET_COUNTER_VALUE).main_counter_val * acpi::HPET_CLOCK_PERIOD_IN_NS }
+    unsafe {
+        match acpi::HPET_COUNTER_VALUE.is_null() {
+            true => 0,
+            false => (*acpi::HPET_COUNTER_VALUE).main_counter_val * acpi::HPET_CLOCK_PERIOD_IN_NS,
+        }
+    }
 }
 
 pub fn get_us_since_boot() -> u64 {
