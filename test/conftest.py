@@ -29,6 +29,7 @@ class QEMUConnection:
 
         command = [
             qemu_command,
+            "-nographic",  # Add this option to run in headless mode
             "-action",
             "panic=pause",
             "-no-reboot",
