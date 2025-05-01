@@ -30,7 +30,7 @@ jobs:
           tags: jbreu/jos:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Build jos
+      - name: Build and smoke test jos
         uses: addnab/docker-run-action@v3
         with:
           image: jbreu/jos:latest
@@ -38,12 +38,6 @@ jobs:
           run: |
             . $HOME/.cargo/env
             make build-x86_64
-      - name: Test jos
-        uses: addnab/docker-run-action@v3
-        with:
-          image: jbreu/jos:latest
-          options: -v ${{ github.workspace }}:/root/env --privileged
-          run: |
             cd test
             sh ./setup.sh
             sh ./run.sh

@@ -12,7 +12,6 @@ build-x86_64: $(x86_64_asm_object_files)
 	mkdir -p build/kernel
 	mkdir -p build/userspace/x86_64-unknown-none/debug/
 	wget https://github.com/Daivuk/PureDOOM/raw/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/doom1.wad -N
-	cd storage && sh generateExt2Img.sh && cd .. \
 	wget -P userland/src/ https://raw.githubusercontent.com/Daivuk/PureDOOM/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/PureDOOM.h -N
 	cargo rustc --manifest-path kernel/Cargo.toml --target-dir build/kernel/ -- -C no-redzone=on -C target-feature=-sse -C link-arg=-Ttargets/x86_64/linker.ld 
 	gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/helloworld -Wl,--gc-sections
