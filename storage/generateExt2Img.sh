@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eux pipefail
 
 # Create a 10 MB file
 dd if=/dev/zero of=disk.img bs=1M count=10
@@ -12,14 +13,15 @@ mkdir -p /tmp/disk
 # Check if running in Docker
 if [ -f /.dockerenv ]; then
     sudo losetup -fP disk.img
-    sudo losetup    # to find which /dev/loopX
-    sudo mount /dev/loopX /tmp/disk
+    LOOPDEV=$(sudo losetup | sort -V | tail -n1 | cut -d' ' -f1)
+    echo $LOOPDEV
+    sudo mount $LOOPDEV /tmp/disk
 else
     sudo mount -t ext2 disk.img /tmp/disk
 fi
 
 # Change ownership to current user
-sudo chown $USER:$USER /tmp/disk
+# sudo chown "$USER":"$USER" /tmp/disk
 
 # Copy the file
 cp test.txt /tmp/disk/
@@ -32,4 +34,4 @@ ls -l -a /tmp/disk
 sudo umount /tmp/disk
 
 # Clean up
-rm -r /tmp/disk
+#rm -r /tmp/disk
