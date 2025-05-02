@@ -6,6 +6,7 @@ requires-python = ">=3.8"
 dependencies = [
     "pytest >=7.0.0",
     "pyserial >=3.5",
+    "pytest-dependency >=0.6.0",
 ]
 
 [tool.pytest.ini_options]

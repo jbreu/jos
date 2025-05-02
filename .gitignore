@@ -18,3 +18,4 @@ storage/disk.img
 test/uv.lock
 test/__pycache__/
 test/serial.log
+serial.log

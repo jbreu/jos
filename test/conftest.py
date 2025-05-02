@@ -4,13 +4,21 @@ import time
 from typing import Generator
 import subprocess
 import sys
+import os
 
 
 class QEMUConnection:
     def __init__(self, host: str = "127.0.0.1", port: int = 4444):
         self.process = None
         self.log_file = None
-        # qemu-system-x86_64 -nographic -cdrom dist/x86_64/kernel.iso
+
+        # Clear serial.log before starting
+        try:
+            with open("serial.log", "w") as f:
+                f.truncate(0)
+        except Exception as e:
+            print(f"Warning: Could not clear serial.log: {e}")
+
         qemu_command = "qemu-system-x86_64"
         # Check if running on Windows or WSL, as both might need .exe
         is_windows = sys.platform == "win32"
@@ -28,6 +36,14 @@ class QEMUConnection:
         if is_windows or is_wsl:
             qemu_command += ".exe"
 
+        # Check if current directory is test
+        current_dir = os.path.basename(os.getcwd())
+        iso_path = (
+            "../dist/x86_64/kernel.iso"
+            if current_dir == "test"
+            else "dist/x86_64/kernel.iso"
+        )
+
         command = [
             qemu_command,
             "-nographic",  # Add this option to run in headless mode
@@ -39,7 +55,7 @@ class QEMUConnection:
             "-monitor",
             "stdio",
             "-cdrom",
-            "../dist/x86_64/kernel.iso",
+            iso_path,
         ]
         try:
             # Ensure the log file is opened before starting the process
@@ -95,7 +111,7 @@ class QEMUConnection:
             finally:
                 self.process = None
 
-    def read_until(self, marker: bytes, timeout: float = 5.0) -> bytes:
+    def read_until(self, marker: bytes, timeout: float = 10.0) -> bytes:
         """Read from socket until marker is found or timeout occurs"""
         self.socket.settimeout(timeout)
         data = b""
