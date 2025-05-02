@@ -39,7 +39,7 @@ class QEMUConnection:
             "-monitor",
             "stdio",
             "-cdrom",
-            "dist/x86_64/kernel.iso",
+            "../dist/x86_64/kernel.iso",
         ]
         try:
             # Ensure the log file is opened before starting the process
@@ -102,7 +102,7 @@ class QEMUConnection:
         start_time = time.time()
 
         # Open serial.log in append binary mode
-        with open("test/serial.log", "ab") as log_file:
+        with open("serial.log", "ab") as log_file:
             while True:
                 if time.time() - start_time > timeout:
                     raise TimeoutError(f"Timeout waiting for marker {marker}")
