@@ -112,14 +112,28 @@ fn find_hpet_table() -> *const HPET {
             let virt_rsdt_address =
                 ((*xsdp).rsdt_address % 0x200000) as u64 + 0xffff_8000_3fa0_0000;
 
+            DEBUG!("RSDT Address: {:?}", virt_rsdt_address as *const u64);
+
             let rsdt = virt_rsdt_address as *const ACPISDTHeader;
+
+            DEBUG!("RSDT: {:?}", str::from_utf8(&(*rsdt).signature));
+
             let entries = ((*rsdt).length as usize - core::mem::size_of::<ACPISDTHeader>()) / 4;
+
+            DEBUG!("RSDT entries: {}", entries);
+
             // The individual tables are pointed to 32bit pointers coming after the header
             let table_ptrs =
                 (virt_rsdt_address as usize + core::mem::size_of::<ACPISDTHeader>()) as *const u32;
 
+            DEBUG!(
+                "RSDT table_ptrs: {:?} (size of ACPISDTHeader: {:?})",
+                table_ptrs,
+                core::mem::size_of::<ACPISDTHeader>()
+            );
+
             for i in 0..entries {
-                let header = *(table_ptrs.add(i));
+                let header = core::ptr::read_unaligned(table_ptrs.add(i));
                 let virt_header =
                     ((header as u64 % 0x200000) + 0xffff_8000_3fa0_0000) as *const ACPISDTHeader;
 

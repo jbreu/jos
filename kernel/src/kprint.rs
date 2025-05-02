@@ -1,3 +1,4 @@
+use crate::serial;
 // add better formatting options, see https://os.phil-opp.com/vga-text-mode/#a-kprintln-macro
 
 #[allow(dead_code)]
@@ -194,6 +195,9 @@ pub fn kprint_char(character_in: char, color: Colors) {
 
     unsafe {
         if character == '\n' {
+            serial::write_serial('\r');
+            serial::write_serial('\n');
+
             CURRENT_ROW += 1;
 
             if CURRENT_ROW > 24 {
@@ -204,6 +208,9 @@ pub fn kprint_char(character_in: char, color: Colors) {
             CURRENT_COL = 0;
             return;
         }
+
+        // Write to serial port first
+        serial::write_serial(character);
 
         // https://en.wikipedia.org/wiki/VGA_text_mode
         core::ptr::write_volatile(

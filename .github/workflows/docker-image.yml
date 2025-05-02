@@ -30,7 +30,7 @@ jobs:
           tags: jbreu/jos:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Build jos
+      - name: Build and smoke test jos
         uses: addnab/docker-run-action@v3
         with:
           image: jbreu/jos:latest
@@ -38,3 +38,14 @@ jobs:
           run: |
             . $HOME/.cargo/env
             make build-x86_64
+            cd test
+            sh ./setup.sh
+            sh ./run.sh
+      - name: Archive logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            test/qemu.log
+            test/serial.log

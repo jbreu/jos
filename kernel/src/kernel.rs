@@ -16,6 +16,7 @@ mod kprint;
 mod logging;
 mod mem;
 mod process;
+mod serial;
 mod syscall;
 mod time;
 mod userland;
@@ -42,6 +43,9 @@ pub extern "C" fn kernel_main() -> ! {
 
     time::set_initial_time();
     DEBUG!("Initialized High Precision Event Timer");
+
+    serial::init_serial();
+    DEBUG!("Initialized Serial Port");
 
     heap::init_kernel_heap();
     DEBUG!("Initialized Kernel Heap Memory");

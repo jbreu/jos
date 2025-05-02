@@ -18,6 +18,8 @@ Rough list of features
 - ✅ use High Precision Event Timer CPU feature to get nanosecond resolution timestamps
 - ✅ colored logging
 - ✅ pretty logo
+- ✅ print logs to Serial
+- ✅ Read Ext2 filesystem images
 - enable userspace processes to communicate via an IPC
 - network stack
 - make running on RISC-V (ESP32-C3?) additionally to x86_64
@@ -25,6 +27,7 @@ Rough list of features
 Rough list of ecosystem 
 
 - ✅ Github CI action to build
+- ✅ Automatic testing via serial connection
 - ✅ gdb debugging
 - adopt Bazel instead of make
 
