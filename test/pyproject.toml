@@ -1,0 +1,14 @@
+[project]
+name = "jos-tests"
+version = "0.1.0"
+description = "Test suite for JOS kernel"
+requires-python = ">=3.8"
+dependencies = [
+    "pytest >=7.0.0",
+    "pyserial >=3.5",
+    "pytest-dependency >=0.6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
