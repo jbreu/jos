@@ -41,3 +41,10 @@ jobs:
             cd test
             sh ./setup.sh
             sh ./run.sh
+      - name: Archive logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: |
+            test/qemu.log
