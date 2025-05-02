@@ -10,6 +10,7 @@ class QEMUConnection:
     def __init__(self, host: str = "127.0.0.1", port: int = 4444):
         self.process = None
         self.log_file = None
+        # qemu-system-x86_64 -nographic -cdrom dist/x86_64/kernel.iso
         qemu_command = "qemu-system-x86_64"
         # Check if running on Windows or WSL, as both might need .exe
         is_windows = sys.platform == "win32"
@@ -100,19 +101,24 @@ class QEMUConnection:
         data = b""
         start_time = time.time()
 
-        while True:
-            if time.time() - start_time > timeout:
-                raise TimeoutError(f"Timeout waiting for marker {marker}")
+        # Open serial.log in append binary mode
+        with open("test/serial.log", "ab") as log_file:
+            while True:
+                if time.time() - start_time > timeout:
+                    raise TimeoutError(f"Timeout waiting for marker {marker}")
 
-            try:
-                chunk = self.socket.recv(1024)
-                if not chunk:
-                    raise ConnectionError("Connection closed by remote host")
-                data += chunk
-                if marker in data:
-                    return data
-            except socket.timeout:
-                raise TimeoutError(f"Timeout waiting for marker {marker}")
+                try:
+                    chunk = self.socket.recv(1024)
+                    if not chunk:
+                        raise ConnectionError("Connection closed by remote host")
+                    # Write received chunk to log file
+                    log_file.write(chunk)
+                    log_file.flush()  # Ensure data is written immediately
+                    data += chunk
+                    if marker in data:
+                        return data
+                except socket.timeout:
+                    raise TimeoutError(f"Timeout waiting for marker {marker}")
 
 
 @pytest.fixture
