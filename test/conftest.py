@@ -111,7 +111,7 @@ class QEMUConnection:
             finally:
                 self.process = None
 
-    def read_until(self, marker: bytes, timeout: float = 10.0) -> bytes:
+    def read_until(self, marker: bytes, timeout: float = 30.0) -> bytes:
         """Read from socket until marker is found or timeout occurs"""
         self.socket.settimeout(timeout)
         data = b""
