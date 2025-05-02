@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug",
+            "name": "JOS GDB debug",
             "type": "gdb",
             "request": "attach",
             "executable": "dist/x86_64/kernel.bin",
@@ -14,6 +14,17 @@
             "target": ":1234",
             "remote": true,
             "printCalls": true,
+        },
+        {
+            "name": "Pytest Debug",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "justMyCode": true,
+            "args": [
+                // Add any pytest arguments here, e.g., "test_my_module.py"
+            ],
+            "console": "externalTerminal",
         }
     ]
 }

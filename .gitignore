@@ -15,3 +15,6 @@ userland/usr/libc.a
 userland/usr/libc.o
 userland/usr/lib/*.a
 storage/disk.img
+test/uv.lock
+test/__pycache__/
+test/serial.log
