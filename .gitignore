@@ -19,3 +19,5 @@ test/uv.lock
 test/__pycache__/
 test/serial.log
 serial.log
+tools/perf/FlameGraph/
+tools/perf/stacks.txt
