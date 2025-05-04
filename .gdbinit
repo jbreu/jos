@@ -37,3 +37,19 @@ define print_palette
     set $i = $i + 3
   end
 end
+
+
+define flamesample
+  set logging off
+  set pagination 0
+  set $i = 0
+  set logging file tools/perf/stacks.txt
+  while $i < 200
+    set logging on
+    thread apply all bt
+    set logging off
+    stepi 10000
+    interrupt
+    set $i = $i + 1
+  end  
+end
