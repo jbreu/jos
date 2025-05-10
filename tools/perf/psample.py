@@ -14,7 +14,6 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--interval", type=int, default=10, help="Sampling interval in milliseconds"
-)
 parser.add_argument("--count", type=int, default=1000, help="Number of samples")
 parser.add_argument("--target", type=str, default=":1234", help="GDB remote target")
 parser.add_argument(
