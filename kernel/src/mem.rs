@@ -1,5 +1,8 @@
 use crate::process;
+use crate::DEBUG;
 use core::arch::asm;
+use core::sync::atomic::{AtomicU64, Ordering};
+use tracing::instrument;
 
 // TODO make more elegant
 // available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
@@ -36,6 +39,7 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array
 };
 
+#[instrument]
 pub fn allocate_page_frame() -> u64 {
     // TODO make safe
     // TODO make faster by not iterating instead storing next free page frame

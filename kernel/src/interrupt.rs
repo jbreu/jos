@@ -11,6 +11,7 @@ use crate::ERROR;
 use crate::USERLAND;
 use core::arch::asm;
 use core::arch::global_asm;
+use tracing::instrument;
 
 global_asm!(include_str!("interrupt.S"));
 
@@ -71,6 +72,7 @@ pub struct InterruptRegisters {
 }
 
 #[no_mangle]
+#[instrument(skip(error_code, int_no))]
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
     match int_no as u64 {
         0..=31 => {
@@ -84,6 +86,7 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
 }
 
 #[no_mangle]
+// #[instrument(skip(int_no))]
 pub extern "C" fn irq_handler(int_no: u64) {
     // TODO make this a verbose log
     /*extern "C" {
@@ -168,6 +171,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
     out_port_b(0x20, 0x20);
 }
 
+#[instrument]
 fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     unsafe {
         IDT_ENTRIES[num].base_low = (base & 0xFFFF) as u16;
@@ -180,6 +184,7 @@ fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     }
 }
 
+#[instrument]
 pub fn init_idt() {
     // https://www.eeeguide.com/8259-programmable-interrupt-controller/
     // https://stackoverflow.com/a/283033

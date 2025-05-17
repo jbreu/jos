@@ -4,8 +4,9 @@ use crate::mem::allocate_page_frame;
 extern crate alloc;
 use crate::ERROR;
 use alloc::vec::Vec;
-use core::arch::asm;
 use core::ptr::addr_of;
+use core::{arch::asm, fmt::Debug};
+use tracing::{debug, info, instrument};
 
 pub static mut KERNEL_CR3: u64 = 0;
 
@@ -99,6 +100,7 @@ fn print_page_table_tree(start_addr: u64) {
     }
 }
 
+#[derive(Debug)]
 enum ProcessState {
     New,
     Prepared,
@@ -132,7 +134,14 @@ pub struct Process {
     file_handles: Vec<FileHandle>,
 }
 
+impl Debug for Process {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Process {{ state: {:?} }}", self.state)
+    }
+}
+
 impl Process {
+    #[instrument]
     pub fn new() -> Self {
         Self {
             registers: RegistersStruct::default(),
@@ -157,6 +166,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn initialize(&mut self) {
         // TODO remove hard coding
         // TODO Task stack
@@ -253,6 +263,7 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
+    #[instrument]
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
         let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
@@ -266,6 +277,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn malloc(&mut self, size: usize) -> u64 {
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
@@ -280,11 +292,15 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn launch(&mut self) {
+        info!("Launching process");
         self.state = ProcessState::Passive;
     }
 
+    #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
+        debug!("Activating process");
         extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
@@ -336,7 +352,9 @@ impl Process {
         self.state = ProcessState::Active;
     }
 
+    #[instrument]
     pub fn passivate(&mut self) {
+        debug!("Passivating process");
         extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
@@ -441,6 +459,7 @@ impl Process {
         self.rip
     }
 
+    #[instrument]
     pub fn load_elf_from_bin() -> (u64, u64, u64) {
         extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;

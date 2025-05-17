@@ -3,8 +3,10 @@ use crate::kprintln;
 use crate::DEBUG;
 use crate::ERROR;
 use alloc::vec::Vec;
+use core::fmt;
 use include_bytes_aligned::include_bytes_aligned;
 use lazy_static::lazy_static;
+use tracing::instrument;
 
 const DISK_IMG: &[u8] = include_bytes_aligned!(8, "../../storage/disk.img");
 
@@ -12,12 +14,22 @@ lazy_static! {
     pub static ref FILE_SYSTEM: Ext2FileSystem = Ext2FileSystem::new();
 }
 
+#[derive(Clone)]
 pub struct FileHandle {
     inode: Inode,
     pub offset: usize,
 }
 
+impl fmt::Debug for FileHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FileHandle")
+            .field("offset", &self.offset)
+            .finish()
+    }
+}
+
 impl FileHandle {
+    #[instrument]
     pub fn new(filename: &str, _mode: u32) -> Option<FileHandle> {
         match FILE_SYSTEM.read_inode_by_path(filename) {
             Some(inode) => return Some(Self { inode, offset: 0 }),
@@ -27,6 +39,7 @@ impl FileHandle {
         }
     }
 
+    #[instrument]
     pub fn read(&mut self, buffer: *mut u8, size: usize) -> u64 {
         let mut bytes_read = 0;
         let mut buffer_offset = 0;
@@ -225,6 +238,7 @@ struct DirectoryEntry {
 }
 
 impl Ext2FileSystem {
+    #[instrument]
     pub fn new() -> Self {
         kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
 
@@ -294,6 +308,7 @@ impl Ext2FileSystem {
         inode
     }
 
+    #[instrument]
     pub fn debug_print_superblock(&self) {
         let inode_count = self.superblock.inode_count;
         let block_count = self.superblock.block_count;
@@ -310,6 +325,7 @@ impl Ext2FileSystem {
         kprintln!("  Magic: {:#x}", magic);
     }
 
+    #[instrument]
     pub fn read_inode_by_path(&self, path: &str) -> Option<Inode> {
         let mut current_inode = 2; // Root directory
 

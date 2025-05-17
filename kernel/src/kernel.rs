@@ -4,6 +4,7 @@
 use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use tracing::{info, instrument};
 
 mod acpi;
 mod file;
@@ -19,6 +20,7 @@ mod process;
 mod serial;
 mod syscall;
 mod time;
+mod tracing_setup;
 mod userland;
 mod util;
 mod vga;
@@ -37,7 +39,9 @@ lazy_static! {
 }
 
 #[no_mangle]
-pub extern "C" fn kernel_main() -> ! {
+pub extern "C" fn kernel_main() {
+    info!(target: "kernel", "Kernel starting up");
+
     clear_console!();
     DEBUG!("Entering JOS Kernel");
 
@@ -49,6 +53,9 @@ pub extern "C" fn kernel_main() -> ! {
 
     heap::init_kernel_heap();
     DEBUG!("Initialized Kernel Heap Memory");
+
+    let subscriber = tracing_setup::SerialSubscriber;
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     gdt::init_gdt();
     DEBUG!("Initialized Global Descriptor Table");
