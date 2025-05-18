@@ -1,5 +1,7 @@
 use crate::get_ns_since_boot;
 use crate::DEBUG;
+extern crate alloc;
+use alloc::vec::Vec;
 use core::arch::x86_64::_rdtsc;
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use tracing::span::{Attributes, Id, Record};
@@ -28,10 +30,39 @@ enum TracePointType {
 
 pub fn log_tracepoints() {
     unsafe {
-        for i in 0..TRACE_POINT_MAX {
+        let count = TRACE_POINT_COUNT.load(Ordering::Relaxed);
+        if TRACE_POINTS[count + 1].id != 0 {
+            for i in (count + 1)..TRACE_POINT_MAX {
+                let trace_point = &TRACE_POINTS[i];
+                DEBUG!(
+                    "[{}ns/{}cyc] {} [{}] {}",
+                    trace_point.time,
+                    trace_point.cycles,
+                    match trace_point.trace_type {
+                        TracePointType::Enter => "ENTER",
+                        TracePointType::Exit => "EXIT",
+                        TracePointType::Event => "EVENT",
+                        TracePointType::Record => "RECORD",
+                        TracePointType::Follows => "FOLLOWS",
+                        _ => "UNKNOWN",
+                    },
+                    trace_point.id,
+                    core::str::from_utf8(
+                        &trace_point
+                            .name
+                            .iter()
+                            .take_while(|&&c| c != '\0')
+                            .map(|&c| c as u8)
+                            .collect::<Vec<u8>>()
+                    )
+                    .unwrap_or(""),
+                );
+            }
+        }
+        for i in 0..=count {
             let trace_point = &TRACE_POINTS[i];
             DEBUG!(
-                "[{}ns/{}cyc] {} [{}] {:?}",
+                "[{}ns/{}cyc] {} [{}] {}",
                 trace_point.time,
                 trace_point.cycles,
                 match trace_point.trace_type {
@@ -43,14 +74,22 @@ pub fn log_tracepoints() {
                     _ => "UNKNOWN",
                 },
                 trace_point.id,
-                trace_point.name,
+                core::str::from_utf8(
+                    &trace_point
+                        .name
+                        .iter()
+                        .take_while(|&&c| c != '\0')
+                        .map(|&c| c as u8)
+                        .collect::<Vec<u8>>()
+                )
+                .unwrap_or(""),
             );
         }
     }
     DEBUG!("Tracepoints logged");
 }
 
-const TRACE_POINT_MAX: usize = 256;
+const TRACE_POINT_MAX: usize = 4096;
 
 static mut TRACE_POINTS: [TracePoint; TRACE_POINT_MAX] = [TracePoint {
     id: 0,

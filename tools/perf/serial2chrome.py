@@ -80,6 +80,10 @@ def convert_to_chrome_trace(input_lines: List[str]) -> Dict[str, Any]:
         elif parsed["event"] == "EXIT":
             # Find the matching ENTER by call_id, searching from the top
 
+            if not call_stack:
+                print(f"Warning: No matching ENTER for EXIT {parsed['call_id']}")
+                continue
+
             enter = call_stack.pop()
             if enter["call_id"] == parsed["call_id"]:
                 nesting_level = enter["nesting_level"]
