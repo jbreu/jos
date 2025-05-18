@@ -38,6 +38,7 @@ def test_userland(qemu: QEMUConnection):
 
 
 @pytest.mark.dependency(depends=["test_userland"])
+@pytest.mark.dependency()
 def test_userland_doom(qemu: QEMUConnection):
     """Test that userland Doom starts and outputs expected messages"""
     # Check for Doom initialization messages
@@ -61,3 +62,12 @@ def test_userland_doom(qemu: QEMUConnection):
     for message in messages:
         output = qemu.read_until(message)
         assert message in output
+
+
+@pytest.mark.dependency(depends=["test_userland_doom"])
+def test_retrieve_profiling(qemu: QEMUConnection):
+    # send button press to qemu
+    qemu.send_key_press("l")
+
+    output = qemu.read_until(b"Tracepoints logged")
+    assert b"Tracepoints logged" in output

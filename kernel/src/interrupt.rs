@@ -3,6 +3,7 @@
 
 use crate::keyboard;
 use crate::kprint;
+use crate::profiling;
 use crate::time;
 use crate::userland;
 use crate::util::out_port_b;
@@ -141,6 +142,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
                     's' => keyboard::KEYSTATES[2] = true,
                     'd' => keyboard::KEYSTATES[3] = true,
                     ' ' => keyboard::KEYSTATES[5] = true,
+                    'l' => profiling::log_tracepoints(),
                     _ if key == lcontrol => keyboard::KEYSTATES[4] = true,
                     _ if key == '\n' => keyboard::KEYSTATES[6] = true,
                     _ => {}

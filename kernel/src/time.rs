@@ -93,21 +93,27 @@ pub fn update_clock() {
     kprint_integer_at_pos(seconds.into(), 0, 76, kprint::Colors::KPrintColorDarkGray);
 }
 
-pub fn get_ns_since_boot() -> u64 {
-    unsafe {
-        match acpi::HPET_COUNTER_VALUE.is_null() {
-            true => 0,
-            false => (*acpi::HPET_COUNTER_VALUE).main_counter_val * acpi::HPET_CLOCK_PERIOD_IN_NS,
+#[macro_export]
+macro_rules! get_ns_since_boot {
+    () => {{
+        unsafe {
+            match crate::acpi::HPET_COUNTER_VALUE.is_null() {
+                true => 0,
+                false => {
+                    (*crate::acpi::HPET_COUNTER_VALUE).main_counter_val
+                        * crate::acpi::HPET_CLOCK_PERIOD_IN_NS
+                }
+            }
         }
-    }
+    }};
 }
 
 pub fn get_us_since_boot() -> u64 {
-    get_ns_since_boot() / 1000
+    get_ns_since_boot!() / 1000
 }
 
 pub fn get_ms_since_boot() -> u64 {
-    get_ns_since_boot() / 1_000_000
+    get_ns_since_boot!() / 1_000_000
 }
 
 pub fn get_time() -> (u32, u32) {
