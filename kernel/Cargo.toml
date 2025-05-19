@@ -21,7 +21,7 @@ default-features = false
 features = ["mutex", "spin_mutex"]
 
 [dependencies.elf]
-version = "0.7.4"
+version = "0.8.0"
 default-features = false
 
 [dependencies.lazy_static]
