@@ -35,6 +35,8 @@ impl Userland {
         }
     }
 
+    #[instrument]
+
     pub fn process_malloc(&mut self, size: usize) -> u64 {
         return self.processes[self.current_process].malloc(size);
     }
@@ -77,6 +79,7 @@ impl Userland {
         }
     }
 
+    #[instrument]
     pub fn switch_process(&mut self) {
         // TODO for now scheduler is simply going round robin
         let last_process = self.current_process;
@@ -105,6 +108,7 @@ impl Userland {
         self.current_process
     }
 
+    #[instrument]
     pub fn get_current_process(&mut self) -> &mut Process {
         &mut self.processes[self.current_process]
     }

@@ -109,27 +109,30 @@ impl Subscriber for SerialSubscriber {
     }
 
     fn new_span(&self, span: &Attributes<'_>) -> Id {
-        let id: u64 = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+        let start = unsafe { _rdtsc() };
+        let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
         unsafe {
-            TRACE_POINTS[TRACE_POINT_COUNT.load(Ordering::Relaxed)] = TracePoint {
+            let idx = TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed) & (TRACE_POINT_MAX - 1);
+            let name_bytes = span.metadata().name().as_bytes();
+            let mut name = ['\0'; 32];
+            let len = if name_bytes.len() < 32 {
+                name_bytes.len()
+            } else {
+                32
+            };
+            for i in 0..len {
+                name[i] = name_bytes[i] as char;
+            }
+            TRACE_POINTS[idx] = TracePoint {
                 id,
                 time: get_ns_since_boot!(),
-                cycles: _rdtsc(),
-                name: {
-                    let mut chars = ['\0'; 32];
-                    let bytes = span.metadata().name().as_bytes();
-                    for (i, &b) in bytes.iter().take(32).enumerate() {
-                        chars[i] = b as char;
-                    }
-                    chars
-                },
+                cycles: start,
+                name,
                 trace_type: TracePointType::Enter,
             };
-            TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed);
-            if TRACE_POINT_COUNT.load(Ordering::Relaxed) >= TRACE_POINT_MAX {
-                TRACE_POINT_COUNT.store(0, Ordering::Relaxed);
-            }
+            let end = _rdtsc();
+            let duration = end - start;
             Id::from_u64(id)
         }
     }

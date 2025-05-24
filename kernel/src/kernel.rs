@@ -53,7 +53,7 @@ pub extern "C" fn kernel_main() {
     DEBUG!("Initialized Kernel Heap Memory");
 
     let subscriber = profiling::SerialSubscriber;
-    //tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     gdt::init_gdt();
     DEBUG!("Initialized Global Descriptor Table");

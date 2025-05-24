@@ -112,7 +112,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
             if SCHEDULING_BLOCKED == 0 {
                 userland::schedule();
 
-                time::update_clock();
+                //time::update_clock();
                 kprint::kprint_integer_at_pos(
                     USERLAND.lock().get_current_process_id() as i64,
                     1,
