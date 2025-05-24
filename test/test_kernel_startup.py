@@ -1,5 +1,6 @@
 import pytest
 from conftest import QEMUConnection
+import time
 
 
 def test_kernel_boot(qemu: QEMUConnection):
@@ -60,6 +61,9 @@ def test_userland_doom(qemu: QEMUConnection):
 
 
 def test_retrieve_profiling(qemu: QEMUConnection):
+    # Wait before sending key press to ensure system is ready
+    time.sleep(3)
+
     # send button press to qemu
     qemu.send_key_press("l")
 
