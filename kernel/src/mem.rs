@@ -1,5 +1,8 @@
 use crate::process;
+use crate::DEBUG;
 use core::arch::asm;
+use core::sync::atomic::{AtomicU64, Ordering};
+use tracing::instrument;
 
 // TODO make more elegant
 // available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
@@ -36,6 +39,7 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array
 };
 
+#[instrument]
 pub fn allocate_page_frame() -> u64 {
     // TODO make safe
     // TODO make faster by not iterating instead storing next free page frame
@@ -51,6 +55,7 @@ pub fn allocate_page_frame() -> u64 {
     panic!("No more page frames available!");
 }
 
+#[instrument]
 pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     unsafe {
         let page = address / 0x200000;
@@ -59,6 +64,7 @@ pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     }
 }
 
+#[instrument]
 pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitmask: u8) {
     let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 

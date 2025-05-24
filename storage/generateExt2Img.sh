@@ -24,8 +24,8 @@ fi
 # sudo chown "$USER":"$USER" /tmp/disk
 
 # Copy the file
-cp test.txt /tmp/disk/
-cp ../doom1.wad /tmp/disk/devdatadoom1.wad
+sudo cp test.txt /tmp/disk/
+sudo cp ../doom1.wad /tmp/disk/devdatadoom1.wad
 
 # List files
 ls -l -a /tmp/disk

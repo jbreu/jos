@@ -1,8 +1,8 @@
 import pytest
 from conftest import QEMUConnection
+import time
 
 
-@pytest.mark.dependency()
 def test_kernel_boot(qemu: QEMUConnection):
     """Test that kernel boots and outputs expected startup messages"""
     # Check for kernel entry message
@@ -28,8 +28,6 @@ def test_kernel_boot(qemu: QEMUConnection):
     assert b"JOS Kernel initialized; switching to userland" in output
 
 
-@pytest.mark.dependency(depends=["test_kernel_boot"])
-@pytest.mark.dependency()
 def test_userland(qemu: QEMUConnection):
     """Test that userland starts and outputs expected messages"""
 
@@ -37,7 +35,6 @@ def test_userland(qemu: QEMUConnection):
     assert b"Hallo Carina" in output
 
 
-@pytest.mark.dependency(depends=["test_userland"])
 def test_userland_doom(qemu: QEMUConnection):
     """Test that userland Doom starts and outputs expected messages"""
     # Check for Doom initialization messages
@@ -61,3 +58,14 @@ def test_userland_doom(qemu: QEMUConnection):
     for message in messages:
         output = qemu.read_until(message)
         assert message in output
+
+
+def test_retrieve_profiling(qemu: QEMUConnection):
+    # Wait before sending key press to ensure system is ready
+    time.sleep(3)
+
+    # send button press to qemu
+    qemu.send_key_press("l")
+
+    output = qemu.read_until(b"Tracepoints logged")
+    assert b"Tracepoints logged" in output

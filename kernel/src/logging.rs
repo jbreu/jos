@@ -15,6 +15,13 @@ macro_rules! DEBUG {
 }
 
 #[macro_export]
+macro_rules! INFO {
+    ($($arg:tt)*) => {
+        crate::log_with_level!(crate::kprint::Colors::KPrintColorBlack, "[DEBUG] ", $($arg)*)
+    };
+}
+
+#[macro_export]
 macro_rules! ERROR {
     ($($arg:tt)*) => {
         crate::log_with_level!(crate::kprint::Colors::KPrintColorRed, "[ERROR] ", $($arg)*)

@@ -1,3 +1,5 @@
+use tracing::instrument;
+
 use crate::kprintln;
 use crate::ERROR;
 use crate::{keyboard, vga};
@@ -7,31 +9,42 @@ use core::arch::asm;
 #[no_mangle]
 pub extern "C" fn system_call() -> u64 {
     let mut syscall_nr: i64;
+    let mut arg0: u64 = 0;
+    let mut arg1: u64 = 0;
+    let mut arg2: u64 = 0;
+    let mut _arg3: u64 = 0;
+    let mut _arg4: u64 = 0;
+    let mut _arg5: u64 = 0;
 
     unsafe {
-        asm!("
-        ",
-            out("rdi") syscall_nr
+        asm!("",
+            out("rdi") syscall_nr,
+            out("r8") arg0,
+            out("r9") arg1,
+            out("r10") arg2,
+            out("r11") _arg3,
+            out("r12") _arg4,
+            out("r13") _arg5,
         );
     }
 
     match syscall_nr {
-        1 => return syscall_write(),
+        1 => return syscall_write(arg0, arg1, arg2),
         2 => return syscall_getpid(),
-        3 => return syscall_plot_pixel(),
-        4 => return syscall_malloc(),
-        5 => return syscall_fopen(),
-        6 => return syscall_fread(),
-        7 => return syscall_fseek(),
-        8 => return syscall_ftell(),
-        9 => return syscall_feof(),
-        10 => return syscall_plot_framebuffer(),
-        11 => return syscall_switch_vga_mode(),
-        12 => return syscall_get_keystate(),
-        13 => return syscall_get_time(),
-        14 => return syscall_stat(),
-        15 => return syscall_chdir(),
-        16 => return syscall_getcwd(),
+        3 => return syscall_plot_pixel(arg0 as u32, arg1 as u32, arg2 as u32),
+        4 => return syscall_malloc(arg0 as usize),
+        5 => return syscall_fopen(arg0 as *const u64, arg1 as *mut u32),
+        6 => return syscall_fread(arg0, arg1, arg2 as usize),
+        7 => return syscall_fseek(arg0, arg1 as usize, arg2 as usize),
+        8 => return syscall_ftell(arg0),
+        9 => return syscall_feof(arg0),
+        10 => return syscall_plot_framebuffer(arg0),
+        11 => return syscall_switch_vga_mode(arg0),
+        12 => return syscall_get_keystate(arg0 as usize),
+        13 => return syscall_get_time(arg0 as *mut u32, arg1 as *mut u32),
+        14 => return syscall_stat(arg0 as *const u64, arg1 as *mut u64),
+        15 => return syscall_chdir(arg0 as *const u64),
+        16 => return syscall_getcwd(arg0 as *mut u64, arg1),
         _ => {
             ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -39,66 +52,34 @@ pub extern "C" fn system_call() -> u64 {
     }
 }
 
-fn syscall_feof() -> u64 {
+#[instrument]
+fn syscall_feof(_handle: u64) -> u64 {
     todo!();
-    return 1; //feof();
 }
 
-fn syscall_ftell() -> u64 {
+#[instrument]
+fn syscall_ftell(_handle: u64) -> u64 {
     todo!();
-    return 1; //ftell() as u64;
 }
 
-fn syscall_fseek() -> u64 {
-    let mut handle: u64;
-    let mut offset: usize;
-    let mut origin: usize;
-
-    unsafe {
-        asm!("",
-            out("r8") handle,
-            out("r9") offset,
-            out("r10") origin,
-        );
-    }
-
+#[instrument]
+fn syscall_fseek(handle: u64, offset: usize, origin: usize) -> u64 {
     return USERLAND
         .lock()
         .get_current_process()
         .fseek(handle, offset, origin as u32);
 }
 
-fn syscall_fread() -> u64 {
-    let mut handle: u64;
-    let mut ptr: u64;
-    let mut num_bytes: usize;
-
-    unsafe {
-        asm!("",
-            out("r8") handle,
-            out("r9") ptr,
-            out("r10") num_bytes,
-        );
-    }
-
+#[instrument]
+fn syscall_fread(handle: u64, ptr: u64, num_bytes: usize) -> u64 {
     USERLAND
         .lock()
         .get_current_process()
         .fread(handle, ptr as *mut u8, num_bytes)
 }
 
-fn syscall_fopen() -> u64 {
-    let filename: *const u64;
-    let mode: *mut u32;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") filename,
-            out("r9") mode,
-        );
-    }
-
+#[instrument]
+fn syscall_fopen(filename: *const u64, mode: *mut u32) -> u64 {
     match unsafe { core::str::from_utf8(core::slice::from_raw_parts(filename as *const u8, 256)) } {
         Ok(path_str) => match path_str.split('\0').next() {
             Some(path_str) => match unsafe {
@@ -116,55 +97,26 @@ fn syscall_fopen() -> u64 {
     }
 }
 
-fn syscall_malloc() -> u64 {
-    let mut size: usize;
-
-    unsafe {
-        asm!("",
-            out("r8") size
-        );
-    }
-
+#[instrument]
+fn syscall_malloc(size: usize) -> u64 {
     return USERLAND.lock().process_malloc(size);
 }
 
-fn syscall_plot_pixel() -> u64 {
-    let mut x: u32;
-    let mut y: u32;
-    let mut color: u32;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") x,
-            out("r9") y,
-            out("r10") color
-        );
-    }
-
+#[instrument]
+fn syscall_plot_pixel(x: u32, y: u32, color: u32) -> u64 {
     vga::vga_plot_pixel(x, y, color as u8);
     vga::vga_flip();
-
     return 0;
 }
 
+#[instrument]
 fn syscall_getpid() -> u64 {
     USERLAND.lock().get_current_process_id() as u64
 }
 
-fn syscall_write() -> u64 {
-    let mut filedescriptor: i64;
-    let mut payload: i64;
-    let mut len: i64;
-
+#[instrument]
+fn syscall_write(filedescriptor: u64, payload: u64, len: u64) -> u64 {
     unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") filedescriptor,
-            out("r9") payload,
-            out("r10") len
-        );
-
         match core::str::from_utf8(core::slice::from_raw_parts(
             payload as *const u8,
             len as usize,
@@ -179,111 +131,52 @@ fn syscall_write() -> u64 {
             Err(_) => ERROR!("\nCouldnt reconstruct string!\n"),
         }
     }
-
     return 0;
 }
 
-fn syscall_plot_framebuffer() -> u64 {
-    let mut framebuffer: u64;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") framebuffer,
-        );
-    }
-
+#[instrument]
+fn syscall_plot_framebuffer(framebuffer: u64) -> u64 {
     vga::vga_plot_framebuffer(framebuffer as *const u8);
     vga::vga_flip();
-
     return 0;
 }
 
-fn syscall_switch_vga_mode() -> u64 {
-    let mut vga_on: u64;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") vga_on,
-        );
-    }
-
+#[instrument]
+fn syscall_switch_vga_mode(vga_on: u64) -> u64 {
     if vga_on != 0 {
         vga::vga_enter();
         vga::vga_clear_screen();
     } else {
         vga::vga_exit();
     }
-
     return 0;
 }
 
-fn syscall_get_keystate() -> u64 {
-    let mut key: usize;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") key,
-        );
-    }
-
+#[instrument]
+fn syscall_get_keystate(key: usize) -> u64 {
     let keystate;
-
     unsafe {
         keystate = keyboard::KEYSTATES[key];
         keyboard::KEYSTATES[key] = false;
     }
-
     return keystate as u64;
 }
 
-fn syscall_get_time() -> u64 {
-    let sec: *mut u32;
-    let usec: *mut u32;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") sec,
-            out("r9") usec,
-        );
-    }
-
+#[instrument]
+fn syscall_get_time(sec: *mut u32, usec: *mut u32) -> u64 {
     unsafe {
         (*sec, *usec) = time::get_time();
     }
-
     return 1;
 }
 
-fn syscall_stat() -> u64 {
-    let mut pathname: *const u64;
-    let mut statbuf: *mut u64;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") pathname,
-            out("r9") statbuf,
-        );
-    }
-
+#[instrument]
+fn syscall_stat(_pathname: *const u64, _statbuf: *mut u64) -> u64 {
     todo!();
-    return 1; //FILESYSTEM.lock().stat(pathname, statbuf);
 }
 
-fn syscall_chdir() -> u64 {
-    let mut pathname: *const u64;
-
-    unsafe {
-        // TODO this must be possible more elegantly
-        asm!("",
-            out("r8") pathname,
-        );
-    }
-
+#[instrument]
+fn syscall_chdir(pathname: *const u64) -> u64 {
     // get string from pathname pointer
     match unsafe { core::str::from_utf8(core::slice::from_raw_parts(pathname as *const u8, 256)) } {
         Ok(pathname) => {
@@ -296,22 +189,12 @@ fn syscall_chdir() -> u64 {
     }
 }
 
-fn syscall_getcwd() -> u64 {
-    let mut buf: *mut u64;
-    let mut size: u64;
-
-    unsafe {
-        asm!("",
-            out("r8") buf,
-            out("r9") size,
-        );
-    }
-
+#[instrument]
+fn syscall_getcwd(buf: *mut u64, size: u64) -> u64 {
     let cwd = USERLAND
         .lock()
         .get_current_process()
         .get_working_directory();
-
     // copy cwd to buf
     let cwd_bytes = cwd.as_bytes();
     let cwd_len = cwd_bytes.len();
@@ -319,6 +202,5 @@ fn syscall_getcwd() -> u64 {
     for i in 0..core::cmp::min(cwd_len, size as usize) {
         buf_slice[i] = cwd_bytes[i];
     }
-
     return cwd_len as u64;
 }
