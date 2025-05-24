@@ -4,8 +4,9 @@ use crate::mem::allocate_page_frame;
 extern crate alloc;
 use crate::ERROR;
 use alloc::vec::Vec;
-use core::arch::asm;
 use core::ptr::addr_of;
+use core::{arch::asm, fmt::Debug};
+use tracing::{debug, info, instrument};
 
 pub static mut KERNEL_CR3: u64 = 0;
 
@@ -61,6 +62,7 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
+#[instrument]
 fn check_half(entry: *const u64) -> *const u64 {
     if entry < 0xffff800000000000 as *const u64 {
         return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
@@ -68,6 +70,7 @@ fn check_half(entry: *const u64) -> *const u64 {
     entry
 }
 
+#[instrument]
 fn print_page_table_tree(start_addr: u64) {
     let entry_mask = 0x0008_ffff_ffff_f800;
 
@@ -99,6 +102,7 @@ fn print_page_table_tree(start_addr: u64) {
     }
 }
 
+#[derive(Debug)]
 enum ProcessState {
     New,
     Prepared,
@@ -132,7 +136,14 @@ pub struct Process {
     file_handles: Vec<FileHandle>,
 }
 
+impl Debug for Process {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Process {{ state: {:?} }}", self.state)
+    }
+}
+
 impl Process {
+    #[instrument]
     pub fn new() -> Self {
         Self {
             registers: RegistersStruct::default(),
@@ -157,6 +168,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn initialize(&mut self) {
         // TODO remove hard coding
         // TODO Task stack
@@ -253,6 +265,7 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
+    #[instrument]
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
         let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
@@ -266,6 +279,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn malloc(&mut self, size: usize) -> u64 {
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
@@ -280,11 +294,15 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn launch(&mut self) {
+        info!("Launching process");
         self.state = ProcessState::Passive;
     }
 
+    #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
+        debug!("Activating process");
         extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
@@ -336,7 +354,9 @@ impl Process {
         self.state = ProcessState::Active;
     }
 
+    #[instrument]
     pub fn passivate(&mut self) {
+        debug!("Passivating process");
         extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
@@ -377,6 +397,7 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
+    #[instrument]
     pub fn activatable(&self) -> bool {
         match self.state {
             ProcessState::Passive => true,
@@ -389,6 +410,7 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
+    #[instrument]
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         // Simple variant, only works for kernel memory
         // adding 1 page frame as heap has different mapping
@@ -426,21 +448,25 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as u64,
         )
     }
 
+    #[instrument]
     pub fn get_stack_top_address(&self) -> u64 {
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
     }
 
+    #[instrument]
     pub fn get_entry_ip(&self) -> u64 {
         self.rip
     }
 
+    #[instrument]
     pub fn load_elf_from_bin() -> (u64, u64, u64) {
         extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
@@ -533,15 +559,18 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn set_working_directory(&mut self, path: &'static str) -> u64 {
         self.working_directory = path;
         return 0;
     }
 
+    #[instrument]
     pub fn get_working_directory(&self) -> &'static str {
         self.working_directory
     }
 
+    #[instrument]
     pub fn fopen(&mut self, path: &str, mode: &str) -> u64 {
         let mode_num = match mode {
             "r" => 0,
@@ -564,6 +593,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
         // file_handle_index is 1-based
         if file_handle_index as usize > self.file_handles.len() {
@@ -577,6 +607,7 @@ impl Process {
         return bytes_read;
     }
 
+    #[instrument]
     pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
         // file_handle_index is 1-based
         if file_handle_index as usize > self.file_handles.len() {

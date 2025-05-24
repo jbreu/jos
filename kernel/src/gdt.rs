@@ -3,6 +3,7 @@ use core::arch::asm;
 use core::arch::global_asm;
 use core::mem;
 use core::ptr::addr_of;
+use tracing::instrument;
 
 // https://wiki.osdev.org/GDT_Tutorial
 // https://en.wikipedia.org/wiki/Global_Descriptor_Table#GDT_in_64-bit
@@ -71,6 +72,7 @@ struct GdtPtrStruct {
     offset: u64,
 }
 
+#[instrument]
 pub fn init_gdt() {
     unsafe {
         GDT_ENTRIES = [
@@ -145,6 +147,36 @@ pub fn init_gdt() {
         // sixth 8-byte selector, symbolically OR-ed with 0 to set the RPL (requested privilege level).
         asm!(
             "mov ax, (5 * 8) | 0
+            ltr ax"
+        );
+    }
+}
+
+#[instrument]
+fn init_tss() {
+    unsafe {
+        // Initialize the TSS fields
+        TSS_ENTRY = Tss {
+            reserved1: 0x0,
+            rsp0: 0xffff_ffff_ffcf_ffff,
+            rsp1: 0x0,
+            rsp2: 0x0,
+            reserved2: 0x0,
+            ist1: 0x0,
+            ist2: 0x0,
+            ist3: 0x0,
+            ist4: 0x0,
+            ist5: 0x0,
+            ist6: 0x0,
+            ist7: 0x0,
+            reserved3: 0x0,
+            reserved4: 0x0,
+            iopb: 0x0,
+        };
+
+        // Load the TSS selector into the task register
+        asm!(
+            "mov ax, (6 * 8) | 0
             ltr ax"
         );
     }

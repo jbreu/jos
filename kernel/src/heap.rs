@@ -1,5 +1,4 @@
 use core::arch::asm;
-
 use linked_list_allocator::LockedHeap;
 
 use crate::mem::allocate_page_frame;

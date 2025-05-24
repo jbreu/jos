@@ -10,3 +10,5 @@ sed -i 's/\\n/\n/g' stacks.txt
 sed -i '/^??;??;/d' stacks.folded
 
 ./FlameGraph/flamegraph.pl stacks.folded > stacks.svg
+
+python3.11.exe -m  gprof2dot -f collapse stacks.folded  | dot -Tpng -o stacks.png

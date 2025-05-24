@@ -54,6 +54,8 @@ class QEMUConnection:
             "tcp:127.0.0.1:4444,server,nowait",
             "-monitor",
             "stdio",
+            "-qmp",
+            "tcp:127.0.0.1:4445,server,nowait",
             "-cdrom",
             iso_path,
         ]
@@ -81,12 +83,20 @@ class QEMUConnection:
         self.host = host
         self.port = port
         self.socket = None
+        self.qmp_socket = None
 
     def connect(self, retries: int = 5, delay: float = 1.0) -> None:
-        """Connect to QEMU's serial console with retries"""
+        """Connect to QEMU's serial console and QMP with retries"""
         for attempt in range(retries):
             try:
                 self.socket = socket.create_connection((self.host, self.port))
+                # Connect to QMP
+                self.qmp_socket = socket.create_connection((self.host, 4445))
+                # Read QMP greeting
+                self.qmp_socket.recv(4096)
+                # Enable QMP capabilities
+                self.qmp_socket.sendall(b'{"execute": "qmp_capabilities"}\r\n')
+                self.qmp_socket.recv(4096)
                 return
             except (ConnectionRefusedError, socket.error):
                 if attempt < retries - 1:
@@ -99,6 +109,9 @@ class QEMUConnection:
         if self.socket:
             self.socket.close()
             self.socket = None
+        if self.qmp_socket:
+            self.qmp_socket.close()
+            self.qmp_socket = None
 
         if self.process:
             try:
@@ -135,6 +148,23 @@ class QEMUConnection:
                         return data
                 except socket.timeout:
                     raise TimeoutError(f"Timeout waiting for marker {marker}")
+
+    def send_key_press(self, key: str) -> None:
+        """Send a key press to QEMU via QMP."""
+        # QEMU expects key names as per QMP documentation, e.g. 'l' -> 'l'
+        # For more complex keys, mapping may be needed
+        key_event = {
+            "execute": "send-key",
+            "arguments": {"keys": [{"type": "qcode", "data": key}]},
+        }
+        import json as _json
+
+        msg = _json.dumps(key_event).encode("utf-8") + b"\r\n"
+        if self.qmp_socket:
+            self.qmp_socket.sendall(msg)
+            self.qmp_socket.recv(4096)  # Read response
+        else:
+            raise ConnectionError("QMP socket is not connected")
 
 
 @pytest.fixture

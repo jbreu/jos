@@ -24,3 +24,8 @@ tools/perf/FlameGraph/
 tools/perf/stacks.txt
 tools/perf/stacks.svg
 tools/perf/stacks.folded
+userland/src/doom/PureDOOM.h
+tools/perf/output.png
+tools/perf/stacks.png
+tools/perf/chrome_trace.json
+tools/perf/cachegrind.out
