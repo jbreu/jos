@@ -55,6 +55,7 @@ pub fn allocate_page_frame() -> u64 {
     panic!("No more page frames available!");
 }
 
+#[instrument]
 pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     unsafe {
         let page = address / 0x200000;
@@ -63,6 +64,7 @@ pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     }
 }
 
+#[instrument]
 pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitmask: u8) {
     let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 

@@ -4,10 +4,8 @@
 use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use tracing::subscriber;
 
 mod acpi;
-mod file;
 mod filesystem;
 mod gdt;
 mod heap;

@@ -1,9 +1,6 @@
 use core::arch::asm;
-
 use linked_list_allocator::LockedHeap;
-use tracing::instrument;
 
-use crate::kprint;
 use crate::mem::allocate_page_frame;
 
 #[global_allocator]
@@ -33,7 +30,6 @@ fn add_kernel_lower_l2_page_directory_table() -> u64 {
     return 0xffff800002800000;
 }
 
-#[instrument]
 pub fn init_kernel_heap() {
     // TODO add more / dynamic page frames
     // TODO do not start with new page frame, but start where kernel ends

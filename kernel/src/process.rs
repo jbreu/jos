@@ -62,6 +62,7 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
+#[instrument]
 fn check_half(entry: *const u64) -> *const u64 {
     if entry < 0xffff800000000000 as *const u64 {
         return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
@@ -69,6 +70,7 @@ fn check_half(entry: *const u64) -> *const u64 {
     entry
 }
 
+#[instrument]
 fn print_page_table_tree(start_addr: u64) {
     let entry_mask = 0x0008_ffff_ffff_f800;
 
@@ -395,6 +397,7 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
+    #[instrument]
     pub fn activatable(&self) -> bool {
         match self.state {
             ProcessState::Passive => true,
@@ -407,6 +410,7 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
+    #[instrument]
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         // Simple variant, only works for kernel memory
         // adding 1 page frame as heap has different mapping
@@ -444,17 +448,20 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as u64,
         )
     }
 
+    #[instrument]
     pub fn get_stack_top_address(&self) -> u64 {
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
     }
 
+    #[instrument]
     pub fn get_entry_ip(&self) -> u64 {
         self.rip
     }
@@ -552,15 +559,18 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn set_working_directory(&mut self, path: &'static str) -> u64 {
         self.working_directory = path;
         return 0;
     }
 
+    #[instrument]
     pub fn get_working_directory(&self) -> &'static str {
         self.working_directory
     }
 
+    #[instrument]
     pub fn fopen(&mut self, path: &str, mode: &str) -> u64 {
         let mode_num = match mode {
             "r" => 0,
@@ -583,6 +593,7 @@ impl Process {
         }
     }
 
+    #[instrument]
     pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
         // file_handle_index is 1-based
         if file_handle_index as usize > self.file_handles.len() {
@@ -596,6 +607,7 @@ impl Process {
         return bytes_read;
     }
 
+    #[instrument]
     pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
         // file_handle_index is 1-based
         if file_handle_index as usize > self.file_handles.len() {

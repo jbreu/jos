@@ -122,6 +122,7 @@ impl FileHandle {
         bytes_read as u64
     }
 
+    #[instrument]
     pub fn fseek(&mut self, offset: usize, origin: u32) -> u64 {
         match origin {
             0 => self.offset = offset,
@@ -275,11 +276,13 @@ impl Ext2FileSystem {
         }
     }
 
+    #[instrument]
     fn read_block(&self, block_num: u32) -> &[u8] {
         let start = (block_num as usize) * (self.block_size as usize);
         &DISK_IMG[start..start + self.block_size as usize]
     }
 
+    #[instrument]
     fn read_inode(&self, inode_num: u32) -> Inode {
         let group = (inode_num - 1) / self.superblock.inodes_per_group;
         let index = (inode_num - 1) % self.superblock.inodes_per_group;
@@ -360,6 +363,7 @@ impl Ext2FileSystem {
         None
     }
 
+    #[instrument]
     fn read_file(&self, inode_num: u32) -> &[u8] {
         let inode = self.read_inode(inode_num);
         let block = self.read_block(inode.direct_blocks[0]);
@@ -367,6 +371,7 @@ impl Ext2FileSystem {
     }
 }
 
+#[instrument]
 pub fn init_filesystem() {
     let fs = Ext2FileSystem::new();
     fs.debug_print_superblock();
