@@ -1,6 +1,7 @@
 use crate::kprint::{_kprint_char_at_pos, _kprint_integer, kprint_char, kprint_integer_at_pos};
 use crate::{acpi, kprint};
 use core::arch::asm;
+use core::sync::atomic::Ordering;
 use tracing::instrument;
 
 #[allow(dead_code)]
@@ -95,14 +96,18 @@ pub fn update_clock() {
 #[macro_export]
 macro_rules! get_ns_since_boot {
     () => {{
-        unsafe {
-            match crate::acpi::HPET_COUNTER_VALUE.is_null() {
-                true => 0,
-                false => {
-                    (*crate::acpi::HPET_COUNTER_VALUE).main_counter_val
-                        * crate::acpi::HPET_CLOCK_PERIOD_IN_NS
-                }
-            }
+        let hpet_counter_value_address =
+            crate::acpi::HPET_COUNTER_VALUE_ADDRESS.load(core::sync::atomic::Ordering::Relaxed);
+
+        if hpet_counter_value_address.is_null() {
+            0
+        } else {
+            let counter_value = unsafe {
+                (*hpet_counter_value_address).load(core::sync::atomic::Ordering::Relaxed)
+            };
+            let clock_period_in_ns =
+                crate::acpi::HPET_CLOCK_PERIOD_IN_NS.load(core::sync::atomic::Ordering::Relaxed);
+            (counter_value * clock_period_in_ns)
         }
     }};
 }
