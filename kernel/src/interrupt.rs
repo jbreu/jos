@@ -4,7 +4,6 @@
 use crate::keyboard;
 use crate::kprint;
 use crate::profiling;
-use crate::time;
 use crate::userland;
 use crate::util::out_port_b;
 use crate::DEBUG;
