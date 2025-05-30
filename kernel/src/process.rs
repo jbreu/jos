@@ -20,14 +20,14 @@ pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
-    xmm7: u128,
-    xmm6: u128,
-    xmm5: u128,
-    xmm4: u128,
-    xmm3: u128,
-    xmm2: u128,
-    xmm1: u128,
-    xmm0: u128,
+    xmm7: [u64; 2],
+    xmm6: [u64; 2],
+    xmm5: [u64; 2],
+    xmm4: [u64; 2],
+    xmm3: [u64; 2],
+    xmm2: [u64; 2],
+    xmm1: [u64; 2],
+    xmm0: [u64; 2],
     r15: u64,
     r14: u64,
     r13: u64,
