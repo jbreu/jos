@@ -2,11 +2,14 @@ use crate::filesystem::FileHandle;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 extern crate alloc;
+use crate::DEBUG;
 use crate::ERROR;
-use alloc::vec::Vec;
+use crate::INFO;
+use alloc::collections::BTreeMap;
+use core::arch::asm;
+use core::fmt::Debug;
 use core::ptr::addr_of;
-use core::{arch::asm, fmt::Debug};
-use tracing::{debug, info, instrument};
+use tracing::instrument;
 
 pub static mut KERNEL_CR3: u64 = 0;
 
@@ -133,7 +136,8 @@ pub struct Process {
 
     working_directory: &'static str,
 
-    file_handles: Vec<FileHandle>,
+    file_handles: BTreeMap<u64, FileHandle>,
+    next_handle_id: u64,
 }
 
 impl Debug for Process {
@@ -164,7 +168,8 @@ impl Process {
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
 
             working_directory: "/",
-            file_handles: Vec::new(),
+            file_handles: BTreeMap::new(),
+            next_handle_id: 1,
         }
     }
 
@@ -296,13 +301,13 @@ impl Process {
 
     #[instrument]
     pub fn launch(&mut self) {
-        info!("Launching process");
+        INFO!("Launching process");
         self.state = ProcessState::Passive;
     }
 
     #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
-        debug!("Activating process");
+        DEBUG!("Activating process");
         extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
@@ -356,7 +361,7 @@ impl Process {
 
     #[instrument]
     pub fn passivate(&mut self) {
-        debug!("Passivating process");
+        DEBUG!("Passivating process");
         extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
@@ -581,10 +586,11 @@ impl Process {
         match FileHandle::new(path, mode_num) {
             Some(file_handle) => {
                 kprint!("File opened: {}\n", path);
-                self.file_handles.push(file_handle);
-                let file_handle_index = self.file_handles.len();
-                kprint!("File handle index: {}\n", file_handle_index);
-                return file_handle_index as u64;
+                let handle_id = self.next_handle_id;
+                self.next_handle_id += 1;
+                self.file_handles.insert(handle_id, file_handle);
+                kprint!("File handle id: {}\n", handle_id);
+                return handle_id;
             }
             None => {
                 kprint!("Error opening file: {}\n", path);
@@ -593,31 +599,24 @@ impl Process {
         }
     }
 
-    #[instrument]
-    pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fread(&mut self, handle_id: u64, buffer: *mut u8, size: usize) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            let bytes_read = file_handle.read(buffer, size);
+            file_handle.offset += bytes_read as usize;
+            return bytes_read;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-        let bytes_read = file_handle.read(buffer, size);
-        file_handle.offset += bytes_read as usize;
-        return bytes_read;
     }
 
-    #[instrument]
-    pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fseek(&mut self, handle_id: u64, offset: usize, whence: u32) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            file_handle.fseek(offset, whence);
+            return 0;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-
-        file_handle.fseek(offset, whence);
-
-        return 0;
     }
 }

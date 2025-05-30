@@ -1,7 +1,6 @@
 use crate::kprint::{kprint_char, kprint_char_at_pos, kprint_integer, kprint_integer_at_pos};
 use crate::{acpi, kprint};
 use core::arch::asm;
-use core::sync::atomic::{AtomicU64, Ordering};
 use tracing::instrument;
 
 #[allow(dead_code)]
