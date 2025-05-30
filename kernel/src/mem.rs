@@ -1,7 +1,5 @@
 use crate::process;
-use crate::DEBUG;
-use core::arch::asm;
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::{arch::asm, sync::atomic::Ordering};
 use tracing::instrument;
 
 // TODO make more elegant
@@ -69,11 +67,14 @@ pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitma
     let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 
     unsafe {
-        if process::KERNEL_CR3 == 0 {
-            asm!("mov r15, cr3", out("r15") process::KERNEL_CR3);
+        if process::KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+            let mut cr3: u64;
+            asm!("mov r15, cr3", out("r15") cr3);
+            process::KERNEL_CR3.store(cr3, Ordering::Relaxed);
         }
 
-        let l4table = (process::KERNEL_CR3 & entry_mask) as *const process::PageTable;
+        let l4table =
+            (process::KERNEL_CR3.load(Ordering::Relaxed) & entry_mask) as *const process::PageTable;
 
         let l3table = ((*l4table).entry[l4] & entry_mask) as *const process::PageTable;
 

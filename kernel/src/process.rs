@@ -9,9 +9,11 @@ use alloc::collections::BTreeMap;
 use core::arch::asm;
 use core::fmt::Debug;
 use core::ptr::addr_of;
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering;
 use tracing::instrument;
 
-pub static mut KERNEL_CR3: u64 = 0;
+pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
@@ -215,13 +217,17 @@ impl Process {
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
-            if KERNEL_CR3 == 0 {
-                asm!("mov r15, cr3", out("r15") KERNEL_CR3);
+            if KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+                let mut cr3: u64;
+                asm!("mov r15, cr3", out("r15") cr3);
+
+                KERNEL_CR3.store(cr3, Ordering::Relaxed);
             }
 
-            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
+            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
 
-            self.l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
+            self.l4_page_map_l4_table.entry[256] =
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
         }
 
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
@@ -231,9 +237,7 @@ impl Process {
 
         kprint!("Process CR3: {:x}\n", self.cr3);
 
-        unsafe {
-            print_page_table_tree(KERNEL_CR3 as u64);
-        }
+        print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
         unsafe {
             asm!(
@@ -259,7 +263,7 @@ impl Process {
         unsafe {
             asm!(
                 "mov cr3, r15",
-                in("r15") KERNEL_CR3,
+                in("r15") KERNEL_CR3.load(Ordering::Relaxed) as u64,
                 options(nostack, preserves_flags)
             );
         }
