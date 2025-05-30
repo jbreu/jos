@@ -99,12 +99,12 @@ static mut TRACE_POINTS: [TracePoint; TRACE_POINT_MAX] = [TracePoint {
     trace_type: TracePointType::Unknown,
 }; TRACE_POINT_MAX];
 
-static mut TRACE_POINT_COUNT: AtomicUsize = AtomicUsize::new(0);
+static TRACE_POINT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub struct SerialSubscriber;
 
 impl Subscriber for SerialSubscriber {
-    fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
         true
     }
 
@@ -134,7 +134,7 @@ impl Subscriber for SerialSubscriber {
         Id::from_u64(id)
     }
 
-    fn record(&self, span: &Id, values: &Record<'_>) {
+    fn record(&self, span: &Id, _values: &Record<'_>) {
         unsafe {
             let idx = TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed) % TRACE_POINT_MAX;
             TRACE_POINTS[idx] = TracePoint {
@@ -147,7 +147,7 @@ impl Subscriber for SerialSubscriber {
         }
     }
 
-    fn record_follows_from(&self, span: &Id, follows: &Id) {
+    fn record_follows_from(&self, span: &Id, _follows: &Id) {
         unsafe {
             let idx = TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed) % TRACE_POINT_MAX;
             TRACE_POINTS[idx] = TracePoint {
@@ -180,7 +180,7 @@ impl Subscriber for SerialSubscriber {
         }
     }
 
-    fn enter(&self, span: &Id) {
+    fn enter(&self, _span: &Id) {
         // Already covered by new_span
         //let time = get_ns_since_boot();
         //let cycles = unsafe { _rdtsc() };
