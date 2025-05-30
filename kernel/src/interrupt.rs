@@ -47,30 +47,6 @@ static mut IDT_ENTRIES: [IdtEntryStruct; 256] = [IdtEntryStruct {
     reserved: 0,
 }; 256];
 
-#[repr(C)]
-#[repr(packed(2))]
-#[derive(Debug)]
-// TODO Requires 64 bit types, needs more checking/testing
-pub struct InterruptRegisters {
-    cr2: u64,
-    ds: u64,
-    rdi: u64,
-    rsi: u64,
-    rbp: u64,
-    rsp: u64,
-    rbx: u64,
-    rdx: u64,
-    rcx: u64,
-    rax: u64,
-    int_no: u64,
-    err_code: u64,
-    rip: u64,
-    csm: u64,
-    eflags: u64,
-    useresp: u64,
-    ss: u64,
-}
-
 #[no_mangle]
 #[instrument(skip(error_code, int_no))]
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
