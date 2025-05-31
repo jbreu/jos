@@ -67,7 +67,6 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
-#[instrument]
 fn check_half(entry: *const u64) -> *const u64 {
     if entry < 0xffff800000000000 as *const u64 {
         return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
