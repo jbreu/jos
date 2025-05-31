@@ -9,12 +9,12 @@ use core::arch::asm;
 #[no_mangle]
 pub extern "C" fn system_call() -> u64 {
     let mut syscall_nr: i64;
-    let mut arg0: u64 = 0;
-    let mut arg1: u64 = 0;
-    let mut arg2: u64 = 0;
-    let mut _arg3: u64 = 0;
-    let mut _arg4: u64 = 0;
-    let mut _arg5: u64 = 0;
+    let mut arg0: u64;
+    let mut arg1: u64;
+    let mut arg2: u64;
+    let mut _arg3: u64;
+    let mut _arg4: u64;
+    let mut _arg5: u64;
 
     unsafe {
         asm!("",

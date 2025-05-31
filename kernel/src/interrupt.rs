@@ -4,7 +4,6 @@
 use crate::keyboard;
 use crate::kprint;
 use crate::profiling;
-use crate::time;
 use crate::userland;
 use crate::util::out_port_b;
 use crate::DEBUG;
@@ -47,30 +46,6 @@ static mut IDT_ENTRIES: [IdtEntryStruct; 256] = [IdtEntryStruct {
     sel: 0,
     reserved: 0,
 }; 256];
-
-#[repr(C)]
-#[repr(packed(2))]
-#[derive(Debug)]
-// TODO Requires 64 bit types, needs more checking/testing
-pub struct InterruptRegisters {
-    cr2: u64,
-    ds: u64,
-    rdi: u64,
-    rsi: u64,
-    rbp: u64,
-    rsp: u64,
-    rbx: u64,
-    rdx: u64,
-    rcx: u64,
-    rax: u64,
-    int_no: u64,
-    err_code: u64,
-    rip: u64,
-    csm: u64,
-    eflags: u64,
-    useresp: u64,
-    ss: u64,
-}
 
 #[no_mangle]
 #[instrument(skip(error_code, int_no))]

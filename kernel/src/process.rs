@@ -2,27 +2,32 @@ use crate::filesystem::FileHandle;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 extern crate alloc;
+use crate::DEBUG;
 use crate::ERROR;
-use alloc::vec::Vec;
+use crate::INFO;
+use alloc::collections::BTreeMap;
+use core::arch::asm;
+use core::fmt::Debug;
 use core::ptr::addr_of;
-use core::{arch::asm, fmt::Debug};
-use tracing::{debug, info, instrument};
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering;
+use tracing::instrument;
 
-pub static mut KERNEL_CR3: u64 = 0;
+pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
-    xmm7: u128,
-    xmm6: u128,
-    xmm5: u128,
-    xmm4: u128,
-    xmm3: u128,
-    xmm2: u128,
-    xmm1: u128,
-    xmm0: u128,
+    xmm7: [u64; 2],
+    xmm6: [u64; 2],
+    xmm5: [u64; 2],
+    xmm4: [u64; 2],
+    xmm3: [u64; 2],
+    xmm2: [u64; 2],
+    xmm1: [u64; 2],
+    xmm0: [u64; 2],
     r15: u64,
     r14: u64,
     r13: u64,
@@ -62,7 +67,6 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
-#[instrument]
 fn check_half(entry: *const u64) -> *const u64 {
     if entry < 0xffff800000000000 as *const u64 {
         return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
@@ -133,7 +137,8 @@ pub struct Process {
 
     working_directory: &'static str,
 
-    file_handles: Vec<FileHandle>,
+    file_handles: BTreeMap<u64, FileHandle>,
+    next_handle_id: u64,
 }
 
 impl Debug for Process {
@@ -164,7 +169,8 @@ impl Process {
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
 
             working_directory: "/",
-            file_handles: Vec::new(),
+            file_handles: BTreeMap::new(),
+            next_handle_id: 1,
         }
     }
 
@@ -210,13 +216,17 @@ impl Process {
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
-            if KERNEL_CR3 == 0 {
-                asm!("mov r15, cr3", out("r15") KERNEL_CR3);
+            if KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+                let mut cr3: u64;
+                asm!("mov r15, cr3", out("r15") cr3);
+
+                KERNEL_CR3.store(cr3, Ordering::Relaxed);
             }
 
-            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
+            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
 
-            self.l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
+            self.l4_page_map_l4_table.entry[256] =
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
         }
 
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
@@ -226,9 +236,7 @@ impl Process {
 
         kprint!("Process CR3: {:x}\n", self.cr3);
 
-        unsafe {
-            print_page_table_tree(KERNEL_CR3 as u64);
-        }
+        print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
         unsafe {
             asm!(
@@ -254,7 +262,7 @@ impl Process {
         unsafe {
             asm!(
                 "mov cr3, r15",
-                in("r15") KERNEL_CR3,
+                in("r15") KERNEL_CR3.load(Ordering::Relaxed) as u64,
                 options(nostack, preserves_flags)
             );
         }
@@ -296,13 +304,13 @@ impl Process {
 
     #[instrument]
     pub fn launch(&mut self) {
-        info!("Launching process");
+        INFO!("Launching process");
         self.state = ProcessState::Passive;
     }
 
     #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
-        debug!("Activating process");
+        DEBUG!("Activating process");
         extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
@@ -356,7 +364,7 @@ impl Process {
 
     #[instrument]
     pub fn passivate(&mut self) {
-        debug!("Passivating process");
+        DEBUG!("Passivating process");
         extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
@@ -581,10 +589,11 @@ impl Process {
         match FileHandle::new(path, mode_num) {
             Some(file_handle) => {
                 kprint!("File opened: {}\n", path);
-                self.file_handles.push(file_handle);
-                let file_handle_index = self.file_handles.len();
-                kprint!("File handle index: {}\n", file_handle_index);
-                return file_handle_index as u64;
+                let handle_id = self.next_handle_id;
+                self.next_handle_id += 1;
+                self.file_handles.insert(handle_id, file_handle);
+                kprint!("File handle id: {}\n", handle_id);
+                return handle_id;
             }
             None => {
                 kprint!("Error opening file: {}\n", path);
@@ -593,31 +602,24 @@ impl Process {
         }
     }
 
-    #[instrument]
-    pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fread(&mut self, handle_id: u64, buffer: *mut u8, size: usize) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            let bytes_read = file_handle.read(buffer, size);
+            file_handle.offset += bytes_read as usize;
+            return bytes_read;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-        let bytes_read = file_handle.read(buffer, size);
-        file_handle.offset += bytes_read as usize;
-        return bytes_read;
     }
 
-    #[instrument]
-    pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fseek(&mut self, handle_id: u64, offset: usize, whence: u32) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            file_handle.fseek(offset, whence);
+            return 0;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-
-        file_handle.fseek(offset, whence);
-
-        return 0;
     }
 }
