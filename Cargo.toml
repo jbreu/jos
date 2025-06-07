@@ -6,3 +6,6 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+opt-level = "z"     # "z" for size, "3" for speed
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduces parallelism but allows better optimization

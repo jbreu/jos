@@ -2,6 +2,12 @@
 name = "jos-kernel"
 version = "0.1.0"
 build = "build.rs"
+edition = "2024"
+
+[lib]
+name = "jos"
+path = "src/kernel.rs" 
+crate-type = ["staticlib"]
 
 [build-dependencies]
 vergen = { version = "9.0.1", features = ["build"] }
@@ -27,9 +33,3 @@ default-features = false
 [dependencies.lazy_static]
 version = "1.4.0"
 features = ["spin_no_std"]
-
-[lib]
-name = "jos"
-edition = "2021"
-path = "src/kernel.rs" 
-crate-type = ["staticlib"]

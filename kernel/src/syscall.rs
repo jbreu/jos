@@ -1,20 +1,20 @@
 use tracing::instrument;
 
-use crate::kprintln;
 use crate::ERROR;
+use crate::kprintln;
+use crate::{USERLAND, time};
 use crate::{keyboard, vga};
-use crate::{time, USERLAND};
 use core::arch::asm;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn system_call() -> u64 {
     let mut syscall_nr: i64;
-    let mut arg0: u64 = 0;
-    let mut arg1: u64 = 0;
-    let mut arg2: u64 = 0;
-    let mut _arg3: u64 = 0;
-    let mut _arg4: u64 = 0;
-    let mut _arg5: u64 = 0;
+    let mut arg0: u64;
+    let mut arg1: u64;
+    let mut arg2: u64;
+    let mut _arg3: u64;
+    let mut _arg4: u64;
+    let mut _arg5: u64;
 
     unsafe {
         asm!("",
@@ -183,7 +183,7 @@ fn syscall_chdir(pathname: *const u64) -> u64 {
             return USERLAND
                 .lock()
                 .get_current_process()
-                .set_working_directory(pathname)
+                .set_working_directory(pathname);
         }
         Err(_) => return u64::MAX,
     }

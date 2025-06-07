@@ -37,12 +37,6 @@ pub struct KPrinter {
     pub color: Colors,
 }
 
-impl KPrinter {
-    pub fn new(color: Colors) -> Self {
-        Self { color: color }
-    }
-}
-
 impl core::fmt::Write for KPrinter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         crate::kprint::kprint(s, self.color);
@@ -164,12 +158,12 @@ pub fn kprint(text: &str, color: Colors) {
 pub fn _kprint_text_at_pos(text: &str, row: u64, column: u64, color: Colors) {
     let mut i = 0;
     for character in text.chars() {
-        kprint_char_at_pos(character, row, column + i, color);
+        _kprint_char_at_pos(character, row, column + i, color);
         i += 1;
     }
 }
 
-pub fn kprint_char_at_pos(character_in: char, row: u64, column: u64, color: Colors) {
+pub fn _kprint_char_at_pos(character_in: char, row: u64, column: u64, color: Colors) {
     // TODO remove the unsafe
     unsafe {
         let old_row = CURRENT_ROW;
@@ -231,9 +225,9 @@ pub fn kprint_char(character_in: char, color: Colors) {
     }
 }
 
-pub fn kprint_integer(number: i64, color: Colors) {
+pub fn _kprint_integer(number: i64, color: Colors) {
     if number > 10 {
-        kprint_integer(number / 10, color);
+        _kprint_integer(number / 10, color);
     }
     kprint_char((number % 10 + 0x30) as u8 as char, color);
 }
