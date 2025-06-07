@@ -311,7 +311,7 @@ impl Process {
     #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
         DEBUG!("Activating process");
-        extern "C" {
+        unsafe extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
         }
@@ -365,7 +365,7 @@ impl Process {
     #[instrument]
     pub fn passivate(&mut self) {
         DEBUG!("Passivating process");
-        extern "C" {
+        unsafe extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
         }
@@ -476,7 +476,7 @@ impl Process {
 
     #[instrument]
     pub fn load_elf_from_bin() -> (u64, u64, u64) {
-        extern "C" {
+        unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
         }

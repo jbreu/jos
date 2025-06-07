@@ -1,21 +1,21 @@
 // https://github.com/scprogramming/Jazz2.0/blob/main/src/interrupts/idt.c
 // https://wiki.osdev.org/Interrupts_Tutorial
 
+use crate::DEBUG;
+use crate::ERROR;
+use crate::USERLAND;
 use crate::keyboard;
 use crate::kprint;
 use crate::profiling;
 use crate::userland;
 use crate::util::out_port_b;
-use crate::DEBUG;
-use crate::ERROR;
-use crate::USERLAND;
 use core::arch::asm;
 use core::arch::global_asm;
 use tracing::instrument;
 
 global_asm!(include_str!("interrupt.S"));
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static mut SCHEDULING_BLOCKED: u8 = 0;
 
 #[repr(C, packed(2))]
@@ -47,7 +47,7 @@ static mut IDT_ENTRIES: [IdtEntryStruct; 256] = [IdtEntryStruct {
     reserved: 0,
 }; 256];
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[instrument(skip(error_code, int_no))]
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
     match int_no as u64 {
@@ -61,7 +61,7 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
     out_port_b(0x20, 0x20);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 // #[instrument(skip(int_no))]
 pub extern "C" fn irq_handler(int_no: u64) {
     // TODO make this a verbose log
@@ -192,7 +192,7 @@ pub fn init_idt() {
     // TODO: Check Gate Type setting: https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Types
     macro_rules! set_isr {
         ($id:expr, $isr:ident) => {
-            extern "C" {
+            unsafe extern "C" {
                 fn $isr();
             }
             let $isr: unsafe extern "C" fn() = $isr;
@@ -261,7 +261,7 @@ pub fn init_idt() {
             //https://stackoverflow.com/a/64311274
             // https://github.com/rust-osdev/x86_64/blob/master/src/addr.rs#L100C9-L100C9
             // Complexity from last link probably not required
-            base: IDT_ENTRIES.as_ptr() as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
+            base: core::ptr::addr_of!(IDT_ENTRIES) as u64, //(((IDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
         };
         SCHEDULING_BLOCKED = 1;
         asm!(

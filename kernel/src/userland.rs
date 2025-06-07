@@ -1,8 +1,8 @@
 use spin::Mutex;
 use tracing::instrument;
 
-use crate::process::Process;
 use crate::USERLAND;
+use crate::process::Process;
 
 extern crate alloc;
 use alloc::vec::Vec;
@@ -43,7 +43,7 @@ impl Userland {
 
     #[instrument]
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
-        extern "C" {
+        unsafe extern "C" {
             fn jump_usermode(process_base_address: u64, stack_top_address: u64, entry_address: u64);
         }
 

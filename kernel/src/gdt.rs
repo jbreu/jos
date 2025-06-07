@@ -140,7 +140,7 @@ pub fn init_gdt() {
         asm!(
             "lgdt [{}]", in(reg) &gdt_ptr, options(readonly, nostack, preserves_flags)
         );
-        extern "C" {
+        unsafe extern "C" {
             fn reloadSegments();
         }
         reloadSegments();
