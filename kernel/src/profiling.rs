@@ -13,7 +13,6 @@ static mut TRACE_POINTS: [TracePoint; TRACE_POINT_MAX] = [TracePoint {
     time: 0,
     cycles: 0,
     function_name: "Unknown",
-    file_name: "Unknown",
     trace_type: TracePointType::Unknown,
 }; TRACE_POINT_MAX];
 
@@ -23,7 +22,6 @@ struct TracePoint {
     time: u64,
     cycles: u64,
     function_name: &'static str,
-    file_name: &'static str,
     trace_type: TracePointType,
 }
 
@@ -32,9 +30,9 @@ enum TracePointType {
     Unknown,
     Enter,
     Exit,
-    Event,
-    Record,
-    Follows,
+    _Event,
+    _Record,
+    _Follows,
 }
 
 pub fn log_tracepoints() {
@@ -50,9 +48,9 @@ pub fn log_tracepoints() {
                     match trace_point.trace_type {
                         TracePointType::Enter => "ENTER",
                         TracePointType::Exit => "EXIT",
-                        TracePointType::Event => "EVENT",
-                        TracePointType::Record => "RECORD",
-                        TracePointType::Follows => "FOLLOWS",
+                        TracePointType::_Event => "EVENT",
+                        TracePointType::_Record => "RECORD",
+                        TracePointType::_Follows => "FOLLOWS",
                         _ => "UNKNOWN",
                     },
                     trace_point.call_id,
@@ -69,9 +67,9 @@ pub fn log_tracepoints() {
                 match trace_point.trace_type {
                     TracePointType::Enter => "ENTER",
                     TracePointType::Exit => "EXIT",
-                    TracePointType::Event => "EVENT",
-                    TracePointType::Record => "RECORD",
-                    TracePointType::Follows => "FOLLOWS",
+                    TracePointType::_Event => "EVENT",
+                    TracePointType::_Record => "RECORD",
+                    TracePointType::_Follows => "FOLLOWS",
                     _ => "UNKNOWN",
                 },
                 trace_point.call_id,
@@ -84,43 +82,34 @@ pub fn log_tracepoints() {
 
 // Approach adopted from https://github.com/Compaile/ctrack
 pub struct EventHandler {
-    filename: &'static str,
     function: &'static str,
     call_id: u64,
-    start_clock: u64,
-    start_time: u64,
-    // Dummy fields to simulate external logic
-    // event_id, previous_event_id, etc. can be added here
 }
 
 impl EventHandler {
-    pub fn new(filename: &'static str, function: &'static str) -> Self {
-        let eventhandler = EventHandler {
-            filename,
-            function,
-            call_id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
-            start_clock: unsafe { _rdtsc() },
-            start_time: get_ns_since_boot!(),
-        };
+    #[inline(always)]
+    pub fn new(function: &'static str) -> Self {
+        let call_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+        let start_clock = unsafe { _rdtsc() };
+        let start_time = get_ns_since_boot!();
 
-        let trace_point = TracePoint {
-            time: eventhandler.start_time,
-            function_name: eventhandler.function,
-            file_name: eventhandler.filename,
-            call_id: eventhandler.call_id,
-            cycles: eventhandler.start_clock,
-            trace_type: TracePointType::Enter,
-        };
         unsafe {
-            TRACE_POINTS[TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed) % TRACE_POINT_MAX] =
-                trace_point;
+            let idx = TRACE_POINT_COUNT.fetch_add(1, Ordering::Relaxed) % TRACE_POINT_MAX;
+            TRACE_POINTS[idx] = TracePoint {
+                time: start_time,
+                function_name: function,
+                call_id,
+                cycles: start_clock,
+                trace_type: TracePointType::Enter,
+            };
         }
 
-        eventhandler
+        EventHandler { function, call_id }
     }
 }
 
 impl Drop for EventHandler {
+    #[inline(always)]
     fn drop(&mut self) {
         let end_time = get_ns_since_boot!();
         let end_clock = unsafe { _rdtsc() };
@@ -128,7 +117,6 @@ impl Drop for EventHandler {
         let trace_point = TracePoint {
             time: end_time,
             function_name: self.function,
-            file_name: self.filename,
             call_id: self.call_id,
             cycles: end_clock,
             trace_type: TracePointType::Exit,
@@ -144,7 +132,7 @@ impl Drop for EventHandler {
 #[macro_export]
 macro_rules! instrument {
     () => {
-        crate::profiling::EventHandler::new(file!(), crate::function_name!())
+        crate::profiling::EventHandler::new(crate::function_name!())
     };
 }
 
