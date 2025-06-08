@@ -73,7 +73,7 @@ struct GdtPtrStruct {
     offset: u64,
 }
 
-#[instrument]
+#[instrument(fields(fid = 90))]
 pub fn init_gdt() {
     unsafe {
         GDT_ENTRIES = [
@@ -153,8 +153,8 @@ pub fn init_gdt() {
     }
 }
 
-#[instrument]
-fn init_tss() {
+#[instrument(fields(fid = 91))]
+fn _init_tss() {
     unsafe {
         // Initialize the TSS fields
         TSS_ENTRY = Tss {

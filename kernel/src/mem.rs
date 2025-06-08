@@ -37,7 +37,7 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array
 };
 
-#[instrument]
+#[instrument(fields(fid = 60))]
 pub fn allocate_page_frame() -> u64 {
     // TODO make safe
     // TODO make faster by not iterating instead storing next free page frame
@@ -53,7 +53,7 @@ pub fn allocate_page_frame() -> u64 {
     panic!("No more page frames available!");
 }
 
-#[instrument]
+#[instrument(fields(fid = 61))]
 pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     unsafe {
         let page = address / 0x200000;
@@ -62,7 +62,7 @@ pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     }
 }
 
-#[instrument]
+#[instrument(fields(fid = 62))]
 pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitmask: u8) {
     let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 

@@ -6,10 +6,7 @@
         "x86_64-unknown-none"
     ],
     "rust-analyzer.linkedProjects": [
-        ".\\Cargo.toml",
-        ".\\Cargo.toml",
-        ".\\Cargo.toml",
-        ".\\Cargo.toml"
+        "Cargo.toml",
     ],
     "rust-analyzer.showUnlinkedFileNotification": false,
     "python.testing.pytestArgs": [

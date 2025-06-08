@@ -1,7 +1,6 @@
 use crate::kprint::{_kprint_char_at_pos, _kprint_integer, kprint_char, kprint_integer_at_pos};
 use crate::{acpi, kprint};
 use core::arch::asm;
-use core::sync::atomic::Ordering;
 use tracing::instrument;
 
 #[allow(dead_code)]
@@ -65,7 +64,7 @@ static mut INITIAL_HOURS: i16 = 0;
 static mut INITIAL_MINUTES: i16 = 0;
 static mut INITIAL_SECONDS: i16 = 0;
 
-#[instrument]
+#[instrument(fields(fid = 50))]
 pub fn set_initial_time() {
     acpi::init_acpi();
 
@@ -78,8 +77,8 @@ pub fn set_initial_time() {
     }
 }
 
-#[instrument]
-pub fn update_clock() {
+#[instrument(fields(fid = 51))]
+pub fn _update_clock() {
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
 
     let hours: i16 = read_cmos_i16(CmosRegister::Hours, bcd_enabled);

@@ -148,7 +148,7 @@ pub extern "C" fn irq_handler(int_no: u64) {
     out_port_b(0x20, 0x20);
 }
 
-#[instrument]
+#[instrument(fields(fid = 80))]
 fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     unsafe {
         IDT_ENTRIES[num].base_low = (base & 0xFFFF) as u16;
@@ -161,7 +161,7 @@ fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     }
 }
 
-#[instrument]
+#[instrument(fields(fid = 81))]
 pub fn init_idt() {
     // https://www.eeeguide.com/8259-programmable-interrupt-controller/
     // https://stackoverflow.com/a/283033

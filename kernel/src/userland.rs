@@ -27,7 +27,7 @@ impl fmt::Debug for Userland {
 }
 
 impl Userland {
-    #[instrument]
+    #[instrument(fields(fid = 40))]
     pub fn new() -> Self {
         Self {
             processes: Vec::new(),
@@ -35,13 +35,12 @@ impl Userland {
         }
     }
 
-    #[instrument]
-
+    #[instrument(fields(fid = 41))]
     pub fn process_malloc(&mut self, size: usize) -> u64 {
         return self.processes[self.current_process].malloc(size);
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 42))]
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
         unsafe extern "C" {
             fn jump_usermode(process_base_address: u64, stack_top_address: u64, entry_address: u64);
@@ -79,7 +78,7 @@ impl Userland {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 230))]
     pub fn switch_process(&mut self) {
         // TODO for now scheduler is simply going round robin
         let last_process = self.current_process;
@@ -103,19 +102,19 @@ impl Userland {
         self.processes[self.current_process].activate(false);
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 231))]
     pub fn get_current_process_id(&self) -> usize {
         self.current_process
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 232))]
     pub fn get_current_process(&mut self) -> &mut Process {
         &mut self.processes[self.current_process]
     }
 }
 
 // very simple scheduler
-#[instrument]
+#[instrument(fields(fid = 233))]
 pub fn schedule() {
     USERLAND.lock().switch_process();
 }

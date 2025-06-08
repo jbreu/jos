@@ -148,7 +148,7 @@ impl Debug for Process {
 }
 
 impl Process {
-    #[instrument]
+    #[instrument(fields(fid = 1))]
     pub fn new() -> Self {
         Self {
             registers: RegistersStruct::default(),
@@ -174,7 +174,7 @@ impl Process {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 2))]
     pub fn initialize(&mut self) {
         // TODO remove hard coding
         // TODO Task stack
@@ -273,7 +273,7 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 3))]
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
         let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
@@ -287,7 +287,7 @@ impl Process {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 4))]
     pub fn malloc(&mut self, size: usize) -> u64 {
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
@@ -302,13 +302,13 @@ impl Process {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 5))]
     pub fn launch(&mut self) {
         INFO!("Launching process");
         self.state = ProcessState::Passive;
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 6))]
     pub fn activate(&mut self, initial_start: bool) {
         DEBUG!("Activating process");
         unsafe extern "C" {
@@ -362,7 +362,7 @@ impl Process {
         self.state = ProcessState::Active;
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 7))]
     pub fn passivate(&mut self) {
         DEBUG!("Passivating process");
         unsafe extern "C" {
@@ -405,7 +405,7 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 8))]
     pub fn activatable(&self) -> bool {
         match self.state {
             ProcessState::Passive => true,

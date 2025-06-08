@@ -1,7 +1,7 @@
 extern crate alloc;
-use crate::kprintln;
 use crate::DEBUG;
 use crate::ERROR;
+use crate::kprintln;
 use alloc::vec::Vec;
 use core::fmt;
 use include_bytes_aligned::include_bytes_aligned;
@@ -29,7 +29,7 @@ impl fmt::Debug for FileHandle {
 }
 
 impl FileHandle {
-    #[instrument]
+    #[instrument(fields(fid = 100))]
     pub fn new(filename: &str, _mode: u32) -> Option<FileHandle> {
         match FILE_SYSTEM.read_inode_by_path(filename) {
             Some(inode) => return Some(Self { inode, offset: 0 }),
@@ -39,7 +39,7 @@ impl FileHandle {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 101))]
     pub fn read(&mut self, buffer: *mut u8, size: usize) -> u64 {
         let mut bytes_read = 0;
         let mut buffer_offset = 0;
@@ -122,7 +122,7 @@ impl FileHandle {
         bytes_read as u64
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 102))]
     pub fn fseek(&mut self, offset: usize, origin: u32) -> u64 {
         match origin {
             0 => self.offset = offset,
@@ -239,7 +239,7 @@ struct DirectoryEntry {
 }
 
 impl Ext2FileSystem {
-    #[instrument]
+    #[instrument(fields(fid = 103))]
     pub fn new() -> Self {
         kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
 
@@ -276,13 +276,13 @@ impl Ext2FileSystem {
         }
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 104))]
     fn read_block(&self, block_num: u32) -> &[u8] {
         let start = (block_num as usize) * (self.block_size as usize);
         &DISK_IMG[start..start + self.block_size as usize]
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 105))]
     fn read_inode(&self, inode_num: u32) -> Inode {
         let group = (inode_num - 1) / self.superblock.inodes_per_group;
         let index = (inode_num - 1) % self.superblock.inodes_per_group;
@@ -311,7 +311,7 @@ impl Ext2FileSystem {
         inode
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 106))]
     pub fn debug_print_superblock(&self) {
         let inode_count = self.superblock.inode_count;
         let block_count = self.superblock.block_count;
@@ -328,7 +328,7 @@ impl Ext2FileSystem {
         kprintln!("  Magic: {:#x}", magic);
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 107))]
     pub fn read_inode_by_path(&self, path: &str) -> Option<Inode> {
         let mut current_inode = 2; // Root directory
 
@@ -363,7 +363,7 @@ impl Ext2FileSystem {
         None
     }
 
-    #[instrument]
+    #[instrument(fields(fid = 108))]
     fn read_file(&self, inode_num: u32) -> &[u8] {
         let inode = self.read_inode(inode_num);
         let block = self.read_block(inode.direct_blocks[0]);
@@ -371,7 +371,7 @@ impl Ext2FileSystem {
     }
 }
 
-#[instrument]
+#[instrument(fields(fid = 109))]
 pub fn init_filesystem() {
     let fs = Ext2FileSystem::new();
     fs.debug_print_superblock();
