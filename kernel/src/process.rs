@@ -11,7 +11,6 @@ use core::fmt::Debug;
 use core::ptr::addr_of;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering;
-use tracing::instrument;
 
 pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
 
@@ -74,8 +73,8 @@ fn check_half(entry: *const u64) -> *const u64 {
     entry
 }
 
-#[instrument]
 fn print_page_table_tree(start_addr: u64) {
+    let _event = core::hint::black_box(crate::instrument!());
     let entry_mask = 0x0008_ffff_ffff_f800;
 
     unsafe {
@@ -148,8 +147,9 @@ impl Debug for Process {
 }
 
 impl Process {
-    #[instrument(fields(fid = 1))]
     pub fn new() -> Self {
+        let _event = core::hint::black_box(crate::instrument!());
+
         Self {
             registers: RegistersStruct::default(),
             l2_page_directory_table: PageTable::default(),
@@ -174,8 +174,9 @@ impl Process {
         }
     }
 
-    #[instrument(fields(fid = 2))]
     pub fn initialize(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         // TODO remove hard coding
         // TODO Task stack
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
@@ -273,8 +274,9 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
-    #[instrument(fields(fid = 3))]
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
 
@@ -287,8 +289,9 @@ impl Process {
         }
     }
 
-    #[instrument(fields(fid = 4))]
     pub fn malloc(&mut self, size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
             match self.heap_allocator.lock().allocate_first_fit(layout) {
@@ -302,14 +305,16 @@ impl Process {
         }
     }
 
-    #[instrument(fields(fid = 5))]
     pub fn launch(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         INFO!("Launching process");
         self.state = ProcessState::Passive;
     }
 
-    #[instrument(fields(fid = 6))]
     pub fn activate(&mut self, initial_start: bool) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         DEBUG!("Activating process");
         unsafe extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
@@ -362,8 +367,9 @@ impl Process {
         self.state = ProcessState::Active;
     }
 
-    #[instrument(fields(fid = 7))]
     pub fn passivate(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         DEBUG!("Passivating process");
         unsafe extern "C" {
             static pushed_registers: *const RegistersStruct;
@@ -405,8 +411,9 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
-    #[instrument(fields(fid = 8))]
     pub fn activatable(&self) -> bool {
+        let _event = core::hint::black_box(crate::instrument!());
+
         match self.state {
             ProcessState::Passive => true,
             _ => false,
@@ -418,8 +425,9 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
-    #[instrument]
+
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         // Simple variant, only works for kernel memory
         // adding 1 page frame as heap has different mapping
         //vaddr - 0xffff800000000000 + 0x200000
@@ -456,26 +464,26 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as u64,
         )
     }
 
-    #[instrument]
     pub fn get_stack_top_address(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
     }
 
-    #[instrument]
     pub fn get_entry_ip(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         self.rip
     }
 
-    #[instrument]
     pub fn load_elf_from_bin() -> (u64, u64, u64) {
+        let _event = core::hint::black_box(crate::instrument!());
         unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
@@ -567,19 +575,20 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn set_working_directory(&mut self, path: &'static str) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         self.working_directory = path;
         return 0;
     }
 
-    #[instrument]
     pub fn get_working_directory(&self) -> &'static str {
+        let _event = core::hint::black_box(crate::instrument!());
         self.working_directory
     }
 
-    #[instrument]
     pub fn fopen(&mut self, path: &str, mode: &str) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let mode_num = match mode {
             "r" => 0,
             "w" => 1,

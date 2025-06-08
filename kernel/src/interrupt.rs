@@ -11,7 +11,6 @@ use crate::userland;
 use crate::util::out_port_b;
 use core::arch::asm;
 use core::arch::global_asm;
-use tracing::instrument;
 
 global_asm!(include_str!("interrupt.S"));
 
@@ -48,8 +47,9 @@ static mut IDT_ENTRIES: [IdtEntryStruct; 256] = [IdtEntryStruct {
 }; 256];
 
 #[unsafe(no_mangle)]
-#[instrument(skip(error_code, int_no))]
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
+    let _event = core::hint::black_box(crate::instrument!());
+
     match int_no as u64 {
         0..=31 => {
             ERROR!("ISR {} error_code {:x?}", int_no, error_code);
@@ -62,8 +62,9 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
 }
 
 #[unsafe(no_mangle)]
-// #[instrument(skip(int_no))]
 pub extern "C" fn irq_handler(int_no: u64) {
+    let _event = core::hint::black_box(crate::instrument!());
+
     // TODO make this a verbose log
     /*extern "C" {
         static mut stack_frame: *const u64;
@@ -148,8 +149,9 @@ pub extern "C" fn irq_handler(int_no: u64) {
     out_port_b(0x20, 0x20);
 }
 
-#[instrument(fields(fid = 80))]
 fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
+    let _event = core::hint::black_box(crate::instrument!());
+
     unsafe {
         IDT_ENTRIES[num].base_low = (base & 0xFFFF) as u16;
         IDT_ENTRIES[num].base_mid = ((base >> 16) & 0xFFFF) as u16;
@@ -161,8 +163,9 @@ fn set_idt_gate(num: usize, base: u64, sel: u16, flags: u8) {
     }
 }
 
-#[instrument(fields(fid = 81))]
 pub fn init_idt() {
+    let _event = core::hint::black_box(crate::instrument!());
+
     // https://www.eeeguide.com/8259-programmable-interrupt-controller/
     // https://stackoverflow.com/a/283033
     //0x20 commands and 0x21 data

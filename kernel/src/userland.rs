@@ -1,5 +1,4 @@
 use spin::Mutex;
-use tracing::instrument;
 
 use crate::USERLAND;
 use crate::process::Process;
@@ -27,21 +26,24 @@ impl fmt::Debug for Userland {
 }
 
 impl Userland {
-    #[instrument(fields(fid = 40))]
     pub fn new() -> Self {
+        let _event = core::hint::black_box(crate::instrument!());
+
         Self {
             processes: Vec::new(),
             current_process: 0,
         }
     }
 
-    #[instrument(fields(fid = 41))]
     pub fn process_malloc(&mut self, size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         return self.processes[self.current_process].malloc(size);
     }
 
-    #[instrument(fields(fid = 42))]
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe extern "C" {
             fn jump_usermode(process_base_address: u64, stack_top_address: u64, entry_address: u64);
         }
@@ -78,8 +80,9 @@ impl Userland {
         }
     }
 
-    #[instrument(fields(fid = 230))]
     pub fn switch_process(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         // TODO for now scheduler is simply going round robin
         let last_process = self.current_process;
 
@@ -102,19 +105,22 @@ impl Userland {
         self.processes[self.current_process].activate(false);
     }
 
-    #[instrument(fields(fid = 231))]
     pub fn get_current_process_id(&self) -> usize {
+        let _event = core::hint::black_box(crate::instrument!());
+
         self.current_process
     }
 
-    #[instrument(fields(fid = 232))]
     pub fn get_current_process(&mut self) -> &mut Process {
+        let _event = core::hint::black_box(crate::instrument!());
+
         &mut self.processes[self.current_process]
     }
 }
 
 // very simple scheduler
-#[instrument(fields(fid = 233))]
 pub fn schedule() {
+    let _event = core::hint::black_box(crate::instrument!());
+
     USERLAND.lock().switch_process();
 }

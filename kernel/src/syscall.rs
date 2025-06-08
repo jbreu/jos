@@ -1,5 +1,3 @@
-use tracing::instrument;
-
 use crate::ERROR;
 use crate::kprintln;
 use crate::{USERLAND, time};
@@ -52,34 +50,34 @@ pub extern "C" fn system_call() -> u64 {
     }
 }
 
-#[instrument(fields(fid = 200))]
 fn syscall_feof(_handle: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     todo!();
 }
 
-#[instrument(fields(fid = 201))]
 fn syscall_ftell(_handle: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     todo!();
 }
 
-#[instrument(fields(fid = 202))]
 fn syscall_fseek(handle: u64, offset: usize, origin: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     return USERLAND
         .lock()
         .get_current_process()
         .fseek(handle, offset, origin as u32);
 }
 
-#[instrument(fields(fid = 203))]
 fn syscall_fread(handle: u64, ptr: u64, num_bytes: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     USERLAND
         .lock()
         .get_current_process()
         .fread(handle, ptr as *mut u8, num_bytes)
 }
 
-#[instrument(fields(fid = 204))]
 fn syscall_fopen(filename: *const u64, mode: *mut u32) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     match unsafe { core::str::from_utf8(core::slice::from_raw_parts(filename as *const u8, 256)) } {
         Ok(path_str) => match path_str.split('\0').next() {
             Some(path_str) => match unsafe {
@@ -97,25 +95,25 @@ fn syscall_fopen(filename: *const u64, mode: *mut u32) -> u64 {
     }
 }
 
-#[instrument(fields(fid = 205))]
 fn syscall_malloc(size: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     return USERLAND.lock().process_malloc(size);
 }
 
-#[instrument(fields(fid = 206))]
 fn syscall_plot_pixel(x: u32, y: u32, color: u32) -> u64 {
+    //let _event = core::hint::black_box(crate::instrument!()); // too much noise
     vga::vga_plot_pixel(x, y, color as u8);
     vga::vga_flip();
     return 0;
 }
 
-#[instrument(fields(fid = 207))]
 fn syscall_getpid() -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     USERLAND.lock().get_current_process_id() as u64
 }
 
-#[instrument(fields(fid = 208))]
 fn syscall_write(filedescriptor: u64, payload: u64, len: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         match core::str::from_utf8(core::slice::from_raw_parts(
             payload as *const u8,
@@ -134,15 +132,15 @@ fn syscall_write(filedescriptor: u64, payload: u64, len: u64) -> u64 {
     return 0;
 }
 
-#[instrument(fields(fid = 209))]
 fn syscall_plot_framebuffer(framebuffer: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     vga::vga_plot_framebuffer(framebuffer as *const u8);
     vga::vga_flip();
     return 0;
 }
 
-#[instrument(fields(fid = 210))]
 fn syscall_switch_vga_mode(vga_on: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     if vga_on != 0 {
         vga::vga_enter();
         vga::vga_clear_screen();
@@ -152,8 +150,8 @@ fn syscall_switch_vga_mode(vga_on: u64) -> u64 {
     return 0;
 }
 
-#[instrument(fields(fid = 211))]
 fn syscall_get_keystate(key: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     let keystate;
     unsafe {
         keystate = keyboard::KEYSTATES[key];
@@ -162,21 +160,21 @@ fn syscall_get_keystate(key: usize) -> u64 {
     return keystate as u64;
 }
 
-#[instrument(fields(fid = 212))]
 fn syscall_get_time(sec: *mut u32, usec: *mut u32) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         (*sec, *usec) = time::get_time();
     }
     return 1;
 }
 
-#[instrument(fields(fid = 213))]
 fn syscall_stat(_pathname: *const u64, _statbuf: *mut u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     todo!();
 }
 
-#[instrument(fields(fid = 214))]
 fn syscall_chdir(pathname: *const u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     // get string from pathname pointer
     match unsafe { core::str::from_utf8(core::slice::from_raw_parts(pathname as *const u8, 256)) } {
         Ok(pathname) => {
@@ -189,8 +187,8 @@ fn syscall_chdir(pathname: *const u64) -> u64 {
     }
 }
 
-#[instrument(fields(fid = 215))]
 fn syscall_getcwd(buf: *mut u64, size: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     let cwd = USERLAND
         .lock()
         .get_current_process()

@@ -3,7 +3,6 @@ use core::arch::asm;
 use core::arch::global_asm;
 use core::mem;
 use core::ptr::addr_of;
-use tracing::instrument;
 
 // https://wiki.osdev.org/GDT_Tutorial
 // https://en.wikipedia.org/wiki/Global_Descriptor_Table#GDT_in_64-bit
@@ -73,8 +72,8 @@ struct GdtPtrStruct {
     offset: u64,
 }
 
-#[instrument(fields(fid = 90))]
 pub fn init_gdt() {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         GDT_ENTRIES = [
             // Null descriptor
@@ -153,8 +152,8 @@ pub fn init_gdt() {
     }
 }
 
-#[instrument(fields(fid = 91))]
 fn _init_tss() {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         // Initialize the TSS fields
         TSS_ENTRY = Tss {

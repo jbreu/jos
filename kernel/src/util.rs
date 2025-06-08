@@ -1,5 +1,4 @@
 use core::arch::asm;
-use tracing::instrument;
 
 pub fn out_port_b(port: u32, value: u8) {
     unsafe {
@@ -20,8 +19,8 @@ pub fn in_port_b(port: u32) -> u8 {
     return key;
 }
 
-#[instrument(fields(fid = 30))]
 pub fn compare_str_to_memory(s: &str, addr: usize) -> bool {
+    let _event = core::hint::black_box(crate::instrument!());
     let bytes = s.as_bytes();
     let ptr = addr as *const u8;
 

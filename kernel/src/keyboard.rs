@@ -1,5 +1,3 @@
-use tracing::instrument;
-
 // http://kbdlayout.info/KBDGR/scancodes+names
 // http://kbdlayout.info/KBDGR/virtualkeys
 static SCANCODES: [char; 69] = [
@@ -76,8 +74,8 @@ static SCANCODES: [char; 69] = [
 
 pub static mut KEYSTATES: [bool; 10] = [false; 10];
 
-#[instrument(fields(fid = 70))]
 pub fn get_key_for_scancode(scancode: u8) -> char {
+    let _event = core::hint::black_box(crate::instrument!());
     match scancode as u8 {
         0..=68 => SCANCODES[scancode as usize],
         _ => 0xfe as char,
