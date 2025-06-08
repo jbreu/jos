@@ -2,7 +2,7 @@
 macro_rules! log_with_level {
     ($color:expr, $level:expr, $($arg:tt)*) => {{
         crate::kprintcolor!($color, $level);
-        crate::kprint!("[{}] ", crate::time::get_us_since_boot());
+        crate::kprint!("[{}] ", crate::time::get_ms_since_boot());
         crate::kprintln!($($arg)*);
     }};
 }

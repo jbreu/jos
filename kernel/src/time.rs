@@ -1,8 +1,6 @@
-use crate::kprint::{kprint_char, kprint_char_at_pos, kprint_integer, kprint_integer_at_pos};
+use crate::kprint::{_kprint_char_at_pos, _kprint_integer, kprint_char, kprint_integer_at_pos};
 use crate::{acpi, kprint};
 use core::arch::asm;
-use core::sync::atomic::{AtomicU64, Ordering};
-use tracing::instrument;
 
 #[allow(dead_code)]
 #[derive(PartialEq, Clone)]
@@ -47,26 +45,26 @@ fn read_cmos_i16(register: CmosRegister, bcd_enabled: bool) -> i16 {
 
 // https://github.com/sphaerophoria/stream-os/blob/master/src/io/io_allocator.rs#L67
 // https://stackoverflow.com/a/64818139
-pub fn kprint_time() {
+pub fn _kprint_time() {
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
 
     let hours: i16 = read_cmos_i16(CmosRegister::Hours, bcd_enabled);
     let minutes: i16 = read_cmos_i16(CmosRegister::Minutes, bcd_enabled);
     let seconds: i16 = read_cmos_i16(CmosRegister::Seconds, bcd_enabled);
 
-    kprint_integer(hours.into(), kprint::Colors::KPrintColorDarkGray);
+    _kprint_integer(hours.into(), kprint::Colors::KPrintColorDarkGray);
     kprint_char(':', kprint::Colors::KPrintColorDarkGray);
-    kprint_integer(minutes.into(), kprint::Colors::KPrintColorDarkGray);
+    _kprint_integer(minutes.into(), kprint::Colors::KPrintColorDarkGray);
     kprint_char(':', kprint::Colors::KPrintColorDarkGray);
-    kprint_integer(seconds.into(), kprint::Colors::KPrintColorDarkGray);
+    _kprint_integer(seconds.into(), kprint::Colors::KPrintColorDarkGray);
 }
 
 static mut INITIAL_HOURS: i16 = 0;
 static mut INITIAL_MINUTES: i16 = 0;
 static mut INITIAL_SECONDS: i16 = 0;
 
-#[instrument]
 pub fn set_initial_time() {
+    let _event = core::hint::black_box(crate::instrument!());
     acpi::init_acpi();
 
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
@@ -78,8 +76,8 @@ pub fn set_initial_time() {
     }
 }
 
-#[instrument]
-pub fn update_clock() {
+pub fn _update_clock() {
+    let _event = core::hint::black_box(crate::instrument!());
     let bcd_enabled: bool = read_cmos_i16(CmosRegister::StatusA, false) != 0;
 
     let hours: i16 = read_cmos_i16(CmosRegister::Hours, bcd_enabled);
@@ -87,23 +85,27 @@ pub fn update_clock() {
     let seconds: i16 = read_cmos_i16(CmosRegister::Seconds, bcd_enabled);
 
     kprint_integer_at_pos(hours.into(), 0, 70, kprint::Colors::KPrintColorDarkGray);
-    kprint_char_at_pos(':', 0, 72, kprint::Colors::KPrintColorDarkGray);
+    _kprint_char_at_pos(':', 0, 72, kprint::Colors::KPrintColorDarkGray);
     kprint_integer_at_pos(minutes.into(), 0, 73, kprint::Colors::KPrintColorDarkGray);
-    kprint_char_at_pos(':', 0, 75, kprint::Colors::KPrintColorDarkGray);
+    _kprint_char_at_pos(':', 0, 75, kprint::Colors::KPrintColorDarkGray);
     kprint_integer_at_pos(seconds.into(), 0, 76, kprint::Colors::KPrintColorDarkGray);
 }
 
 #[macro_export]
 macro_rules! get_ns_since_boot {
     () => {{
-        unsafe {
-            match crate::acpi::HPET_COUNTER_VALUE.is_null() {
-                true => 0,
-                false => {
-                    (*crate::acpi::HPET_COUNTER_VALUE).main_counter_val
-                        * crate::acpi::HPET_CLOCK_PERIOD_IN_NS
-                }
-            }
+        let hpet_counter_value_address =
+            crate::acpi::HPET_COUNTER_VALUE_ADDRESS.load(core::sync::atomic::Ordering::Relaxed);
+
+        if hpet_counter_value_address.is_null() {
+            0
+        } else {
+            let counter_value = unsafe {
+                (*hpet_counter_value_address).load(core::sync::atomic::Ordering::Relaxed)
+            };
+            let clock_period_in_ns =
+                crate::acpi::HPET_CLOCK_PERIOD_IN_NS.load(core::sync::atomic::Ordering::Relaxed);
+            (counter_value * clock_period_in_ns)
         }
     }};
 }

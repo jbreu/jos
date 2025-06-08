@@ -3,7 +3,6 @@ use core::arch::asm;
 use core::arch::global_asm;
 use core::mem;
 use core::ptr::addr_of;
-use tracing::instrument;
 
 // https://wiki.osdev.org/GDT_Tutorial
 // https://en.wikipedia.org/wiki/Global_Descriptor_Table#GDT_in_64-bit
@@ -23,7 +22,8 @@ struct GDT {
 }
 
 // https://wiki.osdev.org/GDT_Tutorial#Flat_.2F_Long_Mode_Setup
-static mut GDT_ENTRIES: [[u8; 8]; 7] = [[0; 8], [0; 8], [0; 8], [0; 8], [0; 8], [0; 8], [0; 8]];
+const GDT_ENTRY_MAX: usize = 7;
+static mut GDT_ENTRIES: [[u8; 8]; GDT_ENTRY_MAX] = [[0; 8]; GDT_ENTRY_MAX];
 
 // https://wiki.osdev.org/TSS#Long_Mode
 #[repr(C)]
@@ -72,8 +72,8 @@ struct GdtPtrStruct {
     offset: u64,
 }
 
-#[instrument]
 pub fn init_gdt() {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         GDT_ENTRIES = [
             // Null descriptor
@@ -129,17 +129,17 @@ pub fn init_gdt() {
     };
     unsafe {
         let gdt_ptr: GdtPtrStruct = GdtPtrStruct {
-            size: (mem::size_of::<GDT>() * GDT_ENTRIES.len() - 1) as u16,
+            size: (mem::size_of::<GDT>() * GDT_ENTRY_MAX - 1) as u16,
             //https://stackoverflow.com/a/64311274
             // https://github.com/rust-osdev/x86_64/blob/master/src/addr.rs#L100C9-L100C9
             // Complexity from last link probably not required
-            offset: (((GDT_ENTRIES.as_ptr() as u64) << 16) as i64 >> 16) as u64,
+            offset: (((&raw const GDT_ENTRIES as *const _ as u64) << 16) as i64 >> 16) as u64,
         };
         asm!("cli");
         asm!(
             "lgdt [{}]", in(reg) &gdt_ptr, options(readonly, nostack, preserves_flags)
         );
-        extern "C" {
+        unsafe extern "C" {
             fn reloadSegments();
         }
         reloadSegments();
@@ -152,8 +152,8 @@ pub fn init_gdt() {
     }
 }
 
-#[instrument]
-fn init_tss() {
+fn _init_tss() {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         // Initialize the TSS fields
         TSS_ENTRY = Tss {
