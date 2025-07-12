@@ -20,8 +20,14 @@ Then run generateFlameGraph.sh to create the flamegraph
 
 Make sure to delete stacks.txt in between sessions
 
-# Generate Tracefiles
+# Generate tracefiles
 
-Run in qemu with serial console connected; press "l" key to write out the trace buffer. This step is automated in the test_retrieve_profiling.
+Run in qemu with serial console connected; in the QEMU console window, press the "l" key to write out the trace buffer. This step is automated in the test_retrieve_profiling.
 
-Then call serial2chrome.py with the serial as input to generate Chrome trace format files. Open in chrome trace view or (better) perfetto: https://ui.perfetto.dev/#!/viz
+Then call serial2chrome.py with the serial as input to generate Chrome trace format files. You can open the generated file in Chrome trace view, or for a better experience, upload it to Perfetto at https://ui.perfetto.dev/#!/viz by clicking "Open trace file" and selecting your trace file.
+
+# Generate Google pprof files
+
+Call trace2pprof.py ../../serial.log output.pb.gz to generate pprof files (https://github.com/google/pprof)
+
+Run pprof -http=localhost:1234 .\output.pb.gz to examine in your browser some graphical details
