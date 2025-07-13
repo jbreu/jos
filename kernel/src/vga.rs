@@ -1,7 +1,6 @@
 use crate::kprint;
 use crate::util::in_port_b;
 use crate::util::out_port_b;
-use tracing::instrument;
 
 const REGION0: u64 = 0xA0000;
 const _REGION1: u64 = 0xA0000;
@@ -37,8 +36,8 @@ const VGA_SCREEN_SIZE: usize = 320 * 200;
 // migrated from https://github.com/pagekey/pkos/blob/vid/os015/src/vga/vga.c#L93-L146
 // see http://www.osdever.net/FreeVGA/vga/graphreg.htm
 // see https://github.com/pagekey/pkos/blob/609c02c259ce5c98bff719795f7ff58244cbe109/src/vga/vga.c
-#[instrument]
 pub fn vga_write_regs(enter: bool) {
+    let _event = core::hint::black_box(crate::instrument!());
     let g_320x200x256: [u8; 61] = [
         /* MISC */
         0x63, /* SEQ */
@@ -160,8 +159,8 @@ const VGA_PALETTE_INDEX: u32 = 0x3C8;
 
 static mut PALETTE_256_BACKUP_DATA: [u8; 256 * 3] = [0; 256 * 3];
 
-#[instrument]
 fn vga_backup_palette_256() {
+    let _event = core::hint::black_box(crate::instrument!());
     // Set the palette index to 0 to start reading colors
     out_port_b(VGA_PALETTE_INDEX, 0);
 
@@ -178,8 +177,8 @@ fn vga_backup_palette_256() {
     }
 }
 
-#[instrument]
 fn vga_restore_palette_256() {
+    let _event = core::hint::black_box(crate::instrument!());
     // Set the palette index to 0 to start writing colors
     out_port_b(VGA_PALETTE_INDEX, 0);
 
@@ -199,8 +198,8 @@ fn vga_restore_palette_256() {
 const PALETTE_SIZE: usize = 16; // Text mode uses 16 colors
 static mut ORIGINAL_TEXT_PALETTE: [u8; PALETTE_SIZE * 3] = [0; PALETTE_SIZE * 3]; // 3 bytes per color
 
-#[instrument]
 fn vga_backup_text_mode_palette() {
+    let _event = core::hint::black_box(crate::instrument!());
     out_port_b(0x3C7, 0); // Set the palette read address to 0
     kprint!("Backing up text mode palette:\n");
     unsafe {
@@ -216,8 +215,8 @@ fn vga_backup_text_mode_palette() {
     kprint!("\n"); // New line after finishing backup
 }
 
-#[instrument]
 fn vga_restore_text_mode_palette() {
+    let _event = core::hint::black_box(crate::instrument!());
     out_port_b(0x3C8, 0); // Set the palette write address to 0
     kprint!("Restoring text mode palette:\n");
     unsafe {
@@ -236,8 +235,8 @@ fn vga_restore_text_mode_palette() {
 const VGA_TEXT_MODE_SIZE: usize = 80 * 25;
 static mut VGA_TEXT_MODE_BACKUP: [u16; VGA_TEXT_MODE_SIZE] = [0; VGA_TEXT_MODE_SIZE];
 
-#[instrument]
 fn vga_backup_vidmem() {
+    let _event = core::hint::black_box(crate::instrument!());
     let text_ptr: *const u16 = (0xffff80003fc00000 + REGION3) as *const u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
@@ -246,8 +245,8 @@ fn vga_backup_vidmem() {
     }
 }
 
-#[instrument]
 fn vga_restore_vidmem() {
+    let _event = core::hint::black_box(crate::instrument!());
     let text_ptr: *mut u16 = (0xffff80003fc00000 + REGION3) as *mut u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
@@ -268,8 +267,8 @@ static mut _SBUFFERS: [Buffer; 2] = [Buffer {
 }; 2];
 static mut _SBACK: usize = 0;
 
-#[instrument]
 pub fn vga_flip() {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         core::ptr::write_volatile(
             (0xffff80003fc00000 + VGA_MEM_ADDR) as *mut Buffer,
@@ -280,8 +279,8 @@ pub fn vga_flip() {
     }
 }
 
-#[instrument]
 pub fn vga_enter() {
+    let _event = core::hint::black_box(crate::instrument!());
     vga_backup_palette_256();
     vga_backup_vidmem();
     vga_backup_text_mode_palette();
@@ -290,8 +289,8 @@ pub fn vga_enter() {
     vga_set_custom_palette(&DOOM_PALETTE);
 }
 
-#[instrument]
 pub fn vga_exit() {
+    let _event = core::hint::black_box(crate::instrument!());
     out_port_b(VGA_SEQ_INDEX, 0x01);
     let seq1 = in_port_b(VGA_SEQ_DATA);
     out_port_b(VGA_SEQ_DATA, seq1 | 0x20); // Set bit 5 of Sequencer register 1 to 1 (Screen Off)
@@ -308,8 +307,8 @@ pub fn vga_exit() {
     vga_restore_vidmem();
 }
 
-#[instrument]
 pub fn vga_clear_screen() {
+    let _event = core::hint::black_box(crate::instrument!());
     for i in 0..VGA_SCREEN_WIDTH {
         for j in 0..VGA_SCREEN_HEIGHT {
             vga_plot_pixel(i, j, 0x0f);
@@ -325,8 +324,8 @@ pub fn vga_clear_screen() {
     vga_flip();
 }
 
-#[instrument]
 pub fn vga_plot_pixel(x: u32, y: u32, color: u8) {
+    // let _event = core::hint::black_box(crate::instrument!()); too much noise
     let offset = (x + VGA_SCREEN_WIDTH * y) as usize;
 
     unsafe {
@@ -334,8 +333,8 @@ pub fn vga_plot_pixel(x: u32, y: u32, color: u8) {
     }
 }
 
-#[instrument]
 pub fn vga_plot_framebuffer(framebuffer: *const u8) {
+    let _event = core::hint::black_box(crate::instrument!());
     for x in 0..VGA_SCREEN_WIDTH {
         for y in 0..VGA_SCREEN_HEIGHT {
             let offset = (x + VGA_SCREEN_WIDTH * y) as usize;
@@ -347,8 +346,8 @@ pub fn vga_plot_framebuffer(framebuffer: *const u8) {
     }
 }
 
-#[instrument]
 fn vga_write_font(font_height: u8) {
+    let _event = core::hint::black_box(crate::instrument!());
     let g_8x16_font: [u8; 4096] = [
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x7E, 0x81, 0xA5, 0x81, 0x81, 0xBD, 0x99, 0x81, 0x81, 0x7E, 0x00, 0x00,
@@ -685,8 +684,8 @@ fn vga_write_font(font_height: u8) {
     out_port_b(VGA_GC_DATA, gc6);
 }
 
-#[instrument]
 fn vga_vmemwr(dst_off: u64, src: u128, base_addr: u64) {
+    let _event = core::hint::black_box(crate::instrument!());
     let dst = (base_addr + dst_off) as *mut u128;
 
     unsafe {
@@ -694,8 +693,8 @@ fn vga_vmemwr(dst_off: u64, src: u128, base_addr: u64) {
     }
 }
 
-#[instrument]
 fn vga_set_plane(p: u8) {
+    let _event = core::hint::black_box(crate::instrument!());
     let pp = p & 3;
     let pmask = 1 << pp;
     /* set read plane */
@@ -758,8 +757,8 @@ const DOOM_PALETTE: [u8; 256 * 3] = [
     0xff, 0xff, 0x00, 0xff, 0xcf, 0x00, 0xcf, 0x9f, 0x00, 0x9b, 0x6f, 0x00, 0x6b, 0xa7, 0x6b, 0x6b,
 ];
 
-#[instrument]
 fn vga_set_custom_palette(palette: &[u8; 256 * 3]) {
+    let _event = core::hint::black_box(crate::instrument!());
     // Set the palette index to 0 to start writing colors
     out_port_b(VGA_PALETTE_INDEX, 0);
 

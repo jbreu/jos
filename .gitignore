@@ -29,3 +29,6 @@ tools/perf/output.png
 tools/perf/stacks.png
 tools/perf/chrome_trace.json
 tools/perf/cachegrind.out
+tools/perf/profile.proto
+tools/perf/output.pb.gz
+tools/perf/__pycache__/
