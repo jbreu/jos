@@ -2,15 +2,18 @@
 name = "jos-kernel"
 version = "0.1.0"
 build = "build.rs"
+edition = "2024"
+
+[lib]
+name = "jos"
+path = "src/kernel.rs" 
+crate-type = ["staticlib"]
 
 [build-dependencies]
 vergen = { version = "9.0.1", features = ["build"] }
 
 [dependencies]
 include_bytes_aligned = "0.1.4"
-tracing = { version = "0.1", default-features = false, features = ["attributes"] }
-tracing-attributes = { version = "0.1", default-features = false }
-tracing-core = { version = "0.1", default-features = false }
 
 [dependencies.linked_list_allocator]
 version = "0.10.5"
@@ -27,9 +30,3 @@ default-features = false
 [dependencies.lazy_static]
 version = "1.4.0"
 features = ["spin_no_std"]
-
-[lib]
-name = "jos"
-edition = "2021"
-path = "src/kernel.rs" 
-crate-type = ["staticlib"]

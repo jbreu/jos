@@ -36,7 +36,7 @@ lazy_static! {
     pub static ref USERLAND: Mutex<userland::Userland> = Mutex::new(userland::Userland::new());
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
     clear_console!();
     DEBUG!("Entering JOS Kernel");
@@ -49,9 +49,6 @@ pub extern "C" fn kernel_main() {
 
     heap::init_kernel_heap();
     DEBUG!("Initialized Kernel Heap Memory");
-
-    let subscriber = profiling::SerialSubscriber;
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     gdt::init_gdt();
     DEBUG!("Initialized Global Descriptor Table");

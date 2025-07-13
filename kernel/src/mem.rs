@@ -1,8 +1,5 @@
 use crate::process;
-use crate::DEBUG;
-use core::arch::asm;
-use core::sync::atomic::{AtomicU64, Ordering};
-use tracing::instrument;
+use core::{arch::asm, sync::atomic::Ordering};
 
 // TODO make more elegant
 // available memory in qemu by default is 128 MByte (2^27); we are using 2 MByte page frames (2^21) -> 2^(27-21) = 64
@@ -39,8 +36,8 @@ static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
     array
 };
 
-#[instrument]
 pub fn allocate_page_frame() -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     // TODO make safe
     // TODO make faster by not iterating instead storing next free page frame
     unsafe {
@@ -55,8 +52,8 @@ pub fn allocate_page_frame() -> u64 {
     panic!("No more page frames available!");
 }
 
-#[instrument]
 pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         let page = address / 0x200000;
         AVAILABLE_MEMORY[page] = true;
@@ -64,16 +61,19 @@ pub fn allocate_page_frame_for_given_physical_address(address: usize) -> u64 {
     }
 }
 
-#[instrument]
 pub fn map_page_in_page_tables(page: u64, l4: usize, l3: usize, l2: usize, bitmask: u8) {
+    let _event = core::hint::black_box(crate::instrument!());
     let entry_mask: u64 = 0x0008_ffff_ffff_f800;
 
     unsafe {
-        if process::KERNEL_CR3 == 0 {
-            asm!("mov r15, cr3", out("r15") process::KERNEL_CR3);
+        if process::KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+            let mut cr3: u64;
+            asm!("mov r15, cr3", out("r15") cr3);
+            process::KERNEL_CR3.store(cr3, Ordering::Relaxed);
         }
 
-        let l4table = (process::KERNEL_CR3 & entry_mask) as *const process::PageTable;
+        let l4table =
+            (process::KERNEL_CR3.load(Ordering::Relaxed) & entry_mask) as *const process::PageTable;
 
         let l3table = ((*l4table).entry[l4] & entry_mask) as *const process::PageTable;
 

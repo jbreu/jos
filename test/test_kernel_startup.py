@@ -62,10 +62,11 @@ def test_userland_doom(qemu: QEMUConnection):
 
 def test_retrieve_profiling(qemu: QEMUConnection):
     # Wait before sending key press to ensure system is ready
-    time.sleep(3)
+    qemu.read_until(b"Backing up text mode palette:")
+    time.sleep(0.5)
 
     # send button press to qemu
     qemu.send_key_press("l")
 
-    output = qemu.read_until(b"Tracepoints logged")
+    output = qemu.read_until(b"Tracepoints logged", timeout=600)
     assert b"Tracepoints logged" in output

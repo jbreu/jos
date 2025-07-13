@@ -1,10 +1,10 @@
 [package]
 name = "jos-userland"
 version = "0.1.0"
+edition = "2024"
 
 [[bin]]
 name = "helloworld"
-edition = "2021"
 path = "src/main.rs"
 
 [dependencies.linked_list_allocator]

@@ -1,8 +1,13 @@
 use core::str;
+use core::sync::atomic::{AtomicPtr, AtomicU64, Ordering};
 
 use crate::DEBUG;
 
 use crate::{mem, util::compare_str_to_memory};
+
+// TODO better use lazy static
+pub static HPET_COUNTER_VALUE_ADDRESS: AtomicPtr<AtomicU64> = AtomicPtr::new(core::ptr::null_mut());
+pub static HPET_CLOCK_PERIOD_IN_NS: AtomicU64 = AtomicU64::new(0);
 
 // https://wiki.osdev.org/RSDP
 #[repr(C, packed)]
@@ -62,12 +67,6 @@ struct GeneralCapabilitiesAndIdRegister {
 #[derive(Clone, Copy)]
 struct GeneralConfigurationRegister {
     config: u64, // only lowest 2 bits are in use
-}
-
-#[repr(C, packed)]
-#[derive(Clone, Copy)]
-pub struct MainCounterValueRegister {
-    pub main_counter_val: u64,
 }
 
 fn find_xsdp() -> *const XsdpT {
@@ -179,18 +178,23 @@ pub fn init_acpi() {
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
         DEBUG!("frequency: {}", frequency);
 
-        HPET_CLOCK_PERIOD_IN_NS = ((*capabilities).counter_clk_period / 1_000_000) as u64;
+        HPET_CLOCK_PERIOD_IN_NS.store(
+            ((*capabilities).counter_clk_period / 1_000_000) as u64,
+            Ordering::Relaxed,
+        );
 
         let configuration = ((((*hpet).base_address + 0x10) % 0x200000) + 0xffff_8000_3f80_0000)
             as *mut GeneralConfigurationRegister;
 
+        // Enable HPET
         (*configuration).config = 0x1;
 
-        HPET_COUNTER_VALUE = ((((*hpet).base_address + 0xf0) % 0x200000) + 0xffff_8000_3f80_0000)
-            as *const MainCounterValueRegister;
+        let hpet_counter_value_address =
+            (((*hpet).base_address + 0xf0) % 0x200000) + 0xffff_8000_3f80_0000;
+
+        HPET_COUNTER_VALUE_ADDRESS.store(
+            hpet_counter_value_address as *mut AtomicU64,
+            Ordering::Relaxed,
+        );
     }
 }
-
-// TODO better use lazy static
-pub static mut HPET_COUNTER_VALUE: *const MainCounterValueRegister = core::ptr::null();
-pub static mut HPET_CLOCK_PERIOD_IN_NS: u64 = 0;

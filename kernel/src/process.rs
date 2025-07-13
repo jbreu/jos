@@ -2,27 +2,31 @@ use crate::filesystem::FileHandle;
 use crate::kprint;
 use crate::mem::allocate_page_frame;
 extern crate alloc;
+use crate::DEBUG;
 use crate::ERROR;
-use alloc::vec::Vec;
+use crate::INFO;
+use alloc::collections::BTreeMap;
+use core::arch::asm;
+use core::fmt::Debug;
 use core::ptr::addr_of;
-use core::{arch::asm, fmt::Debug};
-use tracing::{debug, info, instrument};
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering;
 
-pub static mut KERNEL_CR3: u64 = 0;
+pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
 #[derive(Default)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
-    xmm7: u128,
-    xmm6: u128,
-    xmm5: u128,
-    xmm4: u128,
-    xmm3: u128,
-    xmm2: u128,
-    xmm1: u128,
-    xmm0: u128,
+    xmm7: [u64; 2],
+    xmm6: [u64; 2],
+    xmm5: [u64; 2],
+    xmm4: [u64; 2],
+    xmm3: [u64; 2],
+    xmm2: [u64; 2],
+    xmm1: [u64; 2],
+    xmm0: [u64; 2],
     r15: u64,
     r14: u64,
     r13: u64,
@@ -62,7 +66,6 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
-#[instrument]
 fn check_half(entry: *const u64) -> *const u64 {
     if entry < 0xffff800000000000 as *const u64 {
         return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
@@ -70,8 +73,8 @@ fn check_half(entry: *const u64) -> *const u64 {
     entry
 }
 
-#[instrument]
 fn print_page_table_tree(start_addr: u64) {
+    let _event = core::hint::black_box(crate::instrument!());
     let entry_mask = 0x0008_ffff_ffff_f800;
 
     unsafe {
@@ -133,7 +136,8 @@ pub struct Process {
 
     working_directory: &'static str,
 
-    file_handles: Vec<FileHandle>,
+    file_handles: BTreeMap<u64, FileHandle>,
+    next_handle_id: u64,
 }
 
 impl Debug for Process {
@@ -143,8 +147,9 @@ impl Debug for Process {
 }
 
 impl Process {
-    #[instrument]
     pub fn new() -> Self {
+        let _event = core::hint::black_box(crate::instrument!());
+
         Self {
             registers: RegistersStruct::default(),
             l2_page_directory_table: PageTable::default(),
@@ -164,12 +169,14 @@ impl Process {
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
 
             working_directory: "/",
-            file_handles: Vec::new(),
+            file_handles: BTreeMap::new(),
+            next_handle_id: 1,
         }
     }
 
-    #[instrument]
     pub fn initialize(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         // TODO remove hard coding
         // TODO Task stack
         // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
@@ -210,13 +217,17 @@ impl Process {
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
-            if KERNEL_CR3 == 0 {
-                asm!("mov r15, cr3", out("r15") KERNEL_CR3);
+            if KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+                let mut cr3: u64;
+                asm!("mov r15, cr3", out("r15") cr3);
+
+                KERNEL_CR3.store(cr3, Ordering::Relaxed);
             }
 
-            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3);
+            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
 
-            self.l4_page_map_l4_table.entry[256] = *((KERNEL_CR3 + 256 * 8) as *const _);
+            self.l4_page_map_l4_table.entry[256] =
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
         }
 
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
@@ -226,9 +237,7 @@ impl Process {
 
         kprint!("Process CR3: {:x}\n", self.cr3);
 
-        unsafe {
-            print_page_table_tree(KERNEL_CR3 as u64);
-        }
+        print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
         unsafe {
             asm!(
@@ -254,7 +263,7 @@ impl Process {
         unsafe {
             asm!(
                 "mov cr3, r15",
-                in("r15") KERNEL_CR3,
+                in("r15") KERNEL_CR3.load(Ordering::Relaxed) as u64,
                 options(nostack, preserves_flags)
             );
         }
@@ -265,8 +274,9 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
-    #[instrument]
     fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let heap_bottom = v_addr + p_memsz + 1;
         let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
 
@@ -279,8 +289,9 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn malloc(&mut self, size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
             match self.heap_allocator.lock().allocate_first_fit(layout) {
@@ -294,16 +305,18 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn launch(&mut self) {
-        info!("Launching process");
+        let _event = core::hint::black_box(crate::instrument!());
+
+        INFO!("Launching process");
         self.state = ProcessState::Passive;
     }
 
-    #[instrument]
     pub fn activate(&mut self, initial_start: bool) {
-        debug!("Activating process");
-        extern "C" {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        DEBUG!("Activating process");
+        unsafe extern "C" {
             static mut pushed_registers: *mut RegistersStruct;
             static mut stack_frame: *mut u64;
         }
@@ -354,10 +367,11 @@ impl Process {
         self.state = ProcessState::Active;
     }
 
-    #[instrument]
     pub fn passivate(&mut self) {
-        debug!("Passivating process");
-        extern "C" {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        DEBUG!("Passivating process");
+        unsafe extern "C" {
             static pushed_registers: *const RegistersStruct;
             static stack_frame: *const u64;
         }
@@ -397,8 +411,9 @@ impl Process {
         self.state = ProcessState::Passive;
     }
 
-    #[instrument]
     pub fn activatable(&self) -> bool {
+        let _event = core::hint::black_box(crate::instrument!());
+
         match self.state {
             ProcessState::Passive => true,
             _ => false,
@@ -410,8 +425,9 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
-    #[instrument]
+
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         // Simple variant, only works for kernel memory
         // adding 1 page frame as heap has different mapping
         //vaddr - 0xffff800000000000 + 0x200000
@@ -448,27 +464,27 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as u64,
         )
     }
 
-    #[instrument]
     pub fn get_stack_top_address(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         // Virtual Address, see AMD64 Volume 2 p. 146
         0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
     }
 
-    #[instrument]
     pub fn get_entry_ip(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         self.rip
     }
 
-    #[instrument]
     pub fn load_elf_from_bin() -> (u64, u64, u64) {
-        extern "C" {
+        let _event = core::hint::black_box(crate::instrument!());
+        unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
         }
@@ -559,19 +575,20 @@ impl Process {
         }
     }
 
-    #[instrument]
     pub fn set_working_directory(&mut self, path: &'static str) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
         self.working_directory = path;
         return 0;
     }
 
-    #[instrument]
     pub fn get_working_directory(&self) -> &'static str {
+        let _event = core::hint::black_box(crate::instrument!());
         self.working_directory
     }
 
-    #[instrument]
     pub fn fopen(&mut self, path: &str, mode: &str) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let mode_num = match mode {
             "r" => 0,
             "w" => 1,
@@ -581,10 +598,11 @@ impl Process {
         match FileHandle::new(path, mode_num) {
             Some(file_handle) => {
                 kprint!("File opened: {}\n", path);
-                self.file_handles.push(file_handle);
-                let file_handle_index = self.file_handles.len();
-                kprint!("File handle index: {}\n", file_handle_index);
-                return file_handle_index as u64;
+                let handle_id = self.next_handle_id;
+                self.next_handle_id += 1;
+                self.file_handles.insert(handle_id, file_handle);
+                kprint!("File handle id: {}\n", handle_id);
+                return handle_id;
             }
             None => {
                 kprint!("Error opening file: {}\n", path);
@@ -593,31 +611,24 @@ impl Process {
         }
     }
 
-    #[instrument]
-    pub fn fread(&mut self, file_handle_index: u64, buffer: *mut u8, size: usize) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fread(&mut self, handle_id: u64, buffer: *mut u8, size: usize) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            let bytes_read = file_handle.read(buffer, size);
+            file_handle.offset += bytes_read as usize;
+            return bytes_read;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-        let bytes_read = file_handle.read(buffer, size);
-        file_handle.offset += bytes_read as usize;
-        return bytes_read;
     }
 
-    #[instrument]
-    pub fn fseek(&mut self, file_handle_index: u64, offset: usize, whence: u32) -> u64 {
-        // file_handle_index is 1-based
-        if file_handle_index as usize > self.file_handles.len() {
-            ERROR!("Invalid file handle index: {}\n", file_handle_index);
+    pub fn fseek(&mut self, handle_id: u64, offset: usize, whence: u32) -> u64 {
+        if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
+            file_handle.fseek(offset, whence);
+            return 0;
+        } else {
+            ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
-        let file_handle = &mut self.file_handles[file_handle_index as usize - 1];
-
-        file_handle.fseek(offset, whence);
-
-        return 0;
     }
 }
