@@ -1,15 +1,12 @@
 use core::arch::asm;
 use linked_list_allocator::LockedHeap;
 
-use crate::mem::allocate_page_frame;
+use crate::{mem::allocate_page_frame, mem_config::*};
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-const ENTRY_MASK: u64 = 0x0008_ffff_ffff_f800;
-const PAGE_ENTRY_FLAGS: u64 = 0x83; // RW + Present + Other Flags
-
-fn add_kernel_lower_l2_page_directory_table() -> u64 {
+fn allocate_kernel_heap_pages_after_already_allocated_memory() -> usize {
     let mut kernel_cr3: u64;
 
     unsafe {
@@ -21,29 +18,26 @@ fn add_kernel_lower_l2_page_directory_table() -> u64 {
         let l2_page_dir = (*l3_pdpt & ENTRY_MASK) as *mut u64;
 
         // Allocate page frames and update L2 page directory entries
-        for i in 20..30 {
+        for i in KERNEL_SIZE / PAGE_SIZE..(KERNEL_HEAP_SIZE / PAGE_SIZE + KERNEL_SIZE / PAGE_SIZE) {
             *l2_page_dir.add(i) = allocate_page_frame() | PAGE_ENTRY_FLAGS;
         }
     }
 
     // TODO this is hard coded, as we are adding to the 10th entry above --> make it dynamic
-    return 0xffff800002800000;
+    return KERNEL_HIGHER_HALF_BASE + KERNEL_SIZE;
 }
 
 pub fn init_kernel_heap() {
     // TODO add more / dynamic page frames
     // TODO do not start with new page frame, but start where kernel ends
 
-    // Hardcoded heap size: 10 * 2MB pages
-    const HEAP_SIZE: usize = 0x200000 * 10;
-
-    let heap_start_phys = add_kernel_lower_l2_page_directory_table();
+    let heap_start_phys = allocate_kernel_heap_pages_after_already_allocated_memory();
 
     let heap_start_virtual = heap_start_phys;
 
     unsafe {
         ALLOCATOR
             .lock()
-            .init(heap_start_virtual as *mut u8, HEAP_SIZE);
+            .init(heap_start_virtual as *mut u8, KERNEL_HEAP_SIZE);
     }
 }
