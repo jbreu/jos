@@ -13,13 +13,21 @@ pub const PAGE_TABLE_ENTRIES: usize = 512;
 /// Mask for extracting the physical address from a page table entry
 pub const ENTRY_MASK: u64 = 0x0008_ffff_ffff_f800;
 
+/// Standard page table entry flags (Present + Writable + No User)
+pub const BASE_PAGE_ENTRY_FLAGS: u64 = 0b11;
+
+/// Huge page table entry flags (Present + Writable + No User + Huge)
+pub const HUGE_PAGE_ENTRY_FLAGS: u64 = 0b10000011;
+
+pub const PAGE_ENTRY_FLAGS_KERNELSPACE: u64 = HUGE_PAGE_ENTRY_FLAGS;
+
 /// Standard page table entry flags (Present + Writable + User)
-pub const BASE_PAGE_ENTRY_FLAGS: u64 = 0b111;
+pub const BASE_PAGE_ENTRY_FLAGS_USERSPACE: u64 = 0b111;
 
 /// Huge page table entry flags (Present + Writable + User + Huge)
-pub const HUGE_PAGE_ENTRY_FLAGS: u64 = 0b10000111;
+pub const HUGE_PAGE_ENTRY_FLAGS_USERSPACE: u64 = 0b10000111;
 
-pub const PAGE_ENTRY_FLAGS: u64 = HUGE_PAGE_ENTRY_FLAGS;
+pub const PAGE_ENTRY_FLAGS_USERSPACE: u64 = HUGE_PAGE_ENTRY_FLAGS_USERSPACE;
 
 /// Mask for extracting different levels of page table offsets
 pub const L4_TABLE_OFFSET_MASK: u64 = 0x0000_ff80_0000_0000;
