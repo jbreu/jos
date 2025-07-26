@@ -1,10 +1,7 @@
-use crate::filesystem::FileHandle;
-use crate::kprint;
-use crate::mem::allocate_page_frame;
+use crate::{
+    DEBUG, ERROR, INFO, filesystem::FileHandle, kprint, mem::allocate_page_frame, mem_config::*,
+};
 extern crate alloc;
-use crate::DEBUG;
-use crate::ERROR;
-use crate::INFO;
 use alloc::collections::BTreeMap;
 use core::arch::asm;
 use core::fmt::Debug;
@@ -47,12 +44,14 @@ struct RegistersStruct {
 #[repr(C)]
 #[repr(align(4096))]
 pub struct PageTable {
-    pub entry: [u64; 512],
+    pub entry: [u64; PAGE_TABLE_ENTRIES],
 }
 
 impl PageTable {
     fn default() -> Self {
-        Self { entry: [0; 512] }
+        Self {
+            entry: [0; PAGE_TABLE_ENTRIES],
+        }
     }
 }
 
@@ -428,15 +427,11 @@ impl Process {
 
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
-        // Simple variant, only works for kernel memory
-        // adding 1 page frame as heap has different mapping
-        //vaddr - 0xffff800000000000 + 0x200000
 
-        // TODO get this running
-        let page_map_l4_table_offset = (vaddr & 0x0000_ff80_0000_0000) >> 39;
-        let page_directory_pointer_offset = (vaddr & 0x0000_007f_c000_0000) >> 30;
-        let page_directory_offset = (vaddr & 0x0000_0000_3fe0_0000) >> 21;
-        let page_offset = vaddr & 0x0000_000_001f_f000;
+        let page_map_l4_table_offset = (vaddr & L4_TABLE_OFFSET_MASK) >> L4_TABLE_SHIFT;
+        let page_directory_pointer_offset = (vaddr & L3_TABLE_OFFSET_MASK) >> L3_TABLE_SHIFT;
+        let page_directory_offset = (vaddr & L2_TABLE_OFFSET_MASK) >> L2_TABLE_SHIFT;
+        let page_offset = vaddr & PAGE_OFFSET_MASK;
 
         unsafe {
             let mut cr3: u64;
@@ -445,20 +440,18 @@ impl Process {
 
             let page_map_l4_base_address = cr3;
 
-            let entry_mask: u64 = 0x0008_ffff_ffff_f800;
-
             let page_directory_pointer_table_address =
                 *((page_map_l4_base_address + page_map_l4_table_offset * 8) as *const u64)
-                    & entry_mask;
+                    & ENTRY_MASK;
 
             let page_directory_table_address = *((page_directory_pointer_table_address
                 + page_directory_pointer_offset * 8)
                 as *const u64)
-                & entry_mask;
+                & ENTRY_MASK;
 
             let physical_page_address = *((page_directory_table_address + page_directory_offset * 8)
                 as *const u64)
-                & entry_mask;
+                & ENTRY_MASK;
 
             return physical_page_address + page_offset;
         }

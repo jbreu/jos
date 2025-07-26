@@ -13,6 +13,7 @@ mod interrupt;
 mod keyboard;
 mod kprint;
 mod logging;
+mod mem_config;
 mod mem;
 mod process;
 mod profiling;
