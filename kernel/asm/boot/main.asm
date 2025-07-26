@@ -74,28 +74,27 @@ check_long_mode:
 	jmp error
 
 setup_page_tables:
+	; EQU is used to define constants in assembly
+	%define HUGE_PAGE_SIZE    0x200000     ; 2 MiB
+	%define PAGE_ENTRY_FLAGS        0b10000011    ; huge page, no access from user, writable, present
+	%define PAGE_TABLE_FLAGS        0b011    ; huge page, no access from user, writable, present
+
 	mov eax, page_table_l3
-	; TODO disable user access generally?
-	or eax, 0b111 ; present, writable, access from user
+	or eax, PAGE_TABLE_FLAGS
 	mov [page_table_l4], eax
 	; temporarily map the same l3 table also to middle of l4 of virtual memory to enable later switch to higher half kernel
 	mov [page_table_l4+256*8], eax
 	
 	mov eax, page_table_l2
-	; TODO disable user access generally?
-	or eax, 0b111 ; present, writable, access from user
+	or eax, PAGE_TABLE_FLAGS
 	mov [page_table_l3], eax
 
 	mov ecx, 0 ; counter
 .loop:
-
-	; EQU is used to define constants in assembly
-	%define HUGE_PAGE_SIZE    0x200000     ; 2 MiB
-	%define PAGE_FLAGS        0b10000011    ; present, writable, huge page, access from user
 	
 	mov eax, HUGE_PAGE_SIZE
 	mul ecx
-	or eax, PAGE_FLAGS
+	or eax, PAGE_ENTRY_FLAGS
 	mov [page_table_l2 + ecx * 8], eax
 
 	inc ecx ; increment counter
@@ -105,7 +104,7 @@ setup_page_tables:
 
 	; TODO map video memory also: probably wrong virtual memory location on the long term; 
 	mov eax, 0x000000
-	or eax, PAGE_FLAGS
+	or eax, PAGE_ENTRY_FLAGS
 	mov [page_table_l2 + 510 * 8], eax
 
 	ret

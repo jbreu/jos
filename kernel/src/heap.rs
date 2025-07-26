@@ -19,7 +19,7 @@ fn allocate_kernel_heap_pages_after_already_allocated_memory() -> usize {
 
         // Allocate page frames and update L2 page directory entries
         for i in KERNEL_SIZE / PAGE_SIZE..(KERNEL_HEAP_SIZE / PAGE_SIZE + KERNEL_SIZE / PAGE_SIZE) {
-            *l2_page_dir.add(i) = allocate_page_frame() | PAGE_ENTRY_FLAGS;
+            *l2_page_dir.add(i) = allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE;
         }
     }
 
