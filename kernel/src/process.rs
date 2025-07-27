@@ -132,6 +132,7 @@ pub struct Process {
     state: ProcessState,
 
     heap_allocator: linked_list_allocator::LockedHeap,
+    heap_page_number: usize,
 
     working_directory: &'static str,
 
@@ -166,6 +167,7 @@ impl Process {
             state: ProcessState::New,
 
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
+            heap_page_number: 0,
 
             working_directory: "/",
             file_handles: BTreeMap::new(),
@@ -193,28 +195,24 @@ impl Process {
             &self.l3_page_directory_pointer_table as *const _ as u64,
         ) | 0b111;
 
-        // allocate two pages page at beginning of virtual memory for elf loading
-        // TODO allocate more if needed
+        // allocate enough pages at beginning of virtual memory for elf loading
+        let num_pages: usize = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE; // round up to nearest page size
+        for i in 0..num_pages {
+            self.l2_page_directory_table_beginning.entry[i] =
+                allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE; // bitmask: present, writable, huge page, access from user // TODO change to read-only
+        }
+        self.heap_page_number = num_pages;
 
-        self.l2_page_directory_table_beginning.entry[0] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[1] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[2] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[3] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[4] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[5] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[6] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[7] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
-        self.l2_page_directory_table_beginning.entry[8] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table_beginning as *const _ as u64,
-            ) | 0b111;
+            ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
         self.l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
             &self.l3_page_directory_pointer_table_beginning as *const _ as u64,
-        ) | 0b111;
+        ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
 
         // TODO Hack? map the kernel pages from main.asm to process
-        // TODO Later, the kernel pages should be restructed to superuser access; in order to do so, the process code and data must be fully in userspace pages
+        // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
             if KERNEL_CR3.load(Ordering::Relaxed) == 0 {
                 let mut cr3: u64;
@@ -224,6 +222,8 @@ impl Process {
             }
 
             kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
+
+            print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
             self.l4_page_map_l4_table.entry[256] =
                 *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
@@ -236,8 +236,6 @@ impl Process {
 
         kprint!("Process CR3: {:x}\n", self.cr3);
 
-        print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
-
         unsafe {
             asm!(
                 "mov cr3, r15",
@@ -248,16 +246,12 @@ impl Process {
 
         print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
-        self.rsp = 0xffff_ffff_ffff_ffff;
+        self.rsp = STACK_TOP_ADDRESS as u64;
 
-        let (entry, v_addr, p_memsz) = Process::load_elf_from_bin();
+        let (entry, v_addr, p_memsz) = self.load_elf_from_bin();
         self.rip = entry;
 
         self.init_process_heap(v_addr, p_memsz);
-        //kprint!("test alloc 5 bytes at {:x}\n", self.malloc(5));
-
-        //todo!();
-        //file::fopen();
 
         unsafe {
             asm!(
@@ -273,13 +267,14 @@ impl Process {
         self.state = ProcessState::Prepared;
     }
 
-    fn init_process_heap(&mut self, v_addr: u64, p_memsz: u64) {
+    fn init_process_heap(&mut self, v_addr: usize, p_memsz: usize) {
         let _event = core::hint::black_box(crate::instrument!());
 
         let heap_bottom = v_addr + p_memsz + 1;
-        let heap_size = 0x12000000 - 0x1 - heap_bottom; // TODO: 0x12000000 is the upper limit of the allocated memory
 
-        // TODO add more / dynamic page frames
+        // calculate heap size as difference between the beginning of the next page frame and heap bottom
+        let heap_size = PAGE_SIZE - (heap_bottom % PAGE_SIZE);
+
         unsafe {
             self.heap_allocator.lock().init(
                 heap_bottom as *mut u8,
@@ -293,14 +288,31 @@ impl Process {
 
         unsafe {
             let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
-            match self.heap_allocator.lock().allocate_first_fit(layout) {
-                Ok(address) => return address.as_ptr() as u64,
-                Err(error) => {
-                    kprint!("Allocating memory failed!\n");
-                    kprint!("   Size: 0x{:x}\n", size);
-                    panic!("Problem allocating memory: {:?}", error) //TODO allocate more memory if not sufficient amount is available
+
+            let success = false;
+
+            while !success {
+                match self.heap_allocator.lock().allocate_first_fit(layout) {
+                    Ok(address) => {
+                        return address.as_ptr() as u64;
+                    }
+                    Err(()) => {
+                        DEBUG!("Allocating memory failed - attempting to increase heap size\n");
+                    }
                 }
+
+                // allocate more memory if not sufficient amount is available
+                // TODO this only works until one l2 page directory table is full; // later, we need to allocate more l2 page directory tables
+                self.l2_page_directory_table_beginning.entry[self.heap_page_number] =
+                    allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
+
+                self.heap_page_number += 1;
+
+                self.heap_allocator.lock().extend(PAGE_SIZE);
             }
+
+            ERROR!("Failed to allocate memory after extending heap\n");
+            panic!("Out of memory");
         }
     }
 
@@ -475,7 +487,8 @@ impl Process {
         self.rip
     }
 
-    pub fn load_elf_from_bin() -> (u64, u64, u64) {
+    // TODO reduce code duplication with load_elf_from_bin
+    pub fn get_size_of_program(&self) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
         unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
@@ -516,8 +529,69 @@ impl Process {
                 .iter()
                 .filter(|phdr| phdr.p_type == PT_LOAD);
 
-            let mut last_v_addr: u64 = 0;
-            let mut last_p_memsz: u64 = 0;
+            let mut last_v_addr: usize = 0;
+            let mut last_p_memsz: usize = 0;
+
+            for phdr in program_headers {
+                kprint!(
+                    "Load segment is at: {:x}\nMem Size is: {:x}\n",
+                    phdr.p_vaddr,
+                    phdr.p_memsz
+                );
+
+                if last_v_addr < phdr.p_vaddr as usize {
+                    last_v_addr = phdr.p_vaddr as usize;
+                    last_p_memsz = phdr.p_memsz as usize;
+                }
+            }
+
+            return last_v_addr + last_p_memsz;
+        }
+    }
+
+    pub fn load_elf_from_bin(&mut self) -> (u64, usize, usize) {
+        let _event = core::hint::black_box(crate::instrument!());
+        unsafe extern "C" {
+            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
+            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
+        }
+
+        unsafe {
+            kprint!(
+                "embedded elf file\nstart: {:x}\n  end: {:x}\n",
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
+                    as *const u8 as usize,
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
+                    as *const u8 as usize
+            );
+
+            let size = addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
+                as *const u8 as usize
+                - addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
+                    as *const u8 as usize;
+
+            let slice = core::slice::from_raw_parts(
+                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start),
+                size,
+            );
+
+            use elf::abi::PT_LOAD;
+            use elf::endian::AnyEndian;
+
+            let file = elf::ElfBytes::<AnyEndian>::minimal_parse(slice).expect("Open test1");
+
+            let elf_header = file.ehdr;
+
+            kprint!("Entry point is at: {:x}\n", elf_header.e_entry);
+
+            let program_headers = file
+                .segments()
+                .unwrap()
+                .iter()
+                .filter(|phdr| phdr.p_type == PT_LOAD);
+
+            let mut last_v_addr: usize = 0;
+            let mut last_p_memsz: usize = 0;
 
             for phdr in program_headers {
                 kprint!(
@@ -558,9 +632,9 @@ impl Process {
                     );
                 }
 
-                if last_v_addr < phdr.p_vaddr {
-                    last_v_addr = phdr.p_vaddr;
-                    last_p_memsz = phdr.p_memsz;
+                if last_v_addr < phdr.p_vaddr as usize {
+                    last_v_addr = phdr.p_vaddr as usize;
+                    last_p_memsz = phdr.p_memsz as usize;
                 }
             }
 
