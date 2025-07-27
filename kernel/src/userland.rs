@@ -1,6 +1,7 @@
 use spin::Mutex;
 
 use crate::USERLAND;
+use crate::mem_config::{KERNEL_STACK_TOP_ADDRESS, USERSPACE_STACK_TOP_ADDRESS};
 use crate::process::Process;
 
 extern crate alloc;
@@ -74,7 +75,7 @@ impl Userland {
 
             jump_usermode(
                 c3_page_map_l4_base_address,
-                self.processes[0].get_stack_top_address(),
+                USERSPACE_STACK_TOP_ADDRESS as u64,
                 self.processes[0].get_entry_ip(),
             );
         }

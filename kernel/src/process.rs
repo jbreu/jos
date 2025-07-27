@@ -190,18 +190,17 @@ impl Process {
         self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table as *const _ as u64,
-            ) | 0b111;
-        self.l4_page_map_l4_table.entry[511] = Process::get_physical_address_for_virtual_address(
+            ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
+        self.l4_page_map_l4_table.entry[255] = Process::get_physical_address_for_virtual_address(
             &self.l3_page_directory_pointer_table as *const _ as u64,
-        ) | 0b111;
+        ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
 
         // allocate enough pages at beginning of virtual memory for elf loading
-        let num_pages: usize = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE; // round up to nearest page size
-        for i in 0..num_pages {
+        self.heap_page_number = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE; // round up to nearest page size
+        for i in 0..self.heap_page_number {
             self.l2_page_directory_table_beginning.entry[i] =
                 allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE; // bitmask: present, writable, huge page, access from user // TODO change to read-only
         }
-        self.heap_page_number = num_pages;
 
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
@@ -246,7 +245,7 @@ impl Process {
 
         print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
-        self.rsp = STACK_TOP_ADDRESS as u64;
+        self.rsp = USERSPACE_STACK_TOP_ADDRESS as u64;
 
         let (entry, v_addr, p_memsz) = self.load_elf_from_bin();
         self.rip = entry;
@@ -431,10 +430,6 @@ impl Process {
         }
     }
 
-    fn _get_tss_rsp0(&self) -> u64 {
-        0xffff_ffff_ffcf_ffff
-    }
-
     // According to AMD Volume 2, page 146
 
     fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
@@ -476,14 +471,7 @@ impl Process {
         )
     }
 
-    pub fn get_stack_top_address(&self) -> u64 {
-        let _event = core::hint::black_box(crate::instrument!());
-        // Virtual Address, see AMD64 Volume 2 p. 146
-        0xffff_ffff_ffff_ffff //3fff --> set 3*9 bits to 1 to identify each topmost entry in each table; fffff --> topmost address in the page; rest also 1 because sign extend
-    }
-
     pub fn get_entry_ip(&self) -> u64 {
-        let _event = core::hint::black_box(crate::instrument!());
         self.rip
     }
 
