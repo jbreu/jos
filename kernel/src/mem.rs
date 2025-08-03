@@ -1,33 +1,15 @@
 use crate::{mem_config::*, process};
 use core::{arch::asm, sync::atomic::Ordering};
-static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = {
-    let mut array = [false; MAX_PAGE_FRAMES];
 
-    // some page frames are already allocated in main.asm -> setup_page_tables
-    array[0] = true;
-    array[1] = true;
-    array[2] = true;
-    array[3] = true;
-    array[4] = true;
-    array[5] = true;
-    array[6] = true;
-    array[7] = true;
-    array[8] = true;
-    array[9] = true;
+static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = [false; MAX_PAGE_FRAMES];
 
-    array[10] = true;
-    array[11] = true;
-    array[12] = true;
-    array[13] = true;
-    array[14] = true;
-    array[15] = true;
-    array[16] = true;
-    array[17] = true;
-    array[18] = true;
-    array[19] = true;
-
-    array
-};
+pub fn init_available_memory() {
+    for i in 0..(KERNEL_SIZE / PAGE_SIZE) {
+        unsafe {
+            AVAILABLE_MEMORY[i] = true;
+        }
+    }
+}
 
 pub fn allocate_page_frame() -> u64 {
     let _event = core::hint::black_box(crate::instrument!());

@@ -5,6 +5,8 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use crate::mem::init_available_memory;
+
 mod acpi;
 mod filesystem;
 mod gdt;
@@ -13,8 +15,8 @@ mod interrupt;
 mod keyboard;
 mod kprint;
 mod logging;
-mod mem_config;
 mod mem;
+mod mem_config;
 mod process;
 mod profiling;
 mod serial;
@@ -39,6 +41,8 @@ lazy_static! {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
+    mem::init_available_memory();
+
     clear_console!();
     DEBUG!("Entering JOS Kernel");
 

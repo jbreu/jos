@@ -41,7 +41,7 @@ pub const L3_TABLE_SHIFT: u32 = 30;
 pub const L2_TABLE_SHIFT: u32 = 21;
 
 /// Memory region information
-pub const KERNEL_SIZE: usize = 0x200000 * 20; // 40 MiB
+pub const KERNEL_SIZE: usize = 0x200000 * 16; // 32 MiB // SYNCID2
 pub const KERNEL_HEAP_SIZE: usize = 0x200000 * 1; // 2 MiB
 pub const MAX_PAGE_FRAMES: usize = 0x100000000 / PAGE_SIZE; // 4 GiB total memory
 

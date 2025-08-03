@@ -76,8 +76,11 @@ check_long_mode:
 setup_page_tables:
 	; EQU is used to define constants in assembly
 	%define HUGE_PAGE_SIZE    0x200000     ; 2 MiB
-	%define PAGE_ENTRY_FLAGS        0b10000011    ; huge page, no access from user, writable, present
+	%define PAGE_SIZE HUGE_PAGE_SIZE
+	%define HUGE_PAGE_ENTRY_FLAGS        0b10000011    ; huge page, no access from user, writable, present
+	%define PAGE_ENTRY_FLAGS        HUGE_PAGE_ENTRY_FLAGS    ; huge page, no access from user, writable, present
 	%define PAGE_TABLE_FLAGS        0b011    ; huge page, no access from user, writable, present
+	
 
 	mov eax, page_table_l3
 	or eax, PAGE_TABLE_FLAGS
@@ -92,13 +95,17 @@ setup_page_tables:
 	mov ecx, 0 ; counter
 .loop:
 	
-	mov eax, HUGE_PAGE_SIZE
+	mov eax, PAGE_SIZE
 	mul ecx
 	or eax, PAGE_ENTRY_FLAGS
 	mov [page_table_l2 + ecx * 8], eax
 
 	inc ecx ; increment counter
-	cmp ecx, 20 ; checks if the whole table is mapped
+	; Calculate number of pages: KERNEL_SIZE / PAGE_SIZE
+	%define KERNEL_SIZE 0x2000000      ; Example: 32 MiB kernel size SYNCID2
+	%define NUM_KERNEL_PAGES (KERNEL_SIZE / PAGE_SIZE)
+
+	cmp ecx, NUM_KERNEL_PAGES ; checks if the whole table is mapped
 	; cmp ecx, 512 ; checks if the whole table is mapped
 	jne .loop ; if not, continue
 
