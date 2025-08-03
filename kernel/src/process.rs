@@ -291,7 +291,7 @@ impl Process {
 
         // TODO limited to 512 stack pages
         self.l2_page_directory_table.entry[512 - self.stack_page_counter] =
-            allocate_page_frame() | 0b10000111;
+            allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
     }
 
     pub fn malloc(&mut self, size: usize) -> u64 {
