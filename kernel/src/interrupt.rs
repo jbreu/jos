@@ -54,6 +54,25 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
         0..=31 => {
             ERROR!("ISR {} error_code {:x?}", int_no, error_code);
             ERROR!("{}", CPU_EXCEPTIONS[int_no as usize]);
+
+            if int_no == 14 {
+                // Page fault handling
+                let cr2: u64;
+                unsafe {
+                    asm!("mov {}, cr2", out(reg) cr2);
+                }
+                ERROR!(
+                    "Page fault at address: {:x}, error code: {:x}",
+                    cr2,
+                    error_code
+                );
+
+                if (error_code & 0b110) == 0b110 {
+                    // it's a user-mode (bit 2) write (bit 1) to an unmapped page (bit 0) → classic stack overflow scenario.
+                    DEBUG!("extending stack for process");
+                    userland::extend_stack();
+                }
+            }
         }
         _ => DEBUG!("ISR {}", int_no),
     };
