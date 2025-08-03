@@ -184,8 +184,9 @@ impl Process {
         // TODO only one page (2MB) yet!
         self.l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
 
-        // TODO HackID1: Fixed kernel stack for interrupts (starts at 40 MByte)
-        self.l2_page_directory_table.entry[510] = 20 * 0x200000 | 0b10000011; // bitmask: present, writable, huge page
+        // TODO HackID1: Fixed kernel stack for interrupts - limited to one PAGE_SIZE!
+        self.l2_page_directory_table.entry[0] =
+            allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE;
 
         self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
