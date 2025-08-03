@@ -50,7 +50,7 @@ pub struct Tss {
 
 pub static mut TSS_ENTRY: Tss = Tss {
     reserved1: 0x0,
-    rsp0: (USERSPACE_STACK_TOP_ADDRESS - PAGE_SIZE) as u64,
+    rsp0: (USERSPACE_STACK_TOP_ADDRESS - 511 * PAGE_SIZE) as u64, // TODO HackID1
     rsp1: 0x0,
     rsp2: 0x0,
     reserved2: 0x0,
@@ -159,7 +159,7 @@ fn _init_tss() {
         // Initialize the TSS fields
         TSS_ENTRY = Tss {
             reserved1: 0x0,
-            rsp0: (USERSPACE_STACK_TOP_ADDRESS - PAGE_SIZE) as u64,
+            rsp0: (USERSPACE_STACK_TOP_ADDRESS - 511 * PAGE_SIZE) as u64, // TODO HackID1
             rsp1: 0x0,
             rsp2: 0x0,
             reserved2: 0x0,
