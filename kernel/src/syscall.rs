@@ -163,7 +163,9 @@ fn syscall_get_keystate(key: usize) -> u64 {
 fn syscall_get_time(sec: *mut u32, usec: *mut u32) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
     unsafe {
-        (*sec, *usec) = time::get_time();
+        let (s, us) = time::get_time();
+        core::ptr::write_unaligned(sec, s);
+        core::ptr::write_unaligned(usec, us);
     }
     return 1;
 }
