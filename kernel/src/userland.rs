@@ -125,3 +125,9 @@ pub fn schedule() {
 
     USERLAND.lock().switch_process();
 }
+
+pub fn extend_stack() {
+    let _event = core::hint::black_box(crate::instrument!());
+
+    USERLAND.lock().get_current_process().extend_stack();
+}

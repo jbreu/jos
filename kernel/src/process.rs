@@ -133,6 +133,7 @@ pub struct Process {
 
     heap_allocator: linked_list_allocator::LockedHeap,
     heap_page_number: usize,
+    stack_page_counter: usize,
 
     working_directory: &'static str,
 
@@ -168,6 +169,7 @@ impl Process {
 
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
             heap_page_number: 0,
+            stack_page_counter: 0,
 
             working_directory: "/",
             file_handles: BTreeMap::new(),
@@ -178,11 +180,9 @@ impl Process {
     pub fn initialize(&mut self) {
         let _event = core::hint::black_box(crate::instrument!());
 
-        // TODO remove hard coding
-        // TODO Task stack
-        // Upper end of page which begins at 0x2000000 = 50 MByte in phys RAM
-        // TODO only one page (2MB) yet!
-        self.l2_page_directory_table.entry[511] = allocate_page_frame() | 0b10000111; // bitmask: present, writable, huge page, access from user
+        self.l2_page_directory_table.entry[511] =
+            allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
+        self.stack_page_counter = 1;
 
         // TODO HackID1: Fixed kernel stack for interrupts - limited to one PAGE_SIZE!
         self.l2_page_directory_table.entry[0] =
@@ -281,6 +281,17 @@ impl Process {
                 heap_size as usize, // TODO Heap only uses the rest of the current page frame
             );
         }
+    }
+
+    // TODO unallocate stack memory when stack gets smaller again?
+    pub fn extend_stack(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        self.stack_page_counter = self.stack_page_counter + 1;
+
+        // TODO limited to 512 stack pages
+        self.l2_page_directory_table.entry[512 - self.stack_page_counter] =
+            allocate_page_frame() | 0b10000111;
     }
 
     pub fn malloc(&mut self, size: usize) -> u64 {
