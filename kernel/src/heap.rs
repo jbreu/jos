@@ -22,6 +22,8 @@ static HEAP_PAGE_NUMBER: AtomicUsize = AtomicUsize::new(0);
 
 unsafe impl GlobalAlloc for LockedHeapWrapper {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe {
             loop {
                 match self.inner.lock().allocate_first_fit(layout) {
@@ -68,6 +70,8 @@ unsafe impl GlobalAlloc for LockedHeapWrapper {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe {
             self.inner
                 .lock()
@@ -84,6 +88,8 @@ impl LockedHeapWrapper {
     }
 
     fn init(&self, start: *mut u8, size: usize) {
+        let _event = core::hint::black_box(crate::instrument!());
+
         unsafe { self.inner.lock().init(start, size) }
     }
 }
@@ -92,6 +98,8 @@ impl LockedHeapWrapper {
 static ALLOCATOR: LockedHeapWrapper = LockedHeapWrapper::empty();
 
 fn allocate_kernel_heap_pages_after_already_allocated_memory() -> usize {
+    let _event = core::hint::black_box(crate::instrument!());
+
     let mut kernel_cr3: u64;
 
     unsafe {
