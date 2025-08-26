@@ -18,7 +18,7 @@ void mini_exit(int i) {}
 void allocate_stack_memory_recursive(int remaining) {
   if (remaining <= 0)
     return;
-  char chunk[1024];
+  char chunk[4096];
   for (int i = 0; i < sizeof(chunk); ++i) {
     chunk[i] = (char)i;
   }
@@ -26,7 +26,7 @@ void allocate_stack_memory_recursive(int remaining) {
 }
 
 void allocate_stack_memory() {
-  allocate_stack_memory_recursive(4096 * 4096);
+  allocate_stack_memory_recursive(10);
   mini_print("Allocated large stack memory\n");
 }
 
