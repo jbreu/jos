@@ -74,9 +74,9 @@ impl Userland {
             mutex.force_unlock();
 
             jump_usermode(
-                c3_page_map_l4_base_address,
+                c3_page_map_l4_base_address as u64,
                 USERSPACE_STACK_TOP_ADDRESS as u64,
-                self.processes[0].get_entry_ip(),
+                self.processes[0].get_entry_ip() as u64,
             );
         }
     }

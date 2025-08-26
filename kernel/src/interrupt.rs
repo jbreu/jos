@@ -71,7 +71,11 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
                     // it's a user-mode (bit 2) write (bit 1) to an unmapped page (bit 0) → classic stack overflow scenario.
                     DEBUG!("extending stack for process");
                     userland::extend_stack();
+                } else {
+                    panic!("Unhandled page fault");
                 }
+            } else {
+                panic!("Unhandled exception");
             }
         }
         _ => DEBUG!("ISR {}", int_no),

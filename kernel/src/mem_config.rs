@@ -5,44 +5,49 @@ pub const BASE_PAGE_SIZE: usize = 0x1000;
 pub const HUGE_PAGE_SIZE: usize = 0x200000;
 
 // define PAGE_SIZE as HUGE_PAGE_SIZE for compatibility
-pub const PAGE_SIZE: usize = HUGE_PAGE_SIZE;
+pub const PAGE_SIZE: usize = BASE_PAGE_SIZE;
 
 /// Number of entries in each page table
 pub const PAGE_TABLE_ENTRIES: usize = 512;
 
-/// Mask for extracting the physical address from a page table entry
-pub const ENTRY_MASK: u64 = 0x0008_ffff_ffff_f800;
-
 /// Standard page table entry flags (Present + Writable + No User)
-pub const BASE_PAGE_ENTRY_FLAGS: u64 = 0b11;
+pub const BASE_PAGE_ENTRY_FLAGS: u8 = 0b11;
 
 /// Huge page table entry flags (Present + Writable + No User + Huge)
-pub const HUGE_PAGE_ENTRY_FLAGS: u64 = 0b10000011;
+pub const HUGE_PAGE_ENTRY_FLAGS: u8 = 0b10000011;
 
-pub const PAGE_ENTRY_FLAGS_KERNELSPACE: u64 = HUGE_PAGE_ENTRY_FLAGS;
+pub const PAGE_ENTRY_FLAGS_KERNELSPACE: u8 = BASE_PAGE_ENTRY_FLAGS;
 
 /// Standard page table entry flags (Present + Writable + User)
-pub const BASE_PAGE_ENTRY_FLAGS_USERSPACE: u64 = 0b111;
+pub const BASE_PAGE_ENTRY_FLAGS_USERSPACE: u8 = 0b111;
 
 /// Huge page table entry flags (Present + Writable + User + Huge)
-pub const HUGE_PAGE_ENTRY_FLAGS_USERSPACE: u64 = 0b10000111;
+pub const HUGE_PAGE_ENTRY_FLAGS_USERSPACE: u8 = 0b10000111;
 
-pub const PAGE_ENTRY_FLAGS_USERSPACE: u64 = HUGE_PAGE_ENTRY_FLAGS_USERSPACE;
+pub const PAGE_ENTRY_FLAGS_USERSPACE: u8 = BASE_PAGE_ENTRY_FLAGS_USERSPACE;
 
 /// Mask for extracting different levels of page table offsets
-pub const L4_TABLE_OFFSET_MASK: u64 = 0x0000_ff80_0000_0000;
-pub const L3_TABLE_OFFSET_MASK: u64 = 0x0000_007f_c000_0000;
-pub const L2_TABLE_OFFSET_MASK: u64 = 0x0000_0000_3fe0_0000;
-pub const PAGE_OFFSET_MASK: u64 = 0x0000_000_001f_f000;
+pub const L4_TABLE_OFFSET_MASK: usize = 0x0000_ff80_0000_0000;
+pub const L3_TABLE_OFFSET_MASK: usize = 0x0000_007f_c000_0000;
+pub const L2_TABLE_OFFSET_MASK: usize = 0x0000_0000_3fe0_0000;
+pub const L1_TABLE_OFFSET_MASK: usize = 0x0000_0000_001f_f800;
+
+pub const PAGE_OFFSET_MASK: usize = PAGE_SIZE - 1;
+
+/// Mask for extracting the physical address from a page table entry
+pub const ENTRY_MASK_2MB: usize = 0x0008_ffff_ffff_f800;
+pub const ENTRY_MASK_4KB: usize = 0x0000_ffff_ffff_f000;
+
+pub const ENTRY_MASK: usize = ENTRY_MASK_4KB;
 
 /// Shift amounts for page table offsets
 pub const L4_TABLE_SHIFT: u32 = 39;
 pub const L3_TABLE_SHIFT: u32 = 30;
 pub const L2_TABLE_SHIFT: u32 = 21;
+pub const L1_TABLE_SHIFT: u32 = 12;
 
 /// Memory region information
-pub const KERNEL_SIZE: usize = 0x200000 * 16; // 32 MiB // SYNCID2
-pub const KERNEL_HEAP_SIZE: usize = 0x200000 * 1; // 2 MiB
+pub const KERNEL_SIZE: usize = 0x200000 * 20; // 40 MiB // SYNCID2
 pub const MAX_PAGE_FRAMES: usize = 0x100000000 / PAGE_SIZE; // 4 GiB total memory
 
 /// Virtual memory layout constants

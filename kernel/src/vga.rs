@@ -1,4 +1,5 @@
 use crate::kprint;
+use crate::mem_config::KERNEL_HIGHER_HALF_BASE;
 use crate::util::in_port_b;
 use crate::util::out_port_b;
 
@@ -237,7 +238,7 @@ static mut VGA_TEXT_MODE_BACKUP: [u16; VGA_TEXT_MODE_SIZE] = [0; VGA_TEXT_MODE_S
 
 fn vga_backup_vidmem() {
     let _event = core::hint::black_box(crate::instrument!());
-    let text_ptr: *const u16 = (0xffff80003fc00000 + REGION3) as *const u16;
+    let text_ptr: *const u16 = (KERNEL_HIGHER_HALF_BASE as u64 + REGION3) as *const u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
             VGA_TEXT_MODE_BACKUP[i] = *text_ptr.add(i);
@@ -247,7 +248,7 @@ fn vga_backup_vidmem() {
 
 fn vga_restore_vidmem() {
     let _event = core::hint::black_box(crate::instrument!());
-    let text_ptr: *mut u16 = (0xffff80003fc00000 + REGION3) as *mut u16;
+    let text_ptr: *mut u16 = (KERNEL_HIGHER_HALF_BASE as u64 + REGION3) as *mut u16;
     unsafe {
         for i in 0..VGA_TEXT_MODE_SIZE {
             core::ptr::write_volatile(text_ptr.add(i), VGA_TEXT_MODE_BACKUP[i]);
@@ -271,7 +272,7 @@ pub fn vga_flip() {
     let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         core::ptr::write_volatile(
-            (0xffff80003fc00000 + VGA_MEM_ADDR) as *mut Buffer,
+            (KERNEL_HIGHER_HALF_BASE as u64 + VGA_MEM_ADDR) as *mut Buffer,
             _SBUFFERS[_SBACK],
         );
 
