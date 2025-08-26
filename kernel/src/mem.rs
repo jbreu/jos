@@ -1,9 +1,14 @@
 use crate::{mem, mem_config::*, process};
-use core::{arch::asm, sync::atomic::Ordering};
+use core::{
+    arch::asm,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = [false; MAX_PAGE_FRAMES];
+static NEXT_FREE_PAGE: AtomicUsize = AtomicUsize::new(0);
 
 pub fn init_available_memory() {
+    let _event = core::hint::black_box(crate::instrument!());
     // Kernel memory
     for i in 0..(KERNEL_SIZE / PAGE_SIZE) {
         unsafe {
@@ -13,13 +18,13 @@ pub fn init_available_memory() {
 }
 
 pub fn allocate_page_frame() -> usize {
-    let _event = core::hint::black_box(crate::instrument!());
+    //let _event = core::hint::black_box(crate::instrument!());
     // TODO make safe
-    // TODO make faster by not iterating instead storing next free page frame
     unsafe {
-        for i in 0..MAX_PAGE_FRAMES - 1 {
+        for i in NEXT_FREE_PAGE.load(Ordering::Relaxed)..MAX_PAGE_FRAMES - 1 {
             if AVAILABLE_MEMORY[i] == false {
                 AVAILABLE_MEMORY[i] = true;
+                NEXT_FREE_PAGE.store(i, Ordering::Relaxed);
                 return i * PAGE_SIZE;
             }
         }
