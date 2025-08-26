@@ -2,6 +2,9 @@ use core::str;
 use core::sync::atomic::{AtomicPtr, AtomicU64, Ordering};
 
 use crate::DEBUG;
+use crate::mem_config::{
+    BASE_PAGE_SIZE, HUGE_PAGE_ENTRY_FLAGS, PAGE_ENTRY_FLAGS_KERNELSPACE, PAGE_SIZE,
+};
 
 use crate::{mem, util::compare_str_to_memory};
 
@@ -97,19 +100,40 @@ fn find_xsdp() -> *const XsdpT {
 // 64-bit physical address of the XSDT table. If you detect ACPI Version 2.0 you should use this table instead of RSDT even on IA-32, casting the address to uint32_t.
 fn find_hpet_table() -> *const HPET {
     let xsdp = find_xsdp();
+    let offset: usize;
 
     unsafe {
         if (*xsdp).revision == 0 {
-            mem::map_page_in_page_tables(
-                mem::allocate_page_frame_for_given_physical_address((*xsdp).rsdt_address as usize),
-                0,
-                0,
-                509,
-                0b10000111,
-            );
+            let page =
+                mem::allocate_page_frame_for_given_physical_address((*xsdp).rsdt_address as usize);
+            let virt_rsdt_address;
+            if PAGE_SIZE == BASE_PAGE_SIZE {
+                mem::map_page_in_page_tables(
+                    page,
+                    0,
+                    0,
+                    510, // Map to the 510th l2 page table (we earlier have mapped as page_table_l1_special for the kernel in main.asm)
+                    0,
+                    PAGE_ENTRY_FLAGS_KERNELSPACE,
+                );
 
-            let virt_rsdt_address =
-                ((*xsdp).rsdt_address % 0x200000) as u64 + 0xffff_8000_3fa0_0000;
+                offset = 0xffff_8000_3fc0_0000;
+
+                virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
+            } else {
+                mem::map_page_in_page_tables(
+                    page,
+                    0,
+                    0,
+                    509,
+                    0,
+                    PAGE_ENTRY_FLAGS_KERNELSPACE, // Huge page entry flags
+                );
+
+                offset = 0xffff_8000_3fa0_0000;
+
+                virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
+            }
 
             DEBUG!("RSDT Address: {:?}", virt_rsdt_address as *const u64);
 
@@ -133,8 +157,12 @@ fn find_hpet_table() -> *const HPET {
 
             for i in 0..entries {
                 let header = core::ptr::read_unaligned(table_ptrs.add(i));
-                let virt_header =
-                    ((header as u64 % 0x200000) + 0xffff_8000_3fa0_0000) as *const ACPISDTHeader;
+                let virt_header: *const ACPISDTHeader;
+                if PAGE_SIZE == BASE_PAGE_SIZE {
+                    virt_header = ((header as usize % PAGE_SIZE) + offset) as *const ACPISDTHeader;
+                } else {
+                    virt_header = ((header as usize % PAGE_SIZE) + offset) as *const ACPISDTHeader;
+                }
 
                 DEBUG!(
                     "ACPI Entry: {:?}",
@@ -162,17 +190,21 @@ fn find_hpet_table() -> *const HPET {
 
 pub fn init_acpi() {
     let hpet = find_hpet_table();
+    let offset: usize;
 
     unsafe {
-        mem::map_page_in_page_tables(
-            mem::allocate_page_frame_for_given_physical_address((*hpet).base_address as usize),
-            0,
-            0,
-            508,
-            0b10000111,
-        );
+        let page =
+            mem::allocate_page_frame_for_given_physical_address((*hpet).base_address as usize);
 
-        let capabilities = (((*hpet).base_address % 0x200000) + 0xffff_8000_3f80_0000)
+        if PAGE_SIZE == BASE_PAGE_SIZE {
+            mem::map_page_in_page_tables(page, 0, 0, 510, 1, PAGE_ENTRY_FLAGS_KERNELSPACE);
+            offset = 0xffff_8000_3fc0_1000;
+        } else {
+            mem::map_page_in_page_tables(page, 0, 0, 508, 0, PAGE_ENTRY_FLAGS_KERNELSPACE);
+            offset = 0xffff_8000_3fa0_0000;
+        }
+
+        let capabilities = (((*hpet).base_address as usize % PAGE_SIZE) + offset)
             as *const GeneralCapabilitiesAndIdRegister;
 
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
@@ -183,14 +215,14 @@ pub fn init_acpi() {
             Ordering::Relaxed,
         );
 
-        let configuration = ((((*hpet).base_address + 0x10) % 0x200000) + 0xffff_8000_3f80_0000)
+        let configuration = ((((*hpet).base_address as usize + 0x10) % PAGE_SIZE) + offset)
             as *mut GeneralConfigurationRegister;
 
         // Enable HPET
         (*configuration).config = 0x1;
 
         let hpet_counter_value_address =
-            (((*hpet).base_address + 0xf0) % 0x200000) + 0xffff_8000_3f80_0000;
+            (((*hpet).base_address + 0xf0) as usize % PAGE_SIZE) + offset;
 
         HPET_COUNTER_VALUE_ADDRESS.store(
             hpet_counter_value_address as *mut AtomicU64,

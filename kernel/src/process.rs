@@ -6,10 +6,10 @@ use alloc::collections::BTreeMap;
 use core::arch::asm;
 use core::fmt::Debug;
 use core::ptr::addr_of;
-use core::sync::atomic::AtomicU64;
+use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 
-pub static KERNEL_CR3: AtomicU64 = AtomicU64::new(0);
+pub static KERNEL_CR3: AtomicUsize = AtomicUsize::new(0);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
@@ -43,8 +43,9 @@ struct RegistersStruct {
 
 #[repr(C)]
 #[repr(align(4096))]
+#[derive(Debug, Clone, Copy)]
 pub struct PageTable {
-    pub entry: [u64; PAGE_TABLE_ENTRIES],
+    pub entry: [usize; PAGE_TABLE_ENTRIES],
 }
 
 impl PageTable {
@@ -115,16 +116,18 @@ enum ProcessState {
 pub struct Process {
     registers: RegistersStruct,
 
+    l1_page_table: PageTable,
     l2_page_directory_table: PageTable,
     l3_page_directory_pointer_table: PageTable,
     l4_page_map_l4_table: PageTable,
 
+    l1_page_table_beginning: [PageTable; 16],
     l2_page_directory_table_beginning: PageTable,
     l3_page_directory_pointer_table_beginning: PageTable,
 
-    rip: u64,
+    rip: usize,
     rsp: u64,
-    cr3: u64,
+    cr3: usize,
     ss: u64,
     cs: u64,
     rflags: u64,
@@ -132,7 +135,9 @@ pub struct Process {
     state: ProcessState,
 
     heap_allocator: linked_list_allocator::LockedHeap,
-    heap_page_number: usize,
+    heap_l1_table_number: usize,
+    heap_l2_table_number: usize,
+
     stack_page_counter: usize,
 
     working_directory: &'static str,
@@ -153,6 +158,8 @@ impl Process {
 
         Self {
             registers: RegistersStruct::default(),
+            l1_page_table: PageTable::default(),
+            l1_page_table_beginning: [PageTable::default(); 16],
             l2_page_directory_table: PageTable::default(),
             l2_page_directory_table_beginning: PageTable::default(),
             l3_page_directory_pointer_table: PageTable::default(),
@@ -168,7 +175,9 @@ impl Process {
             state: ProcessState::New,
 
             heap_allocator: linked_list_allocator::LockedHeap::empty(),
-            heap_page_number: 0,
+            heap_l1_table_number: 0,
+            heap_l2_table_number: 0,
+
             stack_page_counter: 0,
 
             working_directory: "/",
@@ -180,37 +189,6 @@ impl Process {
     pub fn initialize(&mut self) {
         let _event = core::hint::black_box(crate::instrument!());
 
-        self.l2_page_directory_table.entry[511] =
-            allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
-        self.stack_page_counter = 1;
-
-        // TODO HackID1: Fixed kernel stack for interrupts - limited to one PAGE_SIZE!
-        self.l2_page_directory_table.entry[0] =
-            allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE;
-
-        self.l3_page_directory_pointer_table.entry[511] =
-            Process::get_physical_address_for_virtual_address(
-                &self.l2_page_directory_table as *const _ as u64,
-            ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
-        self.l4_page_map_l4_table.entry[255] = Process::get_physical_address_for_virtual_address(
-            &self.l3_page_directory_pointer_table as *const _ as u64,
-        ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
-
-        // allocate enough pages at beginning of virtual memory for elf loading
-        self.heap_page_number = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE; // round up to nearest page size
-        for i in 0..self.heap_page_number {
-            self.l2_page_directory_table_beginning.entry[i] =
-                allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE; // bitmask: present, writable, huge page, access from user // TODO change to read-only
-        }
-
-        self.l3_page_directory_pointer_table_beginning.entry[0] =
-            Process::get_physical_address_for_virtual_address(
-                &self.l2_page_directory_table_beginning as *const _ as u64,
-            ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
-        self.l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
-            &self.l3_page_directory_pointer_table_beginning as *const _ as u64,
-        ) | BASE_PAGE_ENTRY_FLAGS_USERSPACE;
-
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
@@ -218,7 +196,7 @@ impl Process {
                 let mut cr3: u64;
                 asm!("mov r15, cr3", out("r15") cr3);
 
-                KERNEL_CR3.store(cr3, Ordering::Relaxed);
+                KERNEL_CR3.store(cr3 as usize, Ordering::Relaxed);
             }
 
             kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
@@ -229,9 +207,85 @@ impl Process {
                 *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
         }
 
+        if PAGE_SIZE == HUGE_PAGE_SIZE {
+            // allocate one user stack page
+            self.l2_page_directory_table.entry[511] =
+                allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+            // TODO HackID1: Fixed kernel stack for interrupts - limited to one PAGE_SIZE!
+            self.l2_page_directory_table.entry[0] =
+                allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE as usize;
+        } else {
+            // allocate 512 user stack pages
+            for i in 0..512 {
+                self.l1_page_table.entry[511 - i] =
+                    allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+            }
+
+            // TODO HackID1: Fixed kernel stack for interrupts - limited to ten PAGE_SIZE!
+            for i in 1..=10 {
+                self.l1_page_table.entry[i] =
+                    allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE as usize;
+            }
+
+            self.l2_page_directory_table.entry[511] =
+                Process::get_physical_address_for_virtual_address(
+                    &self.l1_page_table as *const _ as usize,
+                ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+        }
+
+        self.stack_page_counter = 1;
+
+        self.l3_page_directory_pointer_table.entry[511] =
+            Process::get_physical_address_for_virtual_address(
+                &self.l2_page_directory_table as *const _ as usize,
+            ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+        self.l4_page_map_l4_table.entry[255] = Process::get_physical_address_for_virtual_address(
+            &self.l3_page_directory_pointer_table as *const _ as usize,
+        ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+        // allocate enough pages at beginning of virtual memory for elf loading
+        let heap_page_number = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        self.heap_l2_table_number =
+            (heap_page_number + PAGE_TABLE_ENTRIES - 1) / PAGE_TABLE_ENTRIES;
+        self.heap_l1_table_number = (heap_page_number) % PAGE_TABLE_ENTRIES;
+
+        if self.heap_l2_table_number > 7 {
+            panic!("Heap size exceeds maximum limit of 8 L2 page directory tables");
+        }
+
+        for i in 0..self.heap_l2_table_number {
+            self.l2_page_directory_table_beginning.entry[i] =
+                Process::get_physical_address_for_virtual_address(
+                    &self.l1_page_table_beginning[i] as *const _ as usize,
+                ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+            if i < self.heap_l2_table_number - 1 {
+                for j in 0..PAGE_TABLE_ENTRIES {
+                    self.l1_page_table_beginning[i].entry[j] =
+                        allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+                }
+            } else {
+                for j in 0..self.heap_l1_table_number {
+                    self.l1_page_table_beginning[i].entry[j] =
+                        allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+                }
+            }
+        }
+
+        self.l3_page_directory_pointer_table_beginning.entry[0] =
+            Process::get_physical_address_for_virtual_address(
+                &self.l2_page_directory_table_beginning as *const _ as usize,
+            ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+        self.l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
+            &self.l3_page_directory_pointer_table_beginning as *const _ as usize,
+        ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
         self.cr3 = Process::get_physical_address_for_virtual_address(
-            &self.l4_page_map_l4_table as *const _ as u64,
+            &self.l4_page_map_l4_table as *const _ as usize,
         );
 
         kprint!("Process CR3: {:x}\n", self.cr3);
@@ -287,11 +341,21 @@ impl Process {
     pub fn extend_stack(&mut self) {
         let _event = core::hint::black_box(crate::instrument!());
 
-        self.stack_page_counter = self.stack_page_counter + 1;
+        self.stack_page_counter += 1;
+
+        if self.stack_page_counter >= PAGE_TABLE_ENTRIES {
+            panic!("Stack size exceeds maximum limit of 512 pages");
+        }
 
         // TODO limited to 512 stack pages
-        self.l2_page_directory_table.entry[512 - self.stack_page_counter] =
-            allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
+        if PAGE_SIZE == HUGE_PAGE_SIZE {
+            self.l2_page_directory_table.entry[512 - self.stack_page_counter] =
+                allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+            return;
+        } else {
+            self.l1_page_table.entry[512 - self.stack_page_counter] =
+                allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+        }
     }
 
     pub fn malloc(&mut self, size: usize) -> u64 {
@@ -308,16 +372,34 @@ impl Process {
                         return address.as_ptr() as u64;
                     }
                     Err(()) => {
-                        DEBUG!("Allocating memory failed - attempting to increase heap size\n");
+                        //DEBUG!("Allocating userspace memory failed - attempting to increase heap size\n");
                     }
                 }
 
                 // allocate more memory if not sufficient amount is available
-                // TODO this only works until one l2 page directory table is full; // later, we need to allocate more l2 page directory tables
-                self.l2_page_directory_table_beginning.entry[self.heap_page_number] =
-                    allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE;
+                // TODO this only works until 7 l1 page directory tables are full; // later, we need to allocate more l1 page directory tables
 
-                self.heap_page_number += 1;
+                self.l1_page_table_beginning[self.heap_l2_table_number - 1].entry
+                    [self.heap_l1_table_number] =
+                    allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+                self.heap_l1_table_number += 1;
+
+                if self.heap_l1_table_number >= PAGE_TABLE_ENTRIES {
+                    self.heap_l1_table_number = 0;
+                    self.heap_l2_table_number += 1;
+
+                    if self.heap_l2_table_number >= 15 {
+                        ERROR!("Heap size exceeds maximum limit of 16 L1 page directory tables\n");
+                        panic!("Out of memory");
+                    }
+
+                    self.l2_page_directory_table_beginning.entry[self.heap_l2_table_number - 1] =
+                        &self.l1_page_table_beginning[self.heap_l2_table_number - 1] as *const _
+                            as usize
+                            - KERNEL_HIGHER_HALF_BASE
+                            | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+                }
 
                 self.heap_allocator.lock().extend(PAGE_SIZE);
             }
@@ -371,7 +453,7 @@ impl Process {
                 (*pushed_registers).rbx = self.registers.rbx;
                 (*pushed_registers).rax = self.registers.rax;
 
-                core::ptr::write_volatile(stack_frame.add(0), self.rip);
+                core::ptr::write_volatile(stack_frame.add(0), self.rip as u64);
                 core::ptr::write_volatile(stack_frame.add(1), self.cs);
                 core::ptr::write_volatile(stack_frame.add(2), self.rflags);
                 core::ptr::write_volatile(stack_frame.add(3), self.rsp);
@@ -423,7 +505,7 @@ impl Process {
             self.registers.rbx = (*pushed_registers).rbx;
             self.registers.rax = (*pushed_registers).rax;
 
-            self.rip = *(stack_frame.add(0));
+            self.rip = *(stack_frame.add(0)) as usize;
             self.cs = *(stack_frame.add(1));
             self.rflags = *(stack_frame.add(2));
             self.rsp = *(stack_frame.add(3));
@@ -444,12 +526,13 @@ impl Process {
 
     // According to AMD Volume 2, page 146
 
-    fn get_physical_address_for_virtual_address(vaddr: u64) -> u64 {
+    fn get_physical_address_for_virtual_address(vaddr: usize) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 
-        let page_map_l4_table_offset = (vaddr & L4_TABLE_OFFSET_MASK) >> L4_TABLE_SHIFT;
-        let page_directory_pointer_offset = (vaddr & L3_TABLE_OFFSET_MASK) >> L3_TABLE_SHIFT;
-        let page_directory_offset = (vaddr & L2_TABLE_OFFSET_MASK) >> L2_TABLE_SHIFT;
+        let l4_page_map_table_offset = (vaddr >> L4_TABLE_SHIFT) & 0x1ff;
+        let l3_page_directory_pointer_offset = (vaddr >> L3_TABLE_SHIFT) & 0x1ff;
+        let l2_page_directory_offset = (vaddr >> L2_TABLE_SHIFT) & 0x1ff;
+        let l1_page_table_offset = (vaddr >> L1_TABLE_SHIFT) & 0x1ff;
         let page_offset = vaddr & PAGE_OFFSET_MASK;
 
         unsafe {
@@ -457,33 +540,47 @@ impl Process {
 
             asm!("mov {}, cr3", out(reg) cr3);
 
-            let page_map_l4_base_address = cr3;
+            let l4_page_map_base_address = cr3 as usize;
 
-            let page_directory_pointer_table_address =
-                *((page_map_l4_base_address + page_map_l4_table_offset * 8) as *const u64)
+            let l3_page_directory_pointer_table_address =
+                *((l4_page_map_base_address + l4_page_map_table_offset * 8) as *const usize)
                     & ENTRY_MASK;
 
-            let page_directory_table_address = *((page_directory_pointer_table_address
-                + page_directory_pointer_offset * 8)
-                as *const u64)
+            let l2_page_directory_table_address = *((l3_page_directory_pointer_table_address
+                + l3_page_directory_pointer_offset * 8)
+                as *const usize)
                 & ENTRY_MASK;
 
-            let physical_page_address = *((page_directory_table_address + page_directory_offset * 8)
-                as *const u64)
-                & ENTRY_MASK;
+            if PAGE_SIZE == HUGE_PAGE_SIZE {
+                let physical_page_address = *((l2_page_directory_table_address
+                    + l2_page_directory_offset * 8)
+                    as *const usize)
+                    & ENTRY_MASK;
 
-            return physical_page_address + page_offset;
+                return physical_page_address + page_offset;
+            } else {
+                let l1_page_table_address = *((l2_page_directory_table_address
+                    + l2_page_directory_offset * 8)
+                    as *const usize)
+                    & ENTRY_MASK;
+
+                let physical_page_address = *((l1_page_table_address + l1_page_table_offset * 8)
+                    as *const usize)
+                    & ENTRY_MASK;
+
+                return physical_page_address + page_offset;
+            }
         }
     }
 
-    pub fn get_c3_page_map_l4_base_address(&self) -> u64 {
+    pub fn get_c3_page_map_l4_base_address(&self) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
         Process::get_physical_address_for_virtual_address(
-            &(self.l4_page_map_l4_table) as *const _ as u64,
+            &(self.l4_page_map_l4_table) as *const _ as usize,
         )
     }
 
-    pub fn get_entry_ip(&self) -> u64 {
+    pub fn get_entry_ip(&self) -> usize {
         self.rip
     }
 
@@ -549,7 +646,7 @@ impl Process {
         }
     }
 
-    pub fn load_elf_from_bin(&mut self) -> (u64, usize, usize) {
+    pub fn load_elf_from_bin(&mut self) -> (usize, usize, usize) {
         let _event = core::hint::black_box(crate::instrument!());
         unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
@@ -638,7 +735,7 @@ impl Process {
                 }
             }
 
-            return (elf_header.e_entry, last_v_addr, last_p_memsz);
+            return (elf_header.e_entry as usize, last_v_addr, last_p_memsz);
         }
     }
 
