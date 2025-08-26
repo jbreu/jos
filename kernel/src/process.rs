@@ -575,6 +575,7 @@ impl Process {
 
     pub fn get_c3_page_map_l4_base_address(&self) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
+
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as usize,
         )
@@ -648,6 +649,7 @@ impl Process {
 
     pub fn load_elf_from_bin(&mut self) -> (usize, usize, usize) {
         let _event = core::hint::black_box(crate::instrument!());
+
         unsafe extern "C" {
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
             static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
@@ -776,6 +778,8 @@ impl Process {
     }
 
     pub fn fread(&mut self, handle_id: u64, buffer: *mut u8, size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
             let bytes_read = file_handle.read(buffer, size);
             file_handle.offset += bytes_read as usize;
@@ -787,6 +791,8 @@ impl Process {
     }
 
     pub fn fseek(&mut self, handle_id: u64, offset: usize, whence: u32) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
         if let Some(file_handle) = self.file_handles.get_mut(&handle_id) {
             file_handle.fseek(offset, whence);
             return 0;
