@@ -12,13 +12,13 @@ RUN echo "deb http://security.debian.org/debian-security bullseye-security main 
 
 RUN set -x \
     && apt-get update \
-    && apt-get install -y curl build-essential nasm xorriso grub-pc-bin grub-common make wget libgmp3-dev libmpfr-dev libisl-dev libmpc-dev texinfo make bzip2 patch sudo qemu-system-x86
+    && apt-get install -y curl build-essential nasm xorriso grub-pc-bin grub-common make wget libgmp3-dev libmpfr-dev libisl-dev libmpc-dev texinfo make bzip2 patch sudo qemu-system-x86 e2fsprogs
 
 # Pull binutils and gcc source code
 RUN set -x \
     && mkdir -p /usr/local/src \
     && cd /usr/local/src \
-    && wget -q https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.gz \
+    && wget -q https://sourceware.org/pub/binutils/releases/binutils-${BINUTILS_VERSION}.tar.gz \
     && tar zxf binutils-${BINUTILS_VERSION}.tar.gz \
     && rm binutils-${BINUTILS_VERSION}.tar.gz \
     && chown -R root:root binutils-${BINUTILS_VERSION} \
