@@ -173,7 +173,7 @@ page_table_l3:
 	resb 4096
 page_table_l2:
 	resb 4096
-; uncomment all page_table_l1_* for 4 KiB page size
+; uncomment for 4 KiB page size
 ; from 21 on will be used for kernel heap
 page_tables_l1:
 	resb 21*4096
