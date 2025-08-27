@@ -61,18 +61,20 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
                 unsafe {
                     asm!("mov {}, cr2", out(reg) cr2);
                 }
-                ERROR!(
-                    "Page fault at address: {:x}, error code: {:x}",
-                    cr2,
-                    error_code
-                );
 
-                if (error_code & 0b110) == 0b110 {
-                    // it's a user-mode (bit 2) write (bit 1) to an unmapped page (bit 0) → classic stack overflow scenario.
-                    DEBUG!("extending stack for process");
+                // Decode PF error code bits: Present=bit0, W/R=bit1, U/S=bit2
+                let present = (error_code & 0b001) != 0;
+                let write = (error_code & 0b010) != 0;
+                let user = (error_code & 0b100) != 0;
+                if !present && write && user {
+                    DEBUG!(
+                        "Extending user stack (cr2={:#x}, ec={:#x})",
+                        cr2,
+                        error_code
+                    );
                     userland::extend_stack();
                 } else {
-                    panic!("Unhandled page fault");
+                    panic!("Unhandled page fault: cr2={:#x}, ec={:#x}", cr2, error_code);
                 }
             } else {
                 panic!("Unhandled exception");
