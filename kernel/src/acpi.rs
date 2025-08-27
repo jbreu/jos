@@ -107,33 +107,12 @@ fn find_hpet_table() -> *const HPET {
             let page =
                 mem::allocate_page_frame_for_given_physical_address((*xsdp).rsdt_address as usize);
             let virt_rsdt_address;
-            if PAGE_SIZE == BASE_PAGE_SIZE {
-                mem::map_page_in_page_tables(
-                    page,
-                    0,
-                    0,
-                    510, // Map to the 510th l2 page table (we earlier have mapped as page_table_l1_special for the kernel in main.asm)
-                    0,
-                    PAGE_ENTRY_FLAGS_KERNELSPACE,
-                );
 
-                offset = 0xffff_8000_3fc0_0000;
+            mem::map_page_in_page_tables(page, 0, 0, 510, 0, PAGE_ENTRY_FLAGS_KERNELSPACE);
 
-                virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
-            } else {
-                mem::map_page_in_page_tables(
-                    page,
-                    0,
-                    0,
-                    509,
-                    0,
-                    PAGE_ENTRY_FLAGS_KERNELSPACE, // Huge page entry flags
-                );
+            offset = 0xffff_8000_3fc0_0000;
 
-                offset = 0xffff_8000_3fa0_0000;
-
-                virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
-            }
+            virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
 
             DEBUG!("RSDT Address: {:?}", virt_rsdt_address as *const u64);
 
