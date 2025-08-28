@@ -26,17 +26,11 @@ pub const HUGE_PAGE_ENTRY_FLAGS_USERSPACE: u8 = 0b10000111;
 
 pub const PAGE_ENTRY_FLAGS_USERSPACE: u8 = BASE_PAGE_ENTRY_FLAGS_USERSPACE;
 
-/// Mask for extracting different levels of page table offsets
-pub const L4_TABLE_OFFSET_MASK: usize = 0x0000_ff80_0000_0000;
-pub const L3_TABLE_OFFSET_MASK: usize = 0x0000_007f_c000_0000;
-pub const L2_TABLE_OFFSET_MASK: usize = 0x0000_0000_3fe0_0000;
-pub const L1_TABLE_OFFSET_MASK: usize = 0x0000_0000_001f_f800;
-
 pub const PAGE_OFFSET_MASK: usize = PAGE_SIZE - 1;
 
 /// Mask for extracting the physical address from a page table entry
-pub const ENTRY_MASK_2MB: usize = 0x0008_ffff_ffff_f800;
-pub const ENTRY_MASK_4KB: usize = 0x0000_ffff_ffff_f000;
+pub const ENTRY_MASK_2MB: usize = 0x000f_ffff_ffe0_0000; // bits [51:21]
+pub const ENTRY_MASK_4KB: usize = 0x000f_ffff_ffff_f000; // bits [51:12]
 
 pub const ENTRY_MASK: usize = ENTRY_MASK_4KB;
 

@@ -5,8 +5,6 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::mem::init_available_memory;
-
 mod acpi;
 mod filesystem;
 mod gdt;

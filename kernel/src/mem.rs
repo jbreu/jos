@@ -1,29 +1,30 @@
 use crate::{mem, mem_config::*, process};
 use core::{
     arch::asm,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-static mut AVAILABLE_MEMORY: [bool; MAX_PAGE_FRAMES] = [false; MAX_PAGE_FRAMES];
+static AVAILABLE_MEMORY: [AtomicBool; MAX_PAGE_FRAMES] =
+    [const { AtomicBool::new(false) }; MAX_PAGE_FRAMES];
 static NEXT_FREE_PAGE: AtomicUsize = AtomicUsize::new(0);
 
 pub fn init_available_memory() {
     let _event = core::hint::black_box(crate::instrument!());
     // Kernel memory
     for i in 0..(KERNEL_SIZE / PAGE_SIZE) {
-        unsafe {
-            AVAILABLE_MEMORY[i] = true;
-        }
+        AVAILABLE_MEMORY[i].store(true, Ordering::Relaxed);
     }
+
+    NEXT_FREE_PAGE.store(KERNEL_SIZE / PAGE_SIZE, Ordering::Relaxed);
 }
 
 pub fn allocate_page_frame() -> usize {
     //let _event = core::hint::black_box(crate::instrument!());
     // TODO make safe
     unsafe {
-        for i in NEXT_FREE_PAGE.load(Ordering::Relaxed)..MAX_PAGE_FRAMES - 1 {
-            if AVAILABLE_MEMORY[i] == false {
-                AVAILABLE_MEMORY[i] = true;
+        for i in NEXT_FREE_PAGE.load(Ordering::Relaxed)..MAX_PAGE_FRAMES {
+            if AVAILABLE_MEMORY[i].load(Ordering::Relaxed) == false {
+                AVAILABLE_MEMORY[i].store(true, Ordering::Relaxed);
                 NEXT_FREE_PAGE.store(i, Ordering::Relaxed);
                 return i * PAGE_SIZE;
             }
@@ -37,7 +38,7 @@ pub fn allocate_page_frame_for_given_physical_address(address: usize) -> usize {
     let _event = core::hint::black_box(crate::instrument!());
     unsafe {
         let page = address / PAGE_SIZE;
-        AVAILABLE_MEMORY[page] = true;
+        AVAILABLE_MEMORY[page].store(true, Ordering::Relaxed);
         return page as usize * PAGE_SIZE as usize;
     }
 }

@@ -27,9 +27,7 @@ unsafe impl GlobalAlloc for LockedHeapWrapper {
         unsafe {
             loop {
                 match self.inner.lock().allocate_first_fit(layout) {
-                    Ok(address) => {
-                        return address.as_ptr();
-                    }
+                    Ok(address) => return address.as_ptr(),
                     Err(()) => {
                         DEBUG!(
                             "Allocating kernel heap memory failed - attempting to increase heap size\n"
@@ -37,19 +35,37 @@ unsafe impl GlobalAlloc for LockedHeapWrapper {
                     }
                 }
 
+                // Check bounds and prepare for growing the page table
+                let current_page_num = HEAP_PAGE_NUMBER.load(Ordering::Relaxed);
+                if current_page_num >= PAGE_TABLE_ENTRIES {
+                    panic!("L1 page table is full - cannot allocate more heap pages\n");
+                }
+
+                // Read the current PML4 frame
                 let mut cr3: u64;
                 asm!("mov {}, cr3", out(reg) cr3);
 
                 let l4_pml4_table =
                     ((cr3 as usize & ENTRY_MASK) + KERNEL_HIGHER_HALF_BASE) as *const usize;
+                // Validate the PML4 entry is present
+                if (*l4_pml4_table.add(256) & 1) == 0 {
+                    panic!("Invalid L4 entry\n");
+                }
                 let l3_pdpt = ((*l4_pml4_table.add(256) & ENTRY_MASK) + KERNEL_HIGHER_HALF_BASE)
                     as *const usize;
+                if (*l3_pdpt & 1) == 0 {
+                    panic!("Invalid L3 entry\n");
+                }
 
                 if PAGE_SIZE == BASE_PAGE_SIZE {
                     let num_l2_page_dirs = KERNEL_SIZE / PAGE_SIZE / PAGE_TABLE_ENTRIES;
 
                     let l2_page_dir =
                         ((*l3_pdpt & ENTRY_MASK) + KERNEL_HIGHER_HALF_BASE) as *mut usize;
+                    // Validate the PDPT entry is present
+                    if (*l2_page_dir.add(num_l2_page_dirs) & 1) == 0 {
+                        panic!("Invalid L2 entry\n");
+                    }
                     let l1_page_table = ((*l2_page_dir.add(num_l2_page_dirs) & ENTRY_MASK)
                         + KERNEL_HIGHER_HALF_BASE)
                         as *mut usize;
@@ -107,7 +123,14 @@ fn allocate_kernel_heap_pages_after_already_allocated_memory() -> usize {
         asm!("mov {}, cr3", out(reg) kernel_cr3);
 
         let l4_pml4_table = (kernel_cr3 as usize & ENTRY_MASK) as *const usize;
+        if (*l4_pml4_table.add(256) & 1) == 0 {
+            panic!("L4 PML4 entry 256 is not present");
+        }
+
         let l3_pdpt = (*l4_pml4_table.add(256) & ENTRY_MASK) as *const usize;
+        if (*l3_pdpt & 1) == 0 {
+            panic!("L3 PDPT entry is not present");
+        }
 
         if PAGE_SIZE == BASE_PAGE_SIZE {
             let num_l2_page_dirs = KERNEL_SIZE / PAGE_SIZE / PAGE_TABLE_ENTRIES;
@@ -115,6 +138,10 @@ fn allocate_kernel_heap_pages_after_already_allocated_memory() -> usize {
             let num_last_l1_table_entries = KERNEL_SIZE / PAGE_SIZE % PAGE_TABLE_ENTRIES;
 
             let l2_page_dir = (*l3_pdpt & ENTRY_MASK) as *mut usize;
+            if (*l2_page_dir.add(num_l2_page_dirs) & 1) == 0 {
+                panic!("L2 page directory entry is not present");
+            }
+
             let l1_page_table = (*l2_page_dir.add(num_l2_page_dirs) & ENTRY_MASK) as *mut usize;
 
             *l1_page_table.add(num_last_l1_table_entries) =
