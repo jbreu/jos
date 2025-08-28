@@ -83,7 +83,7 @@ setup_page_tables:
 	%define PAGE_ENTRY_FLAGS        PAGE_TABLE_FLAGS
 
 	; Calculate number of pages: KERNEL_SIZE / PAGE_SIZE
-	%define KERNEL_SIZE 0x2000000      ; Example: 32 MiB kernel size SYNCID2
+	%define KERNEL_SIZE 0x2800000      ; 40 MiB kernel size SYNCID2
 	%define NUM_KERNEL_PAGES (KERNEL_SIZE / PAGE_SIZE)	
 
 	mov eax, page_table_l3
@@ -114,8 +114,8 @@ setup_page_tables:
 		mov eax, PAGE_SIZE
 		mul ecx
 		mov edx, ebx
-		imul edx, 512*4096
-		add eax, edx                      ; eax = PAGE_SIZE * ecx * ebx
+		imul edx, 512*PAGE_SIZE
+		add eax, edx
 		or eax, PAGE_ENTRY_FLAGS
 		mov [esi + ecx*8], eax
 		inc ecx
@@ -124,9 +124,14 @@ setup_page_tables:
 
 	add esi, 4096                    ; Next L1 table (each is 4096 bytes)
 	inc ebx
-	cmp ebx, 21                      ; 21 L1 tables (1..21)
+	cmp ebx, (NUM_KERNEL_PAGES + 511) / 512    ; 20 L1 tables (1..20)
 	jne .l1_table_loop
 
+	; Special L1 table for non-sequential frames
+	mov eax, page_tables_l1_heap
+	or eax, PAGE_TABLE_FLAGS
+	mov [page_table_l2+((NUM_KERNEL_PAGES + 511) / 512)*8], eax
+	
 	; Special L1 table for non-sequential frames
 	mov eax, page_table_l1_special
 	or eax, PAGE_TABLE_FLAGS
@@ -176,7 +181,9 @@ page_table_l2:
 ; uncomment for 4 KiB page size
 ; from 21 on will be used for kernel heap
 page_tables_l1:
-	resb 21*4096
+	resb (NUM_KERNEL_PAGES + 511) / 512 * 4096
+page_tables_l1_heap:
+	resb 4096
 ; special l1 page table which will be used to map non-sequential page frames like ACPI/HPET
 page_table_l1_special:
 	resb 4096
