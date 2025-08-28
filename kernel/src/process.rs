@@ -252,8 +252,8 @@ impl Process {
             (heap_page_number + PAGE_TABLE_ENTRIES - 1) / PAGE_TABLE_ENTRIES;
         self.heap_l1_table_number = (heap_page_number) % PAGE_TABLE_ENTRIES;
 
-        if self.heap_l2_table_number > 7 {
-            panic!("Heap size exceeds maximum limit of 8 L2 page directory tables");
+        if self.heap_l2_table_number > 15 {
+            panic!("Heap size exceeds maximum limit of 16 L2 page directory tables");
         }
 
         for i in 0..self.heap_l2_table_number {
@@ -349,11 +349,11 @@ impl Process {
 
         // TODO limited to 512 stack pages
         if PAGE_SIZE == HUGE_PAGE_SIZE {
-            self.l2_page_directory_table.entry[512 - self.stack_page_counter] =
+            self.l2_page_directory_table.entry[PAGE_TABLE_ENTRIES - self.stack_page_counter] =
                 allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
             return;
         } else {
-            self.l1_page_table.entry[512 - self.stack_page_counter] =
+            self.l1_page_table.entry[PAGE_TABLE_ENTRIES - self.stack_page_counter] =
                 allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
         }
     }
@@ -379,9 +379,14 @@ impl Process {
                 // allocate more memory if not sufficient amount is available
                 // TODO this only works until 7 l1 page directory tables are full; // later, we need to allocate more l1 page directory tables
 
+                // Map a new frame into the L1 table
                 self.l1_page_table_beginning[self.heap_l2_table_number - 1].entry
                     [self.heap_l1_table_number] =
                     allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+                // Ensure the page table write is visible before proceeding
+                // TODO really required?
+                core::sync::atomic::fence(Ordering::Release);
 
                 self.heap_l1_table_number += 1;
 
