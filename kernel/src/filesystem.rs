@@ -1,7 +1,8 @@
 extern crate alloc;
+use crate::hdd::*;
+use crate::kprintln;
 use crate::DEBUG;
 use crate::ERROR;
-use crate::kprintln;
 use alloc::vec::Vec;
 use core::fmt;
 use include_bytes_aligned::include_bytes_aligned;
@@ -240,10 +241,12 @@ struct DirectoryEntry {
 impl Ext2FileSystem {
     pub fn new() -> Self {
         let _event = core::hint::black_box(crate::instrument!());
-        kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
+        //kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
 
-        // Superblock always starts at offset 1024
-        let superblock: Superblock = unsafe { *(DISK_IMG.as_ptr().add(1024) as *const Superblock) };
+        // Superblock always starts at offset 1024 and is 1024 bytes long
+        let mut superblock_bytes: [u8; 1024] = [0; 1024];
+        hdd_read(2, 2, superblock_bytes.as_mut());
+        let superblock = unsafe { core::ptr::read(superblock_bytes.as_ptr() as *const Superblock) };
 
         let block_size = 1024 << superblock.block_size_shift;
         let blocks_per_group = superblock.blocks_per_group;

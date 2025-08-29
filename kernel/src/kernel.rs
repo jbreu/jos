@@ -8,6 +8,7 @@ use spin::Mutex;
 mod acpi;
 mod filesystem;
 mod gdt;
+mod hdd;
 mod heap;
 mod interrupt;
 mod keyboard;
