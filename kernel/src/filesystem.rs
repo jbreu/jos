@@ -1,13 +1,11 @@
 extern crate alloc;
 use crate::DEBUG;
 use crate::ERROR;
+use crate::hdd_read_struct;
 use crate::kprintln;
 use alloc::vec::Vec;
 use core::fmt;
-use include_bytes_aligned::include_bytes_aligned;
 use lazy_static::lazy_static;
-
-const DISK_IMG: &[u8] = include_bytes_aligned!(8, "../../storage/disk.img");
 
 lazy_static! {
     pub static ref FILE_SYSTEM: Ext2FileSystem = Ext2FileSystem::new();
@@ -30,6 +28,7 @@ impl fmt::Debug for FileHandle {
 impl FileHandle {
     pub fn new(filename: &str, _mode: u32) -> Option<FileHandle> {
         let _event = core::hint::black_box(crate::instrument!());
+
         match FILE_SYSTEM.read_inode_by_path(filename) {
             Some(inode) => return Some(Self { inode, offset: 0 }),
             None => {
@@ -40,6 +39,7 @@ impl FileHandle {
 
     pub fn read(&mut self, buffer: *mut u8, size: usize) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
+
         let mut bytes_read = 0;
         let mut buffer_offset = 0;
         let total_size = self.inode.size as usize;
@@ -123,6 +123,7 @@ impl FileHandle {
 
     pub fn fseek(&mut self, offset: usize, origin: u32) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
+
         match origin {
             0 => self.offset = offset,
             1 => self.offset += offset,
@@ -240,10 +241,10 @@ struct DirectoryEntry {
 impl Ext2FileSystem {
     pub fn new() -> Self {
         let _event = core::hint::black_box(crate::instrument!());
-        kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
+        //kprintln!("Disk image location: {:p}", DISK_IMG.as_ptr());
 
-        // Superblock always starts at offset 1024
-        let superblock: Superblock = unsafe { *(DISK_IMG.as_ptr().add(1024) as *const Superblock) };
+        // Superblock always starts at offset 1024 and is 1024 bytes long
+        let superblock = hdd_read_struct!(1024, Superblock);
 
         let block_size = 1024 << superblock.block_size_shift;
         let blocks_per_group = superblock.blocks_per_group;
@@ -257,8 +258,7 @@ impl Ext2FileSystem {
         for i in 0..group_count {
             let offset =
                 gdt_offset as usize + i as usize * core::mem::size_of::<BlockGroupDescriptor>();
-            let block_group =
-                unsafe { *(DISK_IMG.as_ptr().add(offset) as *const BlockGroupDescriptor) };
+            let block_group = hdd_read_struct!(offset, BlockGroupDescriptor);
             kprintln!(
                 "Reading block group {} at offset {:#x}: {:?}",
                 i,
@@ -275,12 +275,26 @@ impl Ext2FileSystem {
         }
     }
 
-    fn read_block(&self, block_num: u32) -> &[u8] {
+    fn read_block(&self, block_num: u32) -> Vec<u8> {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let start = (block_num as usize) * (self.block_size as usize);
-        &DISK_IMG[start..start + self.block_size as usize]
+        let mut buffer = alloc::vec![0u8; self.block_size as usize];
+
+        crate::hdd::hdd_read(
+            start as u32 / crate::hdd::LBA_SECTOR_SIZE as u32,
+            ((self.block_size + crate::hdd::LBA_SECTOR_SIZE as u32 - 1)
+                / crate::hdd::LBA_SECTOR_SIZE as u32) as u8,
+            &mut buffer,
+            0,
+        );
+
+        buffer
     }
 
     fn read_inode(&self, inode_num: u32) -> Inode {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let group = (inode_num - 1) / self.superblock.inodes_per_group;
         let index = (inode_num - 1) % self.superblock.inodes_per_group;
         let block_group: &BlockGroupDescriptor = &self.block_groups[group as usize];
@@ -299,9 +313,7 @@ impl Ext2FileSystem {
             offset_from_partition_start
         );
 
-        let inode: Inode = unsafe {
-            *(DISK_IMG.as_ptr().add(offset_from_partition_start as usize) as *const Inode)
-        };
+        let inode: Inode = hdd_read_struct!(offset_from_partition_start as usize, Inode);
 
         //DEBUG!("Inode read successfully: {:?}", inode);
 
@@ -359,15 +371,19 @@ impl Ext2FileSystem {
         None
     }
 
-    fn read_file(&self, inode_num: u32) -> &[u8] {
+    // TODO can we avoid to use heap allocation here?
+    fn read_file(&self, inode_num: u32) -> Vec<u8> {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let inode = self.read_inode(inode_num);
         let block = self.read_block(inode.direct_blocks[0]);
-        &block[..inode.size as usize]
+        block[..inode.size as usize].to_vec()
     }
 }
 
 pub fn init_filesystem() {
     let _event = core::hint::black_box(crate::instrument!());
+
     let fs = Ext2FileSystem::new();
     fs.debug_print_superblock();
 

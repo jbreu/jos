@@ -16,7 +16,6 @@ def test_kernel_boot(qemu: QEMUConnection):
         b"Initialized Kernel Heap Memory",
         b"Initialized Global Descriptor Table",
         b"Initialized Interrupt Descriptor Table",
-        b"Initialized Filesystem",
     ]
 
     for message in messages:

@@ -20,6 +20,8 @@ Rough list of features
 - ✅ pretty logo
 - ✅ print logs to Serial
 - ✅ Read Ext2 filesystem images
+- ✅ Read data via ATA driver from hard disk
+- ✅ 4 KB page size
 - enable userspace processes to communicate via an IPC
 - network stack
 - make running on RISC-V (ESP32-C3?) additionally to x86_64
@@ -29,6 +31,7 @@ Rough list of ecosystem
 - ✅ Github CI action to build
 - ✅ Automatic testing via serial connection
 - ✅ gdb debugging
+- ✅ performance profiling scripts like flamegraphs, tracing (see fol)
 - adopt Bazel instead of make
 
 ## Compile and Run
@@ -36,7 +39,7 @@ Rough list of ecosystem
 - `docker build buildenv_rust -t jos_buildenv`
 - `docker run --rm --privileged -it -v "${pwd}:/root/env" jos_buildenv`
 - `make build-x86_64`
-- (other shell) `qemu-system-x86_64 -no-reboot -cdrom dist/x86_64/kernel.iso`
+- (other shell) `qemu-system-x86_64 -no-reboot -cdrom dist/x86_64/kernel.iso -hda storage/disk.img`
 
 https://wiki.osdev.org/QEMU#Useful_QEMU_command-line_options
 
