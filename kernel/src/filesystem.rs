@@ -28,6 +28,7 @@ impl fmt::Debug for FileHandle {
 impl FileHandle {
     pub fn new(filename: &str, _mode: u32) -> Option<FileHandle> {
         let _event = core::hint::black_box(crate::instrument!());
+
         match FILE_SYSTEM.read_inode_by_path(filename) {
             Some(inode) => return Some(Self { inode, offset: 0 }),
             None => {
@@ -38,6 +39,7 @@ impl FileHandle {
 
     pub fn read(&mut self, buffer: *mut u8, size: usize) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
+
         let mut bytes_read = 0;
         let mut buffer_offset = 0;
         let total_size = self.inode.size as usize;
@@ -121,6 +123,7 @@ impl FileHandle {
 
     pub fn fseek(&mut self, offset: usize, origin: u32) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
+
         match origin {
             0 => self.offset = offset,
             1 => self.offset += offset,
@@ -273,6 +276,8 @@ impl Ext2FileSystem {
     }
 
     fn read_block(&self, block_num: u32) -> Vec<u8> {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let start = (block_num as usize) * (self.block_size as usize);
         let mut buffer = alloc::vec![0u8; self.block_size as usize];
 
@@ -288,6 +293,8 @@ impl Ext2FileSystem {
     }
 
     fn read_inode(&self, inode_num: u32) -> Inode {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let group = (inode_num - 1) / self.superblock.inodes_per_group;
         let index = (inode_num - 1) % self.superblock.inodes_per_group;
         let block_group: &BlockGroupDescriptor = &self.block_groups[group as usize];
@@ -364,7 +371,10 @@ impl Ext2FileSystem {
         None
     }
 
+    // TODO can we avoid to use heap allocation here?
     fn read_file(&self, inode_num: u32) -> Vec<u8> {
+        let _event = core::hint::black_box(crate::instrument!());
+
         let inode = self.read_inode(inode_num);
         let block = self.read_block(inode.direct_blocks[0]);
         block[..inode.size as usize].to_vec()
