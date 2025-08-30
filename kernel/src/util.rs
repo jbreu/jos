@@ -19,6 +19,14 @@ pub fn in_port_b(port: u32) -> u8 {
     return key;
 }
 
+pub fn in_port_w(port: u32) -> u16 {
+    let mut key: u16;
+    unsafe {
+        asm!("in ax, dx", out("ax") key, in("rdx") port);
+    }
+    return key;
+}
+
 pub fn compare_str_to_memory(s: &str, addr: usize) -> bool {
     let _event = core::hint::black_box(crate::instrument!());
     let bytes = s.as_bytes();

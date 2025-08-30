@@ -43,6 +43,9 @@ class QEMUConnection:
             if current_dir == "test"
             else "dist/x86_64/kernel.iso"
         )
+        disk_path = (
+            "../storage/disk.img" if current_dir == "test" else "storage/disk.img"
+        )
 
         command = [
             qemu_command,
@@ -58,6 +61,8 @@ class QEMUConnection:
             "tcp:127.0.0.1:4445,server,nowait",
             "-cdrom",
             iso_path,
+            "-hda",
+            disk_path,
         ]
         try:
             # Ensure the log file is opened before starting the process

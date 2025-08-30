@@ -1,3 +1,5 @@
+use elf::file;
+
 use crate::ERROR;
 use crate::kprintln;
 use crate::{USERLAND, time};
@@ -78,6 +80,11 @@ fn syscall_fread(handle: u64, ptr: u64, num_bytes: usize) -> u64 {
 
 fn syscall_fopen(filename: *const u64, mode: *mut u32) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
+
+    if filename.is_null() {
+        return 0;
+    }
+
     match unsafe { core::str::from_utf8(core::slice::from_raw_parts(filename as *const u8, 256)) } {
         Ok(path_str) => match path_str.split('\0').next() {
             Some(path_str) => match unsafe {
@@ -114,6 +121,11 @@ fn syscall_getpid() -> u64 {
 
 fn syscall_write(filedescriptor: u64, payload: u64, len: u64) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
+
+    if len == 0 {
+        return 0;
+    }
+
     unsafe {
         match core::str::from_utf8(core::slice::from_raw_parts(
             payload as *const u8,
