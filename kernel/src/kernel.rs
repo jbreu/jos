@@ -60,8 +60,8 @@ pub extern "C" fn kernel_main() {
     interrupt::init_idt();
     DEBUG!("Initialized Interrupt Descriptor Table");
 
-    filesystem::init_filesystem();
-    DEBUG!("Initialized Filesystem");
+    //filesystem::init_filesystem();
+    //DEBUG!("Initialized Filesystem");
 
     //vga::vga_enter();
     //vga::vga_clear_screen();
