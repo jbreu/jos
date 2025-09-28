@@ -42,6 +42,41 @@ jump_usermode:
 
 	mov byte ptr [rip + SCHEDULING_BLOCKED], 0
 
+	// clear all general purpose registers to avoid leaking information
+	mov rax, 0
+	mov rbx, 0
+	// rcx is used for syscall return address
+	mov rdx, 0
+	mov rsi, 0
+	mov rdi, 0
+	mov rbp, 0
+	mov r8, 0
+	mov r9, 0
+	mov r10, 0
+	// r11 is used for flags
+	mov r12, 0
+	mov r13, 0
+	mov r14, 0
+	mov r15, 0
+
+	// also clear xmm registers
+	pxor xmm0, xmm0
+	pxor xmm1, xmm1
+	pxor xmm2, xmm2
+	pxor xmm3, xmm3
+	pxor xmm4, xmm4
+	pxor xmm5, xmm5
+	pxor xmm6, xmm6
+	pxor xmm7, xmm7
+	pxor xmm8, xmm8
+	pxor xmm9, xmm9
+	pxor xmm10, xmm10
+	pxor xmm11, xmm11
+	pxor xmm12, xmm12
+	pxor xmm13, xmm13
+	pxor xmm14, xmm14
+	pxor xmm15, xmm15
+
 	sysretq //use "o64 sysret" if you assemble with NASM
 
 syscall_handler:	

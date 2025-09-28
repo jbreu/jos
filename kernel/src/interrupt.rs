@@ -77,7 +77,15 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
                     panic!("Unhandled page fault: cr2={:#x}, ec={:#x}", cr2, error_code);
                 }
             } else {
-                panic!("Unhandled exception");
+                let cr2: u64;
+                unsafe {
+                    asm!("mov {}, cr2", out(reg) cr2);
+                }
+
+                panic!(
+                    "Unhandled exception: int_no={}, cr2={:#x}, ec={:#x}",
+                    int_no, cr2, error_code
+                );
             }
         }
         _ => DEBUG!("ISR {}", int_no),
