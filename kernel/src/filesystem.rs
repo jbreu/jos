@@ -37,6 +37,10 @@ impl FileHandle {
         }
     }
 
+    pub fn size(&self) -> u32 {
+        self.inode.size
+    }
+
     pub fn read(&mut self, buffer: *mut u8, size: usize) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
 
