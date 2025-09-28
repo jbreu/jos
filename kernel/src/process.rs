@@ -3,11 +3,14 @@ use crate::{
 };
 extern crate alloc;
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use core::arch::asm;
 use core::fmt::Debug;
 use core::ptr::addr_of;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
+use elf::abi::PT_LOAD;
+use elf::endian::AnyEndian;
 
 pub static KERNEL_CR3: AtomicUsize = AtomicUsize::new(0);
 
@@ -245,8 +248,24 @@ impl Process {
             &self.l3_page_directory_pointer_table as *const _ as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
+        let mut file_handle = FileHandle::new("/doom", 0).unwrap();
+
+        // put the whole file into a buffer
+        // TODO ensure the *kernel* has enough memory for this
+        let size = file_handle.size() as usize;
+        let mut buffer: Vec<u8> = Vec::with_capacity(size);
+        unsafe {
+            buffer.set_len(size); // unsafe, but we will overwrite all bytes
+        }
+        let program_slice = unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr(), size) };
+        let bytes_read = file_handle.read(program_slice.as_mut_ptr(), size);
+        if bytes_read as usize != size {
+            panic!("Error reading file");
+        }
+
         // allocate enough pages at beginning of virtual memory for elf loading
-        let heap_page_number = (self.get_size_of_program() + PAGE_SIZE - 1) / PAGE_SIZE;
+        let heap_page_number =
+            (self.get_size_of_program(program_slice) + PAGE_SIZE - 1) / PAGE_SIZE;
 
         self.heap_l2_table_number =
             (heap_page_number + PAGE_TABLE_ENTRIES - 1) / PAGE_TABLE_ENTRIES;
@@ -302,7 +321,7 @@ impl Process {
 
         self.rsp = USERSPACE_STACK_TOP_ADDRESS as u64;
 
-        let (entry, v_addr, p_memsz) = self.load_elf_from_bin();
+        let (entry, v_addr, p_memsz) = self.load_elf_from_bin(&program_slice);
         self.rip = entry;
 
         self.init_process_heap(v_addr, p_memsz);
@@ -591,36 +610,12 @@ impl Process {
     }
 
     // TODO reduce code duplication with load_elf_from_bin
-    pub fn get_size_of_program(&self) -> usize {
+    pub fn get_size_of_program(&mut self, program_slice: &[u8]) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
-        unsafe extern "C" {
-            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
-            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
-        }
 
         unsafe {
-            kprint!(
-                "embedded elf file\nstart: {:x}\n  end: {:x}\n",
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
-                    as *const u8 as usize,
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
-                    as *const u8 as usize
-            );
-
-            let size = addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
-                as *const u8 as usize
-                - addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
-                    as *const u8 as usize;
-
-            let slice = core::slice::from_raw_parts(
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start),
-                size,
-            );
-
-            use elf::abi::PT_LOAD;
-            use elf::endian::AnyEndian;
-
-            let file = elf::ElfBytes::<AnyEndian>::minimal_parse(slice).expect("Open test1");
+            let file =
+                elf::ElfBytes::<AnyEndian>::minimal_parse(program_slice).expect("Open test1");
 
             let elf_header = file.ehdr;
 
@@ -652,37 +647,12 @@ impl Process {
         }
     }
 
-    pub fn load_elf_from_bin(&mut self) -> (usize, usize, usize) {
+    pub fn load_elf_from_bin(&mut self, program_slice: &[u8]) -> (usize, usize, usize) {
         let _event = core::hint::black_box(crate::instrument!());
 
-        unsafe extern "C" {
-            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_start: u8;
-            static mut _binary_build_userspace_x86_64_unknown_none_debug_helloworld_end: u8;
-        }
-
         unsafe {
-            kprint!(
-                "embedded elf file\nstart: {:x}\n  end: {:x}\n",
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
-                    as *const u8 as usize,
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
-                    as *const u8 as usize
-            );
-
-            let size = addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_end)
-                as *const u8 as usize
-                - addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start)
-                    as *const u8 as usize;
-
-            let slice = core::slice::from_raw_parts(
-                addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start),
-                size,
-            );
-
-            use elf::abi::PT_LOAD;
-            use elf::endian::AnyEndian;
-
-            let file = elf::ElfBytes::<AnyEndian>::minimal_parse(slice).expect("Open test1");
+            let file =
+                elf::ElfBytes::<AnyEndian>::minimal_parse(program_slice).expect("Open test1");
 
             let elf_header = file.ehdr;
 
@@ -709,8 +679,8 @@ impl Process {
                     mov rsi, {}
                     mov rdi, {}
                     rep movsb",
-                    in(reg) phdr.p_memsz,
-                    in(reg) addr_of!(_binary_build_userspace_x86_64_unknown_none_debug_helloworld_start) as *const u8 as usize + phdr.p_offset as usize,
+                    in(reg) phdr.p_filesz,
+                    in(reg) program_slice.as_ptr() as usize + phdr.p_offset as usize,
                     in(reg) phdr.p_vaddr,
                     out("rcx") _,
                     out("rsi") _,

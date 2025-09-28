@@ -24,8 +24,8 @@ fi
 # sudo chown "$USER":"$USER" /tmp/disk
 
 # Copy the file
-sudo cp test.txt /tmp/disk/
 sudo cp ../doom1.wad /tmp/disk/devdatadoom1.wad
+sudo cp ../build/userspace/x86_64-unknown-none/debug/doom /tmp/disk/doom
 
 # List files
 ls -l -a /tmp/disk
