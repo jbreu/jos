@@ -147,6 +147,8 @@ pub struct Process {
 
     file_handles: BTreeMap<u64, FileHandle>,
     next_handle_id: u64,
+
+    parent_id: u64,
 }
 
 impl Debug for Process {
@@ -186,6 +188,8 @@ impl Process {
             working_directory: "/",
             file_handles: BTreeMap::new(),
             next_handle_id: 1,
+
+            parent_id: 0,
         }
     }
 
@@ -775,5 +779,10 @@ impl Process {
             ERROR!("Invalid file handle id: {}\n", handle_id);
             return 0;
         }
+    }
+
+    pub fn get_parent_id(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+        self.parent_id
     }
 }
