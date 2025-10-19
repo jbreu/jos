@@ -1,4 +1,27 @@
 #include "include/libc.h"
+/* Provide a plain global _DYNAMIC symbol so linkers can resolve
+  references when building static binaries. Some object files
+  reference `_DYNAMIC' during configuration/build checks; defining
+  it here as NULL avoids undefined reference errors. */
+void *_DYNAMIC = 0;
+
+__asm__(".global _start\n"
+        ".extern main\n"
+        "_start:\n"
+        //        "    mov %rsp, %rdi\n" // argc in [rsp]
+        //        "    mov (%rdi), %rdi\n"
+        //        "    lea 8(%rsp), %rsi\n" // argv
+        //        "    mov %rsi, %rdx\n"
+        //        "1:\n"
+        //        "    cmpq $0,(%rdx)\n"
+        //        "    add $8,%rdx\n"
+        //        "    jne 1b\n"
+        //        "    add $8,%rdx\n" // envp
+        "    call main\n"
+        //        "    mov %rax,%rdi\n"
+        //        "    mov $60,%rax\n" // exit
+        //        "    syscall\n"
+);
 
 FILE _stdin = {
     .fd = 0,         // File descriptor 0 for stdin
@@ -866,4 +889,75 @@ int memcmp(const void *s1, const void *s2, size_t n) {
   }
 
   return 0;
+}
+
+void qsort(void *base, size_t num, size_t size,
+           int (*compar)(const void *, const void *)) {
+  if (num < 2) {
+    return; // No need to sort
+  }
+
+  char *pivot =
+      (char *)base + (num - 1) * size; // Choose the last element as pivot
+  size_t i = 0;                        // Index of smaller element
+
+  for (size_t j = 0; j < num - 1; j++) {
+    char *current = (char *)base + j * size;
+    if (compar(current, pivot) < 0) {
+      if (i != j) {
+        char *smaller = (char *)base + i * size;
+        // Swap current and smaller
+        for (size_t k = 0; k < size; k++) {
+          char temp = smaller[k];
+          smaller[k] = current[k];
+          current[k] = temp;
+        }
+      }
+      i++;
+    }
+  }
+
+  // Place pivot in the correct position
+  char *smaller = (char *)base + i * size;
+  for (size_t k = 0; k < size; k++) {
+    char temp = smaller[k];
+    smaller[k] = pivot[k];
+    pivot[k] = temp;
+  }
+
+  // Recursively sort elements before and after partition
+  qsort(base, i, size, compar);
+  qsort((char *)base + (i + 1) * size, num - i - 1, size, compar);
+}
+
+pid_t getppid(void) {
+  uint64_t ppid;
+  DO_SYSCALL(17, ppid, 0, 0, 0);
+  return ppid;
+}
+
+char **environ = NULL;
+
+uid_t getuid(void) {
+  // TODO implement
+  return 1234;
+}
+
+uid_t geteuid(void) {
+  // TODO implement
+  return 12345;
+}
+
+clock_t times(struct tms *buf) {
+  // TODO implement
+  buf->tms_utime = 0;
+  buf->tms_stime = 0;
+  buf->tms_cutime = 0;
+  buf->tms_cstime = 0;
+  return 0;
+}
+
+long sysconf(int name) {
+  // TODO implement
+  return -1;
 }

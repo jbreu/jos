@@ -1,8 +1,12 @@
-#include "sys/stat.h"
-#include "stddef.h"
-#include "ctype.h"
 #include "chartypes.h"
+#include "ctype.h"
+#include "stddef.h"
+#include "sys/stat.h"
 
+/* whence values for lseek(2) */
+#define SEEK_SET 0 /* Set file offset to offset */
+#define SEEK_CUR 1 /* Set file offset to current plus offset */
+#define SEEK_END 2 /* Set file offset to EOF plus offset */
 
 typedef int pid_t;
 
@@ -37,19 +41,25 @@ pid_t vfork(void);
 uid_t geteuid(void);
 gid_t getegid(void);
 
-ssize_t write(int fd, const void* buf, size_t count);
+ssize_t write(int fd, const void *buf, size_t count);
 
 /*  These may be OR'd together.  */
-#define R_OK    4       /* Test for read permission.  */
-#define W_OK    2       /* Test for write permission.  */
-#define X_OK    1       /* execute permission - unsupported in windows*/
-#define F_OK    0       /* Test for existence.  */
+#define R_OK 4 /* Test for read permission.  */
+#define W_OK 2 /* Test for write permission.  */
+#define X_OK 1 /* execute permission - unsupported in windows*/
+#define F_OK 0 /* Test for existence.  */
 
 int faccessat(int dirfd, const char *pathname, int mode, int flags);
 
-#define AT_FDCWD    -100    /* Special value used to indicate openat should use the current working directory. */
-#define AT_EACCESS  0x200    /* Test access permissions for a file relative to a directory.  */
+#define AT_FDCWD                                                               \
+  -100 /* Special value used to indicate openat should use the current working \
+          directory. */
+#define AT_EACCESS                                                             \
+  0x200 /* Test access permissions for a file relative to a directory.  */
 
 long sysconf(int name);
 
 #define _SC_CLK_TCK 100
+
+typedef long lseek_t;
+lseek_t lseek(int fd, lseek_t offset, int whence);

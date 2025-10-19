@@ -117,6 +117,12 @@ impl Userland {
 
         &mut self.processes[self.current_process]
     }
+
+    pub fn get_current_process_parent_id(&self) -> usize {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        self.processes[self.current_process].get_parent_id()
+    }
 }
 
 // very simple scheduler
