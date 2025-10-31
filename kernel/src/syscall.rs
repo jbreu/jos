@@ -46,6 +46,7 @@ pub extern "C" fn system_call() -> u64 {
         15 => return syscall_chdir(arg0 as *const u64),
         16 => return syscall_getcwd(arg0 as *mut u64, arg1),
         17 => return syscall_getppid(),
+        18 => return syscall_kill(arg0 as u64, arg1 as u32),
         _ => {
             ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -221,4 +222,8 @@ fn syscall_getcwd(buf: *mut u64, size: u64) -> u64 {
 fn syscall_getppid() -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
     USERLAND.lock().get_current_process_parent_id() as u64
+}
+fn syscall_kill(_pid: u64, _sig: u32) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
+    USERLAND.lock().kill_process(_pid, _sig) as u64
 }

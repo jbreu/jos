@@ -26,6 +26,7 @@ fi
 # Copy the file
 sudo cp ../doom1.wad /tmp/disk/devdatadoom1.wad
 sudo cp ../build/userspace/x86_64-unknown-none/debug/doom /tmp/disk/doom
+sudo cp ../userland/dash-0.5.13/src/dash /tmp/disk/dash
 
 # List files
 ls -l -a /tmp/disk

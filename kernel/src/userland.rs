@@ -1,8 +1,8 @@
 use spin::Mutex;
 
-use crate::USERLAND;
 use crate::mem_config::{KERNEL_STACK_TOP_ADDRESS, USERSPACE_STACK_TOP_ADDRESS};
 use crate::process::Process;
+use crate::{ERROR, USERLAND, kprint};
 
 extern crate alloc;
 use alloc::vec::Vec;
@@ -121,7 +121,26 @@ impl Userland {
     pub fn get_current_process_parent_id(&self) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 
-        self.processes[self.current_process].get_parent_id()
+        self.processes[self.current_process]
+            .get_parent_id()
+            .try_into()
+            .unwrap()
+    }
+
+    pub fn kill_process(&mut self, pid: u64, sig: u32) -> i64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        if sig != 9 {
+            ERROR!("Unsupported signal {}\n", sig);
+            return -1;
+        }
+
+        if let Some(pos) = self.processes.iter().position(|x| x.get_pid() == pid) {
+            self.processes.remove(pos);
+            return 0;
+        }
+
+        return -1;
     }
 }
 

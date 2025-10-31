@@ -1,10 +1,8 @@
 set output-radix 16
 set disassembly-flavor intel
 set osabi none
-#add-symbol-file build/kernel/x86_64-unknown-none/debug/libjos.a
-#set substitute-path /cygdrive/c/Users/Jakob/Documents/workspace/os-series/src/ c:\\Users\\Jakob\\Documents\\workspace\\os-series\\userland\\src\\ 
-#set remote get-thread-information-block-address-packet off
-add-symbol-file build/userspace/x86_64-unknown-none/debug/helloworld
+set substitute-path /root/env/userland/ c:/Users/Jakob/Documents/workspace/os-series/userland/
+add-symbol-file c:/Users/Jakob/Documents/workspace/os-series/userland/dash-0.5.13/src/dash
 display/5i $pc
 display/20xg $sp
 
