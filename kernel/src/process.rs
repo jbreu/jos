@@ -6,13 +6,13 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::fmt::Debug;
-use core::ptr::addr_of;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use elf::abi::PT_LOAD;
 use elf::endian::AnyEndian;
 
 pub static KERNEL_CR3: AtomicUsize = AtomicUsize::new(0);
+pub static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(1);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
@@ -117,6 +117,8 @@ enum ProcessState {
 }
 
 pub struct Process {
+    process_id: u64,
+
     registers: RegistersStruct,
 
     l1_page_table: PageTable,
@@ -162,6 +164,8 @@ impl Process {
         let _event = core::hint::black_box(crate::instrument!());
 
         Self {
+            process_id: NEXT_PROCESS_ID.fetch_add(1, Ordering::Relaxed) as u64,
+
             registers: RegistersStruct::default(),
             l1_page_table: PageTable::default(),
             l1_page_table_beginning: [PageTable::default(); 16],
@@ -252,7 +256,7 @@ impl Process {
             &self.l3_page_directory_pointer_table as *const _ as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
-        let mut file_handle = FileHandle::new("/doom", 0).unwrap();
+        let mut file_handle = FileHandle::new("/dash", 0).unwrap();
 
         // put the whole file into a buffer
         // TODO ensure the *kernel* has enough memory for this
@@ -268,6 +272,7 @@ impl Process {
         }
 
         // allocate enough pages at beginning of virtual memory for elf loading
+        // TODO do not map pages before the first used virtual address in the elf file (typically 0x400000)
         let heap_page_number =
             (self.get_size_of_program(program_slice) + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -784,5 +789,10 @@ impl Process {
     pub fn get_parent_id(&self) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
         self.parent_id
+    }
+
+    pub fn get_pid(&self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+        self.process_id
     }
 }

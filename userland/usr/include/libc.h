@@ -2,8 +2,10 @@
 #define __LIBC_H__
 
 #include "ctype.h"
+#include "dirent.h"
 #include "errno.h"
 #include "inttypes.h"
+#include "signal.h"
 #include "stdbool.h"
 #include "stddef.h"
 #include "stdint.h"
@@ -11,6 +13,8 @@
 #include "stdlib.h"
 #include "string.h"
 #include "sys/times.h"
+#include "wchar.h"
+#include "wctype.h"
 
 #define DO_SYSCALL(syscall_num, output, r8_val, r9_val, r10_val)               \
   asm volatile(                                                                \

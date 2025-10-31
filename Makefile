@@ -15,7 +15,10 @@ setup: $(x86_64_asm_object_files)
 
 .PHONY: userland
 userland:
-	gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections
+	# gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections && \
+	cd userland && \
+	./build_dash.sh -c && \
+	cd ..
 
 .PHONY: kernel
 kernel:
