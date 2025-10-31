@@ -1,27 +1,22 @@
 #include "include/libc.h"
+
 /* Provide a plain global _DYNAMIC symbol so linkers can resolve
   references when building static binaries. Some object files
   reference `_DYNAMIC' during configuration/build checks; defining
   it here as NULL avoids undefined reference errors. */
 void *_DYNAMIC = 0;
 
-__asm__(".global _start\n"
-        ".extern main\n"
-        "_start:\n"
-        //        "    mov %rsp, %rdi\n" // argc in [rsp]
-        //        "    mov (%rdi), %rdi\n"
-        //        "    lea 8(%rsp), %rsi\n" // argv
-        //        "    mov %rsi, %rdx\n"
-        //        "1:\n"
-        //        "    cmpq $0,(%rdx)\n"
-        //        "    add $8,%rdx\n"
-        //        "    jne 1b\n"
-        //        "    add $8,%rdx\n" // envp
-        "    call main\n"
-        //        "    mov %rax,%rdi\n"
-        //        "    mov $60,%rax\n" // exit
-        //        "    syscall\n"
-);
+__attribute__((naked)) void _start(void) {
+  asm volatile(
+      // initialize with zero arguments
+      "xor %rdi, %rdi\n"
+      "xor %rsi, %rsi\n"
+      "xor %rdx, %rdx\n"
+      "call main\n"
+      "mov %rax, %rdi\n"
+      "mov $60, %rax\n"
+      "syscall\n");
+}
 
 FILE _stdin = {
     .fd = 0,         // File descriptor 0 for stdin
@@ -940,16 +935,23 @@ char **environ = NULL;
 
 uid_t getuid(void) {
   // TODO implement
+  char *msg = "TODO implement getuid\n";
+  write(1, msg, strlen(msg));
   return 1234;
 }
 
 uid_t geteuid(void) {
   // TODO implement
+  char *msg = "TODO implement geteuid\n";
+  write(1, msg, strlen(msg));
   return 12345;
 }
 
 clock_t times(struct tms *buf) {
   // TODO implement
+  char *msg = "TODO implement times\n";
+  write(1, msg, strlen(msg));
+
   buf->tms_utime = 0;
   buf->tms_stime = 0;
   buf->tms_cutime = 0;
@@ -959,5 +961,411 @@ clock_t times(struct tms *buf) {
 
 long sysconf(int name) {
   // TODO implement
+  char *msg = "TODO implement sysconf\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int dup(int fildes) {
+  // TODO implement
+  char *msg = "TODO implement dup\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int dup2(int oldfd, int newfd) {
+  // TODO implement
+  char *msg = "TODO implement dup2\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int strcoll(const char *s1, const char *s2) {
+  // Simple implementation using strcmp
+  return strcmp(s1, s2) ? 1 : 0;
+}
+
+uint32_t htonl(uint32_t hostlong) {
+  return ((hostlong & 0x000000FF) << 24) | ((hostlong & 0x0000FF00) << 8) |
+         ((hostlong & 0x00FF0000) >> 8) | ((hostlong & 0xFF000000) >> 24);
+}
+
+int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
+  // Simplified using existing sprintf (not safe for production)
+  return sprintf(str, format, ap);
+}
+
+int isatty(int fd) {
+  // TODO implement
+  char *msg = "TODO implement isatty\n";
+  write(1, msg, strlen(msg));
+  return (fd >= 0 && fd <= 2); // Assume stdin, stdout, stderr are ttys
+}
+
+int *__errno_location(void) { return &errno_value; }
+
+void _exit(int status) {
+  // TODO implement
+  char *msg = "TODO implement _exit\n";
+  write(1, msg, strlen(msg));
+}
+
+void longjmp(jmp_buf env, int val) {
+  // TODO implement
+  char *msg = "TODO implement longjmp\n";
+  write(1, msg, strlen(msg));
+}
+
+int setjmp(jmp_buf env) {
+  // TODO implement
+  char *msg = "TODO implement setjmp\n";
+  write(1, msg, strlen(msg));
+  return 0;
+}
+
+size_t mbrlen(const char *s, size_t n, mbstate_t *ps) {
+  // Simplified implementation assuming single-byte characters
+  if (n == 0 || s == NULL || *s == '\0') {
+    return 0;
+  }
+  return 1; // Each character is one byte
+}
+
+size_t mbrtowc(wchar_t *pwc, const char *s, size_t n, mbstate_t *ps) {
+  // Simplified implementation assuming single-byte characters
+  if (n == 0 || s == NULL || *s == '\0') {
+    return 0;
+  }
+  if (pwc != NULL) {
+    *pwc = (wchar_t)(unsigned char)(*s);
+  }
+  return 1; // Each character is one byte
+}
+
+int iswblank(wint_t wc) { return (wc == L' ' || wc == L'\t'); }
+
+int iswctype(wint_t wc, wctype_t desc) {
+  // Simplified implementation for basic character types
+  switch (desc) {
+  case 1: // WCTYPE_ALNUM
+    return (wc >= L'0' && wc <= L'9') || (wc >= L'A' && wc <= L'Z') ||
+           (wc >= L'a' && wc <= L'z');
+  case 2: // WCTYPE_ALPHA
+    return (wc >= L'A' && wc <= L'Z') || (wc >= L'a' && wc <= L'z');
+  case 3: // WCTYPE_DIGIT
+    return (wc >= L'0' && wc <= L'9');
+  default:
+    return 0; // Unsupported type
+  }
+}
+
+wctype_t wctype(const char *property) {
+  // Simplified implementation for basic character types
+  if (strcmp(property, "alnum")) {
+    return 1; // WCTYPE_ALNUM
+  } else if (strcmp(property, "alpha")) {
+    return 2; // WCTYPE_ALPHA
+  } else if (strcmp(property, "digit")) {
+    return 3; // WCTYPE_DIGIT
+  } else {
+    return 0; // Unsupported type
+  }
+}
+
+wchar_t *wcschr(const wchar_t *wcs, wchar_t wc) {
+  while (*wcs != L'\0') {
+    if (*wcs == wc) {
+      return (wchar_t *)wcs;
+    }
+    wcs++;
+  }
+  return NULL;
+}
+
+int iswspace(wint_t wc) {
+  return (wc == L' ' || wc == L'\t' || wc == L'\n' || wc == L'\v' ||
+          wc == L'\f' || wc == L'\r');
+}
+
+size_t mbsrtowcs(wchar_t *dst, const char **src, size_t len, mbstate_t *ps) {
+  size_t count = 0;
+  while (len-- && **src != '\0') {
+    if (dst != NULL) {
+      *dst++ = (wchar_t)(unsigned char)(**src);
+    }
+    (*src)++;
+    count++;
+  }
+  return count;
+}
+
+int kill(pid_t pid, int sig) {
+  uint64_t result;
+  DO_SYSCALL(18, result, pid, sig, 0);
+  return (int)result;
+}
+
+int sigaction(int signum, const struct sigaction *act,
+              struct sigaction *oldact) {
+  char *msg = "TODO implement sigaction\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int faccessat(int dirfd, const char *pathname, int mode, int flags) {
+  char *msg = "TODO implement faccessat\n";
+  write(1, msg, strlen(msg));
+  return 0;
+}
+
+gid_t getegid(void) {
+  char *msg = "TODO implement getegid\n";
+  write(1, msg, strlen(msg));
+  return 1234;
+}
+
+int sigprocmask(int how, const sigset_t *restrict set,
+                sigset_t *restrict oset) {
+  char *msg = "TODO implement sigprocmask\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int sigfillset(sigset_t *set) {
+  char *msg = "TODO implement sigfillset\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int fcntl(int fildes, int cmd, ...) {
+  char *msg = "TODO implement fcntl\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+void *signal(int, void (*)(int)) {
+  char *msg = "TODO implement signal\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+lseek_t lseek(int fd, lseek_t offset, int whence) {
+  char *msg = "TODO implement lseek\n";
+  write(1, msg, strlen(msg));
+
+  fseek((FILE *)(uintptr_t)fd, offset, whence);
+  return ftell((FILE *)(uintptr_t)fd);
+}
+
+int pipe(int pipefd[2]) {
+  char *msg = "TODO implement pipe\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int memfd_create(const char *name, unsigned int flags) {
+  char *msg = "TODO implement memfd_create\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int fstat(int fd, struct stat *buf) {
+  char *msg = "TODO implement fstat\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int open64(const char *pathname, int oflag, ...) {
+  // use open syscall
+  uint64_t handle;
+  DO_SYSCALL(5, handle, pathname, oflag, 0);
+  return (int)handle;
+}
+
+int getrlimit(int resource, struct rlimit *rlim) {
+  // TODO implement getrlimit
+  char *msg = "TODO implement getrlimit\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int setrlimit(int resource, const struct rlimit *rlim) {
+  // TODO implement setrlimit
+  char *msg = "TODO implement setrlimit\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+mode_t umask(mode_t mask) {
+  // TODO implement umask
+  char *msg = "TODO implement umask\n";
+  write(1, msg, strlen(msg));
+  return 0;
+}
+
+void *realloc(void *ptr, size_t size) {
+  // TODO implement realloc
+  char *msg = "TODO implement realloc\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+char *setlocale(int category, const char *locale) {
+  // TODO implement setlocale
+  char *msg = "TODO implement setlocale\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+int tcsetpgrp(int fd, pid_t pgrp) {
+  // TODO implement tcsetpgrp
+  char *msg = "TODO implement tcsetpgrp\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int sigsuspend(const sigset_t *sigmask) {
+  // TODO implement sigsuspend
+  char *msg = "TODO implement sigsuspend\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int wait3(int *status, int options, struct rusage *rusage) {
+  // TODO implement wait3
+  char *msg = "TODO implement wait3\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int raise(int sig) { return kill(getpid(), sig); }
+
+pid_t vfork(void) {
+  // TODO implement vfork
+  char *msg = "TODO implement vfork\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+pid_t fork(void) {
+  // TODO implement fork
+  char *msg = "TODO implement fork\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int setpgid(pid_t pid, pid_t pgid) {
+  // TODO implement setpgid
+  char *msg = "TODO implement setpgid\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int killpg(pid_t pgrp, int sig) {
+  // TODO implement killpg
+  char *msg = "TODO implement killpg\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+pid_t getpgrp(void) {
+  // TODO implement getpgrp
+  char *msg = "TODO implement getpgrp\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+pid_t tcgetpgrp(int fd) {
+  // TODO implement tcgetpgrp
+  char *msg = "TODO implement tcgetpgrp\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+char *strsignal(int sig) {
+  // TODO implement strsignal
+  char *msg = "TODO implement strsignal\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+int sigsetmask(int mask) {
+  // TODO implement sigsetmask
+  char *msg = "TODO implement sigsetmask\n";
+  write(1, msg, strlen(msg));
+  return 0;
+}
+
+ssize_t read(int fd, void *buf, size_t count) {
+  // TODO implement read
+  char *msg = "TODO implement read\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int tee(int fd_in, int fd_out, size_t len, unsigned int flags) {
+  // TODO implement tee
+  char *msg = "TODO implement tee\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+int tcgetattr(int fd, struct termios *termios_p) {
+  // TODO implement tcgetattr
+  char *msg = "TODO implement tcgetattr\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+void abort(void) {
+  // TODO implement abort
+  char *msg = "TODO implement abort\n";
+  write(1, msg, strlen(msg));
+  while (1)
+    ;
+}
+
+int execve(const char *filename, char *const argv[], char *const envp[]) {
+  // TODO implement execve
+  char *msg = "TODO implement execve\n";
+  write(1, msg, strlen(msg));
+  return -1;
+}
+
+struct passwd *getpwnam(const char *name) {
+  // TODO implement getpwnam
+  char *msg = "TODO implement getpwnam\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+void *memrchr(const void *s, int c, size_t n) {
+  const unsigned char *p = (const unsigned char *)s + n;
+  while (n--) {
+    if (*--p == (unsigned char)c) {
+      return (void *)p;
+    }
+  }
+  return NULL;
+}
+
+DIR *opendir(const char *name) {
+  // TODO implement opendir
+  char *msg = "TODO implement opendir\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+DIR *readdir64(DIR *dirp) {
+  // TODO implement readdir64
+  char *msg = "TODO implement readdir64\n";
+  write(1, msg, strlen(msg));
+  return NULL;
+}
+
+int closedir(DIR *dirp) {
+  // TODO implement closedir
+  char *msg = "TODO implement closedir\n";
+  write(1, msg, strlen(msg));
   return -1;
 }
