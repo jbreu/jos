@@ -1,4 +1,3 @@
-use crate::mem_config;
 use crate::mem_config::KERNEL_HIGHER_HALF_BASE;
 use crate::serial;
 // add better formatting options, see https://os.phil-opp.com/vga-text-mode/#a-kprintln-macro
@@ -37,22 +36,27 @@ static mut CURRENT_COL: u64 = 0;
 
 pub struct KPrinter {
     pub color: Colors,
+    pub written: u64,
 }
 
 impl core::fmt::Write for KPrinter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        crate::kprint::kprint(s, self.color);
+        let n = crate::kprint::kprint(s, self.color);
+        self.written += n;
         Ok(())
     }
 }
+
 #[macro_export]
 macro_rules! kprint_internal {
     ($color:expr, $with_newline:expr, $($arg:tt)*) => {{
-        let mut kprinter = crate::kprint::KPrinter { color: $color };
+        let mut kprinter = crate::kprint::KPrinter { color: $color, written: 0 };
         core::fmt::write(&mut kprinter, core::format_args!($($arg)*)).unwrap();
         if $with_newline {
             crate::kprint::kprint_char('\n', $color);
+            kprinter.written += 1;
         }
+        kprinter.written
     }};
 }
 
@@ -62,7 +66,8 @@ macro_rules! kprintlncolor {
         kprint_internal!($color, true, $($arg)*)
     };
     () => {
-        crate::kprint::kprint_char('\n', $color)
+        crate::kprint::kprint_char('\n', $color);
+        return 0;
     };
 }
 
@@ -72,7 +77,8 @@ macro_rules! kprintcolor {
         crate::kprint_internal!($color, false, $($arg)*)
     };
     () => {
-        crate::kprint::kprint_char('\n')
+        crate::kprint::kprint_char('\n');
+        return 0;
     };
 }
 
@@ -82,7 +88,8 @@ macro_rules! kprintln {
         crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, true, $($arg)*)
     };
     () => {
-        crate::kprint::kprint_char('\n')
+        crate::kprint::kprint_char('\n');
+        return 0;
     };
 }
 
@@ -92,7 +99,8 @@ macro_rules! kprint {
         crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, false, $($arg)*)
     };
     () => {
-        crate::kprint::kprint_char('\n')
+        crate::kprint::kprint_char('\n');
+        return 0;
     };
 }
 
@@ -152,10 +160,13 @@ fn scroll_line() {
     }
 }
 
-pub fn kprint(text: &str, color: Colors) {
+pub fn kprint(text: &str, color: Colors) -> u64 {
+    let mut written = 0;
     for character in text.chars() {
         kprint_char(character, color);
+        written += 1;
     }
+    written
 }
 
 pub fn _kprint_text_at_pos(text: &str, row: u64, column: u64, color: Colors) {

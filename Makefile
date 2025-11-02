@@ -16,9 +16,8 @@ setup: $(x86_64_asm_object_files)
 .PHONY: userland
 userland:
 	# gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections && \
-	cd userland && \
-	./build_dash.sh -c && \
-	cd ..
+	cd userland && ./build_dash.sh -c && cd .. && \
+	cd storage && sh generateExt2Img.sh && cd ..
 
 .PHONY: kernel
 kernel:
@@ -29,7 +28,6 @@ kernel:
 iso: 
 	x86_64-elf-ld -n -o dist/x86_64/kernel.bin --unresolved-symbols=report-all -z noexecstack -T targets/x86_64/linker.ld $(x86_64_asm_object_files) build/kernel/x86_64-unknown-none/debug/libjos.a && \
 	cp dist/x86_64/kernel.bin targets/x86_64/iso/boot/kernel.bin && \
-	cd storage && sh generateExt2Img.sh && cd .. && \
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso targets/x86_64/iso
 	
 .PHONY: all
