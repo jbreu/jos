@@ -1,7 +1,5 @@
-use elf::file;
-
 use crate::ERROR;
-use crate::kprintln;
+use crate::kprint;
 use crate::{USERLAND, time};
 use crate::{keyboard, vga};
 use core::arch::asm;
@@ -135,10 +133,13 @@ fn syscall_write(filedescriptor: u64, payload: u64, len: u64) -> u64 {
         )) {
             Ok(msg) => match filedescriptor {
                 // stdout
-                1 => {
-                    kprintln!("{}", msg)
+                1 | 2 => {
+                    return kprint!("{}", msg);
                 }
-                _ => ERROR!("Undefined filedescriptor!"),
+                _ => {
+                    core::hint::black_box(()); // dummy instruction to place breakpoint on
+                    ERROR!("Undefined filedescriptor!");
+                }
             },
             Err(_) => ERROR!("\nCouldnt reconstruct string!\n"),
         }
