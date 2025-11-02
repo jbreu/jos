@@ -77,6 +77,7 @@ bool strcmp(const char *a, const char *b) {
 ssize_t write(int filedescriptor, const void *payload, size_t len) {
   uint64_t result;
   DO_SYSCALL(1, result, filedescriptor, (uintptr_t)payload, len);
+  return result;
 }
 
 // Get process ID
@@ -253,33 +254,73 @@ int sprintf(char *str, const char *format, ...) {
   va_start(args, format);
   char *ptr = str;
   const char *fmt = format;
-
   while (*fmt != '\0') {
     if (*fmt == '%') {
       fmt++;
-      switch (*fmt) {
-      case 'd': {
-        int num = va_arg(args, int);
-        ptr += sprintf(ptr, "%d", num); // Append integer
-        break;
-      }
-      case 's': {
-        char *s = va_arg(args, char *);
-        ptr += sprintf(ptr, "%s", s); // Append string
-        break;
-      }
-      case 'c': {
-        char c = (char)va_arg(args, int); // Get character
-        *ptr++ = c;                       // Append character
-        *ptr = '\0';                      // Null-terminate
-        break;
-      }
-      default:
-        // Handle unknown format specifiers
-        *ptr++ = '%';
-        *ptr++ = *fmt;
-        *ptr = '\0';
-        break;
+      // handle long decimal "%ld"
+      if (*fmt == 'l' && *(fmt + 1) != '\0') {
+        fmt++; // now points to the specifier after 'l'
+        if (*fmt == 'd') {
+          long num = va_arg(args, long);
+          unsigned long long v;
+          int neg = 0;
+          if (num < 0) {
+            neg = 1;
+            /* avoid UB for LONG_MIN */
+            v = (unsigned long long)(-(num + 1)) + 1ULL;
+          } else {
+            v = (unsigned long long)num;
+          }
+
+          char tmp[32];
+          int ti = 0;
+          if (v == 0) {
+            tmp[ti++] = '0';
+          } else {
+            while (v) {
+              tmp[ti++] = '0' + (v % 10);
+              v /= 10;
+            }
+          }
+          if (neg) {
+            *ptr++ = '-';
+          }
+          while (ti--) {
+            *ptr++ = tmp[ti];
+          }
+          *ptr = '\0';
+        } else {
+          // unknown long- modifier: emit literally "lX"
+          *ptr++ = '%';
+          *ptr++ = 'l';
+          *ptr++ = *fmt;
+          *ptr = '\0';
+        }
+      } else {
+        switch (*fmt) {
+        case 'd': {
+          int num = va_arg(args, int);
+          ptr += sprintf(ptr, "%d", num); // Append integer
+          break;
+        }
+        case 's': {
+          char *s = va_arg(args, char *);
+          ptr += sprintf(ptr, "%s", s); // Append string
+          break;
+        }
+        case 'c': {
+          char c = (char)va_arg(args, int); // Get character
+          *ptr++ = c;                       // Append character
+          *ptr = '\0';                      // Null-terminate
+          break;
+        }
+        default:
+          // Handle unknown format specifiers
+          *ptr++ = '%';
+          *ptr++ = *fmt;
+          *ptr = '\0';
+          break;
+        }
       }
     } else {
       *ptr++ = *fmt; // Copy regular characters
@@ -991,8 +1032,46 @@ uint32_t htonl(uint32_t hostlong) {
 }
 
 int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
-  // Simplified using existing sprintf (not safe for production)
-  return sprintf(str, format, ap);
+  // simplified implementation
+  int written = 0;
+  const char *fmt = format;
+  char *ptr = str;
+  while (*fmt != '\0' && written < (int)(size - 1)) {
+    if (*fmt == '%') {
+      fmt++;
+      if (*fmt == 'l' && *(fmt + 1) != '\0') {
+        // handle long specifiers like %ld
+        fmt++;
+        if (*fmt == 'd') {
+          long val = va_arg(ap, long);
+          written += sprintf(ptr + written, "%ld", val);
+        } else {
+          // unknown long-specifier, emit literally
+          ptr[written++] = '%';
+          ptr[written++] = 'l';
+          ptr[written++] = *fmt;
+        }
+      } else if (*fmt == 'd') {
+        int val = va_arg(ap, int);
+        written += sprintf(ptr + written, "%d", val);
+      } else if (*fmt == 's') {
+        char *s = va_arg(ap, char *);
+        written += sprintf(ptr + written, "%s", s);
+      } else if (*fmt == 'c') {
+        char c = (char)va_arg(ap, int);
+        ptr[written++] = c;
+      } else {
+        ptr[written++] = '%';
+        if (*fmt)
+          ptr[written++] = *fmt;
+      }
+    } else {
+      ptr[written++] = *fmt;
+    }
+    fmt++;
+  }
+  ptr[written] = '\0';
+  return written;
 }
 
 int isatty(int fd) {
@@ -1140,6 +1219,20 @@ int sigfillset(sigset_t *set) {
 int fcntl(int fildes, int cmd, ...) {
   char *msg = "TODO implement fcntl\n";
   write(1, msg, strlen(msg));
+
+  if (cmd == F_DUPFD) {
+    // va_list args;
+    // va_start(args, cmd);
+    // int newfd = va_arg(args, int);
+    // va_end(args);
+
+    // For simplicity, just return newfd
+    // return newfd;
+
+    // shortcut: just return the same fildes
+    return fildes;
+  }
+
   return -1;
 }
 

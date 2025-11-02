@@ -4,6 +4,7 @@
 #include "ctype.h"
 #include "dirent.h"
 #include "errno.h"
+#include "fcntl.h"
 #include "inttypes.h"
 #include "signal.h"
 #include "stdbool.h"
