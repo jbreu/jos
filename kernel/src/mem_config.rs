@@ -47,4 +47,4 @@ pub const MAX_PAGE_FRAMES: usize = 0x100000000 / PAGE_SIZE; // 4 GiB total memor
 /// Virtual memory layout constants
 pub const KERNEL_HIGHER_HALF_BASE: usize = 0xffff_8000_0000_0000;
 pub const KERNEL_STACK_TOP_ADDRESS: usize = 0xffff_ffff_ffff_ffff;
-pub const USERSPACE_STACK_TOP_ADDRESS: usize = 0x0000_7fff_ffff_ffff;
+pub const USERSPACE_STACK_TOP_ADDRESS: usize = 0x0000_7fff_ffff_fff0;

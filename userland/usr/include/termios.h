@@ -1,3 +1,6 @@
+#ifndef _TERMIOS_H
+#define _TERMIOS_H
+
 typedef unsigned int tcflag_t;
 typedef unsigned char cc_t;
 
@@ -48,3 +51,5 @@ struct termios {
 };
 
 int tcgetattr(int fd, struct termios *termios_p);
+
+#endif /* _TERMIOS_H */
