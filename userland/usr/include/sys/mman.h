@@ -1,0 +1,1 @@
+int memfd_create(const char *name, unsigned int flags);

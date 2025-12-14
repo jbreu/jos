@@ -1,4 +1,5 @@
 use crate::ERROR;
+use crate::interrupt;
 use crate::kprint;
 use crate::{USERLAND, time};
 use crate::{keyboard, vga};
@@ -45,6 +46,7 @@ pub extern "C" fn system_call() -> u64 {
         16 => return syscall_getcwd(arg0 as *mut u64, arg1),
         17 => return syscall_getppid(),
         18 => return syscall_kill(arg0 as u64, arg1 as u32),
+        19 => return syscall_read(arg0, arg1, arg2),
         _ => {
             ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -227,4 +229,36 @@ fn syscall_getppid() -> u64 {
 fn syscall_kill(_pid: u64, _sig: u32) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
     USERLAND.lock().kill_process(_pid, _sig) as u64
+}
+
+fn syscall_read(filedescriptor: u64, buffer: u64, len: u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
+
+    if filedescriptor == 0 {
+        // stdin
+        interrupt::STDIN_BUFFER_POS.store(0, core::sync::atomic::Ordering::Relaxed);
+
+        // wait for input or until len bytes have been read
+        while interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) == 0
+            || unsafe {
+                interrupt::STDIN_BUFFER
+                    [interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) - 1]
+                    != '\n'
+            }
+            || len < interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) as u64
+        {
+            // wait for input
+            unsafe { asm!("hlt") };
+        }
+
+        for i in 0..interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) {
+            unsafe {
+                *(buffer as *mut u8).add(i) = interrupt::STDIN_BUFFER[i] as u8;
+            }
+        }
+
+        return interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) as u64;
+    } else {
+        todo!();
+    }
 }

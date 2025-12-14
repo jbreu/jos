@@ -10,7 +10,7 @@ macro_rules! log_with_level {
 #[macro_export]
 macro_rules! DEBUG {
     ($($arg:tt)*) => {
-        crate::log_with_level!(crate::kprint::Colors::KPrintColorGreen, "[DEBUG] ", $($arg)*);
+        crate::log_with_level!(crate::kprint::Colors::KPrintColorGreen, "[DEBUG] ", $($arg)*)
     };
 }
 
@@ -24,6 +24,6 @@ macro_rules! INFO {
 #[macro_export]
 macro_rules! ERROR {
     ($($arg:tt)*) => {
-        crate::log_with_level!(crate::kprint::Colors::KPrintColorRed, "[ERROR] ", $($arg)*);
+        crate::log_with_level!(crate::kprint::Colors::KPrintColorRed, "[ERROR] ", $($arg)*)
     };
 }

@@ -10,6 +10,7 @@
 // String and memory functions
 uint64_t strlen(const char *str);
 bool strcmp(const char *a, const char *b);
+int strncmp(const char *s1, const char *s2, size_t n);
 char *strcpy(char *destination, const char *source);
 char *strncpy(char *destination, const char *source, size_t num);
 char *stpcpy(char *dest, const char *src);
@@ -26,6 +27,7 @@ char *strstr(const char *str, const char *substr);
 char *strdup(const char *str1);
 size_t strspn(const char *str1, const char *str2);
 double strtod(char const *str, char **endptr);
+int strcoll(const char *s1, const char *s2);
 
 int strcasecmp(const char *s1, const char *s2);
 int strncasecmp(const char *s1, const char *s2, size_t n);

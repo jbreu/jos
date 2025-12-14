@@ -11,6 +11,7 @@ use crate::userland;
 use crate::util::out_port_b;
 use core::arch::asm;
 use core::arch::global_asm;
+use core::sync::atomic::AtomicUsize;
 
 global_asm!(include_str!("interrupt.S"));
 
@@ -45,6 +46,9 @@ static mut IDT_ENTRIES: [IdtEntryStruct; 256] = [IdtEntryStruct {
     sel: 0,
     reserved: 0,
 }; 256];
+
+pub static mut STDIN_BUFFER: [char; 0x1000] = ['\0'; 0x1000];
+pub static STDIN_BUFFER_POS: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
 pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
@@ -139,6 +143,14 @@ pub extern "C" fn irq_handler(int_no: u64) {
             }
 
             let key = keyboard::get_key_for_scancode(scancode as u8);
+
+            unsafe {
+                STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] = key;
+            }
+            STDIN_BUFFER_POS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+            unsafe {
+                STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] = '\0';
+            }
 
             kprint!("{}", key);
 

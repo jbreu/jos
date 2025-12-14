@@ -12,7 +12,7 @@ RUN echo "deb http://security.debian.org/debian-security bullseye-security main 
 
 RUN set -x \
     && apt-get update \
-    && apt-get install -y curl build-essential nasm xorriso grub-pc-bin grub-common make wget libgmp3-dev libmpfr-dev libisl-dev libmpc-dev texinfo make bzip2 patch sudo qemu-system-x86 e2fsprogs
+    && apt-get install -y curl build-essential nasm xorriso grub-pc-bin grub-common make wget libgmp3-dev libmpfr-dev libisl-dev libmpc-dev texinfo make bzip2 patch sudo qemu-system-x86 e2fsprogs automake autoconf libtool
 
 # Pull binutils and gcc source code
 RUN set -x \

@@ -22,7 +22,8 @@ export LIBS="-lc"
 
 if [ $# = 1 ] && [ "$1" = "-c" ]; then
 	#./configure --host=x86_64-jos --prefix=/usr --without-bash-malloc --enable-static-link --disable-threads
-	make clean 
+	#make clean 
+	./autogen.sh
 	./configure --host=x86_64-jos --enable-static
 fi
 
@@ -35,5 +36,5 @@ for file in Makefile src/Makefile; do
 	fi
 done
 
-#make clean
+make clean
 make V=1

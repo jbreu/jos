@@ -1,7 +1,9 @@
 #include "chartypes.h"
 #include "ctype.h"
+#include "limits.h"
 #include "stddef.h"
 #include "sys/stat.h"
+#include "termios.h"
 
 /* whence values for lseek(2) */
 #define SEEK_SET 0 /* Set file offset to offset */
@@ -26,6 +28,7 @@ int chdir(const char *path);
 void _exit(int status) __attribute__((noreturn));
 
 int pipe(int pipefd[2]);
+int dup(int fildes);
 int dup2(int oldfd, int newfd);
 
 int isatty(int fd);
