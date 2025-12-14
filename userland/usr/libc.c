@@ -1390,10 +1390,9 @@ int sigsetmask(int mask) {
 }
 
 ssize_t read(int fd, void *buf, size_t count) {
-  // TODO implement read
-  char *msg = "TODO implement read\n";
-  write(1, msg, strlen(msg));
-  return -1;
+  uint64_t result;
+  DO_SYSCALL(19, result, fd, buf, count);
+  return (ssize_t)result;
 }
 
 int tee(int fd_in, int fd_out, size_t len, unsigned int flags) {
@@ -1407,7 +1406,13 @@ int tcgetattr(int fd, struct termios *termios_p) {
   // TODO implement tcgetattr
   char *msg = "TODO implement tcgetattr\n";
   write(1, msg, strlen(msg));
-  return -1;
+
+  if (fd >= 0 && fd <= 2) {
+    // stdin, stdout, stderr
+    termios_p->c_lflag = ICANON | ECHO;
+    return 1;
+  }
+  return 0;
 }
 
 void abort(void) {
