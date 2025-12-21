@@ -47,6 +47,7 @@ pub extern "C" fn system_call() -> u64 {
         17 => return syscall_getppid(),
         18 => return syscall_kill(arg0 as u64, arg1 as u32),
         19 => return syscall_read(arg0, arg1, arg2),
+        20 => return syscall_realloc(arg0, arg1 as usize),
         _ => {
             ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -107,6 +108,11 @@ fn syscall_fopen(filename: *const u64, mode: *mut u32) -> u64 {
 fn syscall_malloc(size: usize) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
     return USERLAND.lock().process_malloc(size);
+}
+
+fn syscall_realloc(ptr: u64, size: usize) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
+    return USERLAND.lock().process_realloc(ptr, size);
 }
 
 fn syscall_plot_pixel(x: u32, y: u32, color: u32) -> u64 {

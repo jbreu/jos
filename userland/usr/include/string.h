@@ -9,7 +9,7 @@
 
 // String and memory functions
 uint64_t strlen(const char *str);
-bool strcmp(const char *a, const char *b);
+int strcmp(const char *a, const char *b);
 int strncmp(const char *s1, const char *s2, size_t n);
 char *strcpy(char *destination, const char *source);
 char *strncpy(char *destination, const char *source, size_t num);

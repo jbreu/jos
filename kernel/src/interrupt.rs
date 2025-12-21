@@ -144,15 +144,19 @@ pub extern "C" fn irq_handler(int_no: u64) {
 
             let key = keyboard::get_key_for_scancode(scancode as u8);
 
-            unsafe {
-                STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] = key;
-            }
-            STDIN_BUFFER_POS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-            unsafe {
-                STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] = '\0';
-            }
+            if key != 0xfe as char {
+                unsafe {
+                    STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] =
+                        key;
+                }
+                STDIN_BUFFER_POS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                unsafe {
+                    STDIN_BUFFER[STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed)] =
+                        '\0';
+                }
 
-            kprint!("{}", key);
+                kprint!("{}", key);
+            }
 
             let lcontrol: char = 0x1d as char;
 
