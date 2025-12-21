@@ -58,19 +58,12 @@ uint64_t strlen(const char *str) {
   return len;
 }
 
-bool strcmp(const char *a, const char *b) {
-  int i = 0;
-
-  while (a[i] != '\0') {
-    if (a[i] == b[i]) {
-      i++;
-      continue;
-    } else {
-      return false;
-    }
+int strcmp(const char *a, const char *b) {
+  while (*a && (*a == *b)) {
+    a++;
+    b++;
   }
-
-  return true;
+  return *(unsigned char *)a - *(unsigned char *)b;
 }
 
 // Write function using syscall
@@ -300,35 +293,67 @@ int sprintf(char *str, const char *format, ...) {
         switch (*fmt) {
         case 'd': {
           int num = va_arg(args, int);
-          ptr += sprintf(ptr, "%d", num); // Append integer
+          unsigned int v;
+          int neg = 0;
+          if (num < 0) {
+            neg = 1;
+            v = (unsigned int)(-(num + 1)) + 1U;
+          } else {
+            v = (unsigned int)num;
+          }
+          char tmp[16];
+          int ti = 0;
+          if (v == 0) {
+            tmp[ti++] = '0';
+          } else {
+            while (v) {
+              tmp[ti++] = '0' + (v % 10);
+              v /= 10;
+            }
+          }
+          if (neg) {
+            *ptr++ = '-';
+          }
+          while (ti--) {
+            *ptr++ = tmp[ti];
+          }
           break;
         }
         case 's': {
           char *s = va_arg(args, char *);
-          ptr += sprintf(ptr, "%s", s); // Append string
+          if (s) {
+            while (*s) {
+              *ptr++ = *s++;
+            }
+          } else {
+            /* print (null) for NULL strings */
+            const char *nulls = "(null)";
+            const char *ns = nulls;
+            while (*ns)
+              *ptr++ = *ns++;
+          }
           break;
         }
         case 'c': {
-          char c = (char)va_arg(args, int); // Get character
-          *ptr++ = c;                       // Append character
-          *ptr = '\0';                      // Null-terminate
+          char c = (char)va_arg(args, int);
+          *ptr++ = c;
           break;
         }
         default:
           // Handle unknown format specifiers
           *ptr++ = '%';
-          *ptr++ = *fmt;
-          *ptr = '\0';
+          if (*fmt)
+            *ptr++ = *fmt;
           break;
         }
       }
     } else {
-      *ptr++ = *fmt; // Copy regular characters
-      *ptr = '\0';   // Null-terminate
+      *ptr++ = *fmt;
     }
     fmt++;
   }
 
+  *ptr = '\0';
   va_end(args);
   return (int)(ptr - str); // Return the length of the formatted string
 }
@@ -1090,15 +1115,37 @@ void _exit(int status) {
 }
 
 void longjmp(jmp_buf env, int val) {
-  // TODO implement
-  char *msg = "TODO implement longjmp\n";
-  write(1, msg, strlen(msg));
+  if (val == 0)
+    val = 1; // make sure return value is non-zero
+  asm volatile("movq 16(%0), %%rbx\n\t"
+               "movq 24(%0), %%rbp\n\t"
+               "movq 32(%0), %%r12\n\t"
+               "movq 40(%0), %%r13\n\t"
+               "movq 48(%0), %%r14\n\t"
+               "movq 56(%0), %%r15\n\t"
+               "movl %1, %%eax\n\t" // return value in EAX
+               "movq 0(%0), %%rsp\n\t"
+               "jmp *8(%0)\n\t" // jump to saved RIP
+               :
+               : "r"(env), "r"(val)
+               : "memory", "rax");
 }
 
 int setjmp(jmp_buf env) {
-  // TODO implement
-  char *msg = "TODO implement setjmp\n";
-  write(1, msg, strlen(msg));
+  asm volatile("movq %%rsp, 0(%0)\n\t" // save stack pointer
+               "leaq 1f(%%rip), %%rax\n\t"
+               "movq %%rax, 8(%0)\n\t" // save instruction pointer
+               "movq %%rbx, 16(%0)\n\t"
+               "movq %%rbp, 24(%0)\n\t"
+               "movq %%r12, 32(%0)\n\t"
+               "movq %%r13, 40(%0)\n\t"
+               "movq %%r14, 48(%0)\n\t"
+               "movq %%r15, 56(%0)\n\t"
+               "xor %%eax, %%eax\n\t" // return 0
+               "1:\n"
+               : /* no outputs */
+               : "r"(env)
+               : "rax", "memory");
   return 0;
 }
 
@@ -1297,10 +1344,24 @@ mode_t umask(mode_t mask) {
 }
 
 void *realloc(void *ptr, size_t size) {
-  // TODO implement realloc
-  char *msg = "TODO implement realloc\n";
-  write(1, msg, strlen(msg));
-  return NULL;
+  if (ptr == NULL) {
+    return malloc(size);
+  }
+  if (size == 0) {
+    free(ptr);
+    return NULL;
+  }
+
+  // For simplicity, we won't track the original size of ptr.
+  // We'll just allocate new memory and copy a fixed amount.
+  void *new_ptr = malloc(size);
+  if (new_ptr == NULL) {
+    return NULL;
+  }
+
+  memcpy(new_ptr, ptr, size);
+  free(ptr);
+  return new_ptr;
 }
 
 char *setlocale(int category, const char *locale) {

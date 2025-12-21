@@ -442,6 +442,58 @@ impl Process {
         }
     }
 
+    pub fn realloc(&mut self, ptr: u64, new_size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        unsafe {
+            if ptr == 0 {
+                return self.malloc(new_size);
+            }
+
+            let layout = core::alloc::Layout::from_size_align_unchecked(new_size, 0x8);
+
+            if new_size == 0 {
+                self.heap_allocator
+                    .lock()
+                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), layout);
+                return 0;
+            }
+
+            /*
+                // SAFETY: the caller must ensure that the `new_size` does not overflow.
+                // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
+                let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+                // SAFETY: the caller must ensure that `new_layout` is greater than zero.
+                let new_ptr = unsafe { self.alloc(new_layout) };
+                if !new_ptr.is_null() {
+                    // SAFETY: the previously allocated block cannot overlap the newly allocated block.
+                    // The safety contract for `dealloc` must be upheld by the caller.
+                    unsafe {
+                        ptr::copy_nonoverlapping(ptr, new_ptr, cmp::min(layout.size(), new_size));
+                        self.dealloc(ptr, layout);
+                    }
+                }
+            new_ptr */
+
+            let new_ptr = self.heap_allocator.lock().allocate_first_fit(layout);
+
+            if new_ptr.is_ok() {
+                let new_address = new_ptr.unwrap().as_ptr() as u64;
+
+                core::ptr::copy_nonoverlapping(ptr as *const u8, new_address as *mut u8, new_size);
+
+                self.heap_allocator
+                    .lock()
+                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), layout);
+
+                return new_address;
+            }
+
+            ERROR!("Failed to reallocate memory\n");
+            panic!("Out of memory");
+        }
+    }
+
     pub fn launch(&mut self) {
         let _event = core::hint::black_box(crate::instrument!());
 

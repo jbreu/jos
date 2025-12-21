@@ -42,6 +42,12 @@ impl Userland {
         return self.processes[self.current_process].malloc(size);
     }
 
+    pub fn process_realloc(&mut self, ptr: u64, size: usize) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        return self.processes[self.current_process].realloc(ptr, size);
+    }
+
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
         let _event = core::hint::black_box(crate::instrument!());
 
