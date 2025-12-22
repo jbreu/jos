@@ -6,6 +6,7 @@
 #include "errno.h"
 #include "fcntl.h"
 #include "inttypes.h"
+#include "setjmp.h"
 #include "signal.h"
 #include "stdbool.h"
 #include "stddef.h"

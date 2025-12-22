@@ -33,3 +33,4 @@ tools/perf/profile.proto
 tools/perf/output.pb.gz
 tools/perf/__pycache__/
 userland/dash-0.5.13/
+dash-0.5.13.tar.gz
