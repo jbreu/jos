@@ -10,14 +10,14 @@ setup: $(x86_64_asm_object_files)
 	mkdir -p build/kernel && \
 	mkdir -p build/userspace/x86_64-unknown-none/debug/ && \
 	mkdir -p dist/x86_64 && \
-	wget https://github.com/Daivuk/PureDOOM/raw/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/doom1.wad -N && \
-	wget -P userland/src/doom/ https://raw.githubusercontent.com/Daivuk/PureDOOM/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/PureDOOM.h -N
+	test -f userland/src/doom/doom1.wad || wget https://github.com/Daivuk/PureDOOM/raw/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/doom1.wad -O userland/src/doom/doom1.wad && \
+	test -f userland/src/doom/PureDOOM.h || wget -P userland/src/doom/ https://raw.githubusercontent.com/Daivuk/PureDOOM/48376ddd6bbdb70085dab91feb1c6ceef80fa9b7/PureDOOM.h -N
 
 .PHONY: userland
 userland:
 	# gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections && \
-	wget https://git.kernel.org/pub/scm/utils/dash/dash.git/snapshot/dash-0.5.13.tar.gz -N && \
-	tar -xzf dash-0.5.13.tar.gz -C userland/ && rm dash-0.5.13.tar.gz && \
+	test -f dash-0.5.13.tar.gz || wget https://git.kernel.org/pub/scm/utils/dash/dash.git/snapshot/dash-0.5.13.tar.gz -N && \
+	tar -xzf dash-0.5.13.tar.gz -C userland/ && \
 	cd userland && ./build_dash.sh -c && cd .. && \
 	cd storage && sh generateExt2Img.sh && cd ..
 

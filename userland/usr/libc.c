@@ -1114,41 +1114,6 @@ void _exit(int status) {
   write(1, msg, strlen(msg));
 }
 
-void longjmp(jmp_buf env, int val) {
-  if (val == 0)
-    val = 1; // make sure return value is non-zero
-  asm volatile("movq 16(%0), %%rbx\n\t"
-               "movq 24(%0), %%rbp\n\t"
-               "movq 32(%0), %%r12\n\t"
-               "movq 40(%0), %%r13\n\t"
-               "movq 48(%0), %%r14\n\t"
-               "movq 56(%0), %%r15\n\t"
-               "movl %1, %%eax\n\t" // return value in EAX
-               "movq 0(%0), %%rsp\n\t"
-               "jmp *8(%0)\n\t" // jump to saved RIP
-               :
-               : "r"(env), "r"(val)
-               : "memory", "rax");
-}
-
-int setjmp(jmp_buf env) {
-  asm volatile("movq %%rsp, 0(%0)\n\t" // save stack pointer
-               "leaq 1f(%%rip), %%rax\n\t"
-               "movq %%rax, 8(%0)\n\t" // save instruction pointer
-               "movq %%rbx, 16(%0)\n\t"
-               "movq %%rbp, 24(%0)\n\t"
-               "movq %%r12, 32(%0)\n\t"
-               "movq %%r13, 40(%0)\n\t"
-               "movq %%r14, 48(%0)\n\t"
-               "movq %%r15, 56(%0)\n\t"
-               "xor %%eax, %%eax\n\t" // return 0
-               "1:\n"
-               : /* no outputs */
-               : "r"(env)
-               : "rax", "memory");
-  return 0;
-}
-
 size_t mbrlen(const char *s, size_t n, mbstate_t *ps) {
   // Simplified implementation assuming single-byte characters
   if (n == 0 || s == NULL || *s == '\0') {
