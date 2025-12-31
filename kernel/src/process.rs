@@ -16,7 +16,7 @@ pub static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(1);
 
 // stores a process' registers when it gets interrupted
 #[repr(C)]
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct RegistersStruct {
     // Has to be always in sync with asm macro "pop_all_registers"
     xmm7: [u64; 2],
@@ -69,13 +69,6 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
-fn check_half(entry: *const u64) -> *const u64 {
-    if entry < 0xffff800000000000 as *const u64 {
-        return (entry as u64 + 0xffff800000000000 as u64) as *const u64;
-    }
-    entry
-}
-
 fn print_page_table_tree(start_addr: u64) {
     let _event = core::hint::black_box(crate::instrument!());
     let entry_mask = 0x0008_ffff_ffff_f800;
@@ -84,18 +77,22 @@ fn print_page_table_tree(start_addr: u64) {
         kprint!("start_addr: {:#x}\n", start_addr);
 
         for l4_entry in 0..512 {
-            let l4bits = *check_half((start_addr + l4_entry * 8) as *const u64);
+            let l4bits =
+                *(((start_addr + l4_entry * 8) | KERNEL_HIGHER_HALF_BASE as u64) as *const u64);
             if l4bits != 0 {
                 kprint!("   L4: {} - {:#x}\n", l4_entry, l4bits & entry_mask);
 
                 for l3_entry in 0..512 {
-                    let l3bits = *check_half(((l4bits & entry_mask) + l3_entry * 8) as *const u64);
+                    let l3bits = *((((l4bits & entry_mask) + l3_entry * 8)
+                        | KERNEL_HIGHER_HALF_BASE as u64)
+                        as *const u64);
                     if l3bits != 0 {
                         kprint!("      L3: {} - {:#x}\n", l3_entry, l3bits & entry_mask);
 
                         for l2_entry in 0..512 {
-                            let l2bits =
-                                *check_half(((l3bits & entry_mask) + l2_entry * 8) as *const u64);
+                            let l2bits = *((((l3bits & entry_mask) + l2_entry * 8)
+                                | KERNEL_HIGHER_HALF_BASE as u64)
+                                as *const u64);
 
                             if l2bits != 0 {
                                 kprint!("         L2: {} - {:#x}\n", l2_entry, l2bits & entry_mask);
@@ -108,12 +105,13 @@ fn print_page_table_tree(start_addr: u64) {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum ProcessState {
     New,
     Prepared,
     Active,
     Passive,
+    Sleeping,
 }
 
 pub struct Process {
@@ -197,20 +195,52 @@ impl Process {
         }
     }
 
-    pub fn initialize(&mut self) {
+    pub fn initialize(&mut self, file_path: &str, execve: bool) {
         let _event = core::hint::black_box(crate::instrument!());
+
+        // reset everything (relevant if process was forked from another process)
+        self.registers = RegistersStruct::default();
+        self.l1_page_table = PageTable::default();
+        self.l1_page_table_beginning = [PageTable::default(); 16];
+        self.l2_page_directory_table = PageTable::default();
+        self.l2_page_directory_table_beginning = PageTable::default();
+        self.l3_page_directory_pointer_table = PageTable::default();
+        self.l3_page_directory_pointer_table_beginning = PageTable::default();
+        self.l4_page_map_l4_table = PageTable::default();
+        self.heap_allocator = linked_list_allocator::LockedHeap::empty();
+        self.file_handles = BTreeMap::new();
+        self.heap_l1_table_number = 0;
+        self.heap_l2_table_number = 0;
+        self.stack_page_counter = 0;
 
         // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
-            if KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+            let mut kernel_cr3 = KERNEL_CR3.load(Ordering::Relaxed) as u64;
+
+            if kernel_cr3 == 0 {
                 let mut cr3: u64;
                 asm!("mov r15, cr3", out("r15") cr3);
 
                 KERNEL_CR3.store(cr3 as usize, Ordering::Relaxed);
+                kernel_cr3 = cr3;
+            } else {
+                // load user stack into kernel page table
+                /*let mut user_cr3: u64;
+                asm!("mov r15, cr3", out("r15") user_cr3);
+
+                *((kernel_cr3 | KERNEL_HIGHER_HALF_BASE as u64 + 255 * 8) as *mut u64) =
+                    *((user_cr3 | KERNEL_HIGHER_HALF_BASE as u64 + 255 * 8) as *const u64);
+
+                // in case we are not in the kernel page table, we need to switch to it temporarily to read the kernel page table entries
+                asm!(
+                    "mov cr3, r15",
+                    in("r15") kernel_cr3,
+                    options(nostack, preserves_flags)
+                );*/
             }
 
-            kprint!("Kernel CR3: {:x}\n", KERNEL_CR3.load(Ordering::Relaxed));
+            kprint!("Kernel CR3: {:x}\n", kernel_cr3);
 
             print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
@@ -227,14 +257,14 @@ impl Process {
             self.l2_page_directory_table.entry[0] =
                 allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE as usize;
         } else {
-            // allocate 512 user stack pages
-            for i in 0..512 {
+            // allocate 502 user stack pages (512 - 10 for kernel stack, see next loop)
+            for i in 0..(512 - 10) {
                 self.l1_page_table.entry[511 - i] =
                     allocate_page_frame() | PAGE_ENTRY_FLAGS_USERSPACE as usize;
             }
 
             // TODO HackID1: Fixed kernel stack for interrupts - limited to ten PAGE_SIZE!
-            for i in 1..=10 {
+            for i in 0..10 {
                 self.l1_page_table.entry[i] =
                     allocate_page_frame() | PAGE_ENTRY_FLAGS_KERNELSPACE as usize;
             }
@@ -256,7 +286,7 @@ impl Process {
             &self.l3_page_directory_pointer_table as *const _ as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
-        let mut file_handle = FileHandle::new("/dash", 0).unwrap();
+        let mut file_handle = FileHandle::new(file_path, 0).unwrap();
 
         // put the whole file into a buffer
         // TODO ensure the *kernel* has enough memory for this
@@ -311,6 +341,8 @@ impl Process {
             &self.l3_page_directory_pointer_table_beginning as *const _ as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
+        //print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
+
         // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
         self.cr3 = Process::get_physical_address_for_virtual_address(
             &self.l4_page_map_l4_table as *const _ as usize,
@@ -326,7 +358,7 @@ impl Process {
             );
         }
 
-        print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
+        //print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
         self.rsp = USERSPACE_STACK_TOP_ADDRESS as u64;
 
@@ -625,16 +657,18 @@ impl Process {
 
             asm!("mov {}, cr3", out(reg) cr3);
 
-            let l4_page_map_base_address = cr3 as usize;
+            let l4_page_map_base_address = cr3 as usize | KERNEL_HIGHER_HALF_BASE;
 
             let l3_page_directory_pointer_table_address =
                 *((l4_page_map_base_address + l4_page_map_table_offset * 8) as *const usize)
-                    & ENTRY_MASK;
+                    & ENTRY_MASK
+                    | KERNEL_HIGHER_HALF_BASE;
 
             let l2_page_directory_table_address = *((l3_page_directory_pointer_table_address
                 + l3_page_directory_pointer_offset * 8)
                 as *const usize)
-                & ENTRY_MASK;
+                & ENTRY_MASK
+                | KERNEL_HIGHER_HALF_BASE;
 
             if PAGE_SIZE == HUGE_PAGE_SIZE {
                 let physical_page_address = *((l2_page_directory_table_address
@@ -647,7 +681,8 @@ impl Process {
                 let l1_page_table_address = *((l2_page_directory_table_address
                     + l2_page_directory_offset * 8)
                     as *const usize)
-                    & ENTRY_MASK;
+                    & ENTRY_MASK
+                    | KERNEL_HIGHER_HALF_BASE;
 
                 let physical_page_address = *((l1_page_table_address + l1_page_table_offset * 8)
                     as *const usize)
@@ -708,7 +743,11 @@ impl Process {
         }
     }
 
-    pub fn load_elf_from_bin(&mut self, program_slice: &[u8]) -> (usize, usize, usize) {
+    pub fn load_elf_from_bin(
+        &mut self,
+        program_slice: &[u8],
+        offset: usize,
+    ) -> (usize, usize, usize) {
         let _event = core::hint::black_box(crate::instrument!());
 
         unsafe {
@@ -846,5 +885,19 @@ impl Process {
     pub fn get_pid(&self) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
         self.process_id
+    }
+
+    pub fn clone_from_parent(&mut self, parent: &Process) {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        self.working_directory = parent.working_directory;
+        self.parent_id = parent.process_id;
+    }
+
+    pub fn put_to_sleep(&mut self) {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        DEBUG!("Putting process to sleep");
+        self.state = ProcessState::Sleeping;
     }
 }
