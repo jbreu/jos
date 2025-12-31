@@ -15,7 +15,7 @@ setup: $(x86_64_asm_object_files)
 
 .PHONY: userland
 userland:
-	# gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections && \
+	gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections --sysroot=/root/env/userland/src/doom && \
 	test -f dash-0.5.13.tar.gz || wget https://git.kernel.org/pub/scm/utils/dash/dash.git/snapshot/dash-0.5.13.tar.gz -N && \
 	tar -xzf dash-0.5.13.tar.gz -C userland/ && \
 	cd userland && ./build_dash.sh -c && cd .. && \

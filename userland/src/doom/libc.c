@@ -1,7 +1,4 @@
 #include "libc.h"
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stdint.h>
 
 uint64_t strlen(const char *str) {
   int len = 0;
