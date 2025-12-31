@@ -28,7 +28,7 @@ static SCANCODES: [char; 69] = [
     'o',
     'p',
     0xfe as char,
-    0xfe as char,
+    '+' as char,
     '\n',         //VK_RETURN -> map to ascii line feed
     0x1d as char, //VK_LCONTROL
     'a',
