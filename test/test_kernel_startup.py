@@ -34,6 +34,7 @@ def test_userland(qemu: QEMUConnection):
     assert b"Hallo Carina" in output
 
 
+@pytest.mark.skip(reason="Doom currently disabled in userland")
 def test_userland_doom(qemu: QEMUConnection):
     """Test that userland Doom starts and outputs expected messages"""
     # Check for Doom initialization messages
@@ -57,6 +58,17 @@ def test_userland_doom(qemu: QEMUConnection):
     for message in messages:
         output = qemu.read_until(message)
         assert message in output
+
+
+def test_userland_dash(qemu: QEMUConnection):
+    """Test that userland dash starts and outputs expected messages"""
+
+    output = qemu.read_until(b"$")
+    assert b"$" in output
+
+    qemu.send_key_press("expr 3 + 4\n")
+    output = qemu.read_until(b"7")
+    assert b"7" in output
 
 
 def test_retrieve_profiling(qemu: QEMUConnection):
