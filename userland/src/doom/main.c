@@ -1,6 +1,6 @@
+#include "inttypes.h"
 #include "libc.h"
-#include <inttypes.h>
-#include <stdbool.h>
+#include "stdbool.h"
 
 #include "PureDOOM.h"
 

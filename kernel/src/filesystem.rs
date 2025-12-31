@@ -139,6 +139,26 @@ impl FileHandle {
         }
         return 0;
     }
+
+    pub fn stat(&self) -> Stat {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        Stat {
+            st_dev: 0,
+            st_ino: 0,
+            st_mode: self.inode.mode as u64,
+            st_nlink: self.inode.links_count as u64,
+            st_uid: self.inode.uid as u64,
+            st_gid: self.inode.gid as u64,
+            st_rdev: 0,
+            st_size: self.inode.size as u64,
+            st_blksize: FILE_SYSTEM.block_size as u64,
+            st_blocks: self.inode.blocks as u64,
+            st_atime: self.inode.atime,
+            st_mtime: self.inode.mtime,
+            st_ctime: self.inode.ctime,
+        }
+    }
 }
 
 //https://slideplayer.com/slide/16554195/96/images/48/Linux+Example:+Ext2/3+Disk+Layout.jpg
@@ -231,6 +251,23 @@ pub struct Inode {
     double_indirect: u32,
     triple_indirect: u32,
     _remaining: [u8; 28], // Combined remaining fields
+}
+
+#[repr(C, packed)]
+pub struct Stat {
+    pub st_dev: u64,
+    pub st_ino: u64,
+    pub st_mode: u64,
+    pub st_nlink: u64,
+    pub st_uid: u64,
+    pub st_gid: u64,
+    pub st_rdev: u64,
+    pub st_size: u64,
+    pub st_blksize: u64,
+    pub st_blocks: u64,
+    pub st_atime: u32,
+    pub st_mtime: u32,
+    pub st_ctime: u32,
 }
 
 #[repr(C, packed)]

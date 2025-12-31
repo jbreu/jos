@@ -193,9 +193,34 @@ fn syscall_get_time(sec: *mut u32, usec: *mut u32) -> u64 {
     return 1;
 }
 
-fn syscall_stat(_pathname: *const u64, _statbuf: *mut u64) -> u64 {
+fn syscall_stat(path: *const u64, statbuf: *mut u64) -> u64 {
     let _event = core::hint::black_box(crate::instrument!());
-    todo!();
+
+    if path.is_null() {
+        return 0;
+    }
+
+    match unsafe { core::str::from_utf8(core::slice::from_raw_parts(path as *const u8, 256)) } {
+        Ok(path_str) => match path_str.split('\0').next() {
+            Some(path_str) => match FileHandle::new(path_str, 0) {
+                Some(file_handle) => {
+                    kprint!("File opened: {}\n", path_str);
+
+                    let stat = file_handle.stat();
+                    unsafe {
+                        core::ptr::write_unaligned(statbuf as *mut Stat, stat);
+                    }
+                    return 0;
+                }
+                None => {
+                    kprint!("Error opening file: {}\n", path_str);
+                    return u64::MAX;
+                }
+            },
+            None => return u64::MAX,
+        },
+        Err(_) => return u64::MAX,
+    }
 }
 
 fn syscall_chdir(pathname: *const u64) -> u64 {
