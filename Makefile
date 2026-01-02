@@ -18,7 +18,7 @@ userland:
 	gcc userland/src/doom/main.c userland/src/doom/libc.c -static -nostdlib -fno-builtin -g -o build/userspace/x86_64-unknown-none/debug/doom -Wl,--gc-sections --sysroot=/root/env/userland/src/doom && \
 	test -f dash-0.5.13.tar.gz || wget https://git.kernel.org/pub/scm/utils/dash/dash.git/snapshot/dash-0.5.13.tar.gz -N && \
 	tar -xzf dash-0.5.13.tar.gz -C userland/ && \
-	cd userland && ./build_dash.sh -c && cd .. && \
+	cd userland && chmod a+x build_dash.sh && ./build_dash.sh -c && cd .. && \
 	cd storage && sh generateExt2Img.sh && cd ..
 
 .PHONY: kernel

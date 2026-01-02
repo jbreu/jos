@@ -195,7 +195,7 @@ impl Process {
         }
     }
 
-    pub fn initialize(&mut self, file_path: &str, execve: bool) {
+    pub fn initialize(&mut self, file_path: &str) {
         let _event = core::hint::black_box(crate::instrument!());
 
         // reset everything (relevant if process was forked from another process)
@@ -743,11 +743,7 @@ impl Process {
         }
     }
 
-    pub fn load_elf_from_bin(
-        &mut self,
-        program_slice: &[u8],
-        offset: usize,
-    ) -> (usize, usize, usize) {
+    pub fn load_elf_from_bin(&mut self, program_slice: &[u8]) -> (usize, usize, usize) {
         let _event = core::hint::black_box(crate::instrument!());
 
         unsafe {

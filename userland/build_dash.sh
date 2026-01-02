@@ -7,6 +7,7 @@ cd usr
 
 gcc -c -g -ffreestanding -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -static -nostdlib -fno-pic -fno-builtin --sysroot=/root/env/userland/ -I/root/env/userland/usr/include/ libc.c 
 ar rcs libc.a *.o
+mkdir -p lib
 mv libc.a lib/libc.a
 
 cd ../dash-0.5.13/

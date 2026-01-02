@@ -156,20 +156,28 @@ class QEMUConnection:
 
     def send_key_press(self, key: str) -> None:
         """Send a key press to QEMU via QMP."""
-        # QEMU expects key names as per QMP documentation, e.g. 'l' -> 'l'
-        # For more complex keys, mapping may be needed
-        key_event = {
-            "execute": "send-key",
-            "arguments": {"keys": [{"type": "qcode", "data": key}]},
-        }
         import json as _json
 
-        msg = _json.dumps(key_event).encode("utf-8") + b"\r\n"
-        if self.qmp_socket:
-            self.qmp_socket.sendall(msg)
-            self.qmp_socket.recv(4096)  # Read response
-        else:
-            raise ConnectionError("QMP socket is not connected")
+        # Map special characters to their QMP key names
+        key_map = {
+            " ": "space",
+            "\n": "ret",
+            "\t": "tab",
+        }
+
+        # Handle multi-character input by sending each character separately
+        for char in key:
+            key_name = key_map.get(char, char)
+            key_event = {
+                "execute": "send-key",
+                "arguments": {"keys": [{"type": "qcode", "data": key_name}]},
+            }
+            msg = _json.dumps(key_event).encode("utf-8") + b"\r\n"
+            if self.qmp_socket:
+                self.qmp_socket.sendall(msg)
+                self.qmp_socket.recv(4096)  # Read response
+            else:
+                raise ConnectionError("QMP socket is not connected")
 
 
 @pytest.fixture

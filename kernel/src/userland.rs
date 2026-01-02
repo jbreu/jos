@@ -1,8 +1,8 @@
 use spin::Mutex;
 
-use crate::mem_config::{KERNEL_STACK_TOP_ADDRESS, USERSPACE_STACK_TOP_ADDRESS};
+use crate::mem_config::USERSPACE_STACK_TOP_ADDRESS;
 use crate::process::Process;
-use crate::{ERROR, USERLAND, kprint};
+use crate::{ERROR, USERLAND};
 
 extern crate alloc;
 use alloc::vec::Vec;
@@ -39,13 +39,13 @@ impl Userland {
     pub fn process_malloc(&mut self, size: usize) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
 
-        return self.processes[self.current_process].malloc(size);
+        return self.get_current_process().malloc(size);
     }
 
     pub fn process_realloc(&mut self, ptr: u64, size: usize) -> u64 {
         let _event = core::hint::black_box(crate::instrument!());
 
-        return self.processes[self.current_process].realloc(ptr, size);
+        return self.get_current_process().realloc(ptr, size);
     }
 
     pub fn switch_to_userland(&mut self, mutex: &Mutex<Userland>) {
@@ -62,10 +62,10 @@ impl Userland {
             //self.processes.push(Process::new());
 
             for process in &mut self.processes {
-                process.initialize();
+                process.initialize("/dash");
             }
 
-            self.current_process = 0;
+            self.current_process = self.processes[0].get_pid() as usize;
 
             self.processes[0].launch();
             //self.processes[1].launch();
@@ -91,24 +91,33 @@ impl Userland {
         let _event = core::hint::black_box(crate::instrument!());
 
         // TODO for now scheduler is simply going round robin
-        let last_process = self.current_process;
+
+        // find vector index of current process by iterating through all processes
+        let mut current_process_index = self
+            .processes
+            .iter()
+            .position(|p| p.get_pid() == self.current_process as u64)
+            .unwrap();
+
+        let last_process = current_process_index;
 
         loop {
-            self.current_process += 1;
-            if self.current_process == self.processes.len() {
-                self.current_process = 0;
+            current_process_index += 1;
+            if current_process_index == self.processes.len() {
+                current_process_index = 0;
             }
-            if self.processes[self.current_process].activatable() {
+            if self.processes[current_process_index].activatable() {
                 break;
             }
 
             // not a single userspace process ready for execution
-            if self.current_process == last_process {
+            if current_process_index == last_process {
                 return;
             }
         }
 
         self.processes[last_process].passivate();
+        self.current_process = self.processes[current_process_index].get_pid() as usize;
         self.processes[self.current_process].activate(false);
     }
 
@@ -121,16 +130,16 @@ impl Userland {
     pub fn get_current_process(&mut self) -> &mut Process {
         let _event = core::hint::black_box(crate::instrument!());
 
-        &mut self.processes[self.current_process]
+        self.processes
+            .iter_mut()
+            .find(|p| p.get_pid() == self.current_process as u64)
+            .unwrap()
     }
 
-    pub fn get_current_process_parent_id(&self) -> usize {
+    pub fn get_current_process_parent_id(&mut self) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 
-        self.processes[self.current_process]
-            .get_parent_id()
-            .try_into()
-            .unwrap()
+        self.get_current_process().get_parent_id() as usize
     }
 
     pub fn kill_process(&mut self, pid: u64, sig: u32) -> i64 {
@@ -147,6 +156,35 @@ impl Userland {
         }
 
         return -1;
+    }
+
+    pub fn vfork_current_process(&mut self) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        let parent_process = self.get_current_process();
+        parent_process.put_to_sleep();
+
+        let mut child_process = Process::new();
+        child_process.clone_from_parent(parent_process);
+
+        let child_pid = child_process.get_pid();
+        self.processes.push(child_process);
+
+        self.current_process = child_pid as usize;
+
+        // return 0 as we are executing in the child process
+        return 0;
+    }
+
+    pub fn execve(&mut self, filename: &str) -> u64 {
+        let _event = core::hint::black_box(crate::instrument!());
+
+        // cycle through all processes to find the current one
+        let current_process = self.get_current_process();
+
+        let filename_str = filename;
+        current_process.initialize(filename_str);
+        0
     }
 }
 
