@@ -1109,9 +1109,10 @@ int isatty(int fd) {
 int *__errno_location(void) { return &errno_value; }
 
 void _exit(int status) {
-  // TODO implement
-  char *msg = "TODO implement _exit\n";
-  write(1, msg, strlen(msg));
+  uint64_t result;
+  DO_SYSCALL(60, result, status, 0, 0);
+  while (1)
+    ; // Unreachable, but satisfies noreturn requirement
 }
 
 size_t mbrlen(const char *s, size_t n, mbstate_t *ps) {
@@ -1360,10 +1361,9 @@ int wait3(int *status, int options, struct rusage *rusage) {
 int raise(int sig) { return kill(getpid(), sig); }
 
 pid_t vfork(void) {
-  // TODO implement vfork
-  char *msg = "TODO implement vfork\n";
-  write(1, msg, strlen(msg));
-  return -1;
+  uint64_t result;
+  DO_SYSCALL(21, result, 0, 0, 0);
+  return (pid_t)result;
 }
 
 pid_t fork(void) {
@@ -1450,10 +1450,9 @@ void abort(void) {
 }
 
 int execve(const char *filename, char *const argv[], char *const envp[]) {
-  // TODO implement execve
-  char *msg = "TODO implement execve\n";
-  write(1, msg, strlen(msg));
-  return -1;
+  uint64_t result;
+  DO_SYSCALL(22, result, filename, argv, envp);
+  return (int)result;
 }
 
 struct passwd *getpwnam(const char *name) {

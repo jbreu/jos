@@ -1,9 +1,14 @@
 use crate::ERROR;
+use crate::filesystem::FileHandle;
+use crate::filesystem::Stat;
 use crate::interrupt;
 use crate::kprint;
 use crate::{USERLAND, time};
 use crate::{keyboard, vga};
 use core::arch::asm;
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn system_call() -> u64 {
@@ -48,6 +53,14 @@ pub extern "C" fn system_call() -> u64 {
         18 => return syscall_kill(arg0 as u64, arg1 as u32),
         19 => return syscall_read(arg0, arg1, arg2),
         20 => return syscall_realloc(arg0, arg1 as usize),
+        21 => return syscall_vfork(),
+        22 => {
+            return syscall_execve(
+                arg0 as *const u64,
+                arg1 as *const *const u64,
+                arg2 as *const *const u64,
+            );
+        }
         _ => {
             ERROR!("Undefined system call triggered: {}", syscall_nr);
             return 0xdeadbeef;
@@ -291,5 +304,48 @@ fn syscall_read(filedescriptor: u64, buffer: u64, len: u64) -> u64 {
         return interrupt::STDIN_BUFFER_POS.load(core::sync::atomic::Ordering::Relaxed) as u64;
     } else {
         todo!();
+    }
+}
+
+fn syscall_vfork() -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
+    return USERLAND.lock().vfork_current_process();
+}
+
+fn syscall_execve(filename: *const u64, argv: *const *const u64, envp: *const *const u64) -> u64 {
+    let _event = core::hint::black_box(crate::instrument!());
+
+    if filename.is_null() {
+        return u64::MAX;
+    }
+
+    match unsafe { core::str::from_utf8(core::slice::from_raw_parts(filename as *const u8, 256)) } {
+        Ok(path_str) => match path_str.split('\0').next() {
+            Some(path_str) => {
+                // reconstruct argv
+                let mut args: Vec<&str> = Vec::new();
+                let mut i = 0;
+                loop {
+                    let arg_ptr = unsafe { *argv.add(i) };
+                    if arg_ptr.is_null() {
+                        break;
+                    }
+                    match unsafe {
+                        core::str::from_utf8(core::slice::from_raw_parts(arg_ptr as *const u8, 256))
+                    } {
+                        Ok(arg_str) => match arg_str.split('\0').next() {
+                            Some(arg_str) => args.push(arg_str),
+                            None => break,
+                        },
+                        Err(_) => break,
+                    }
+                    i += 1;
+                }
+
+                return USERLAND.lock().execve(path_str);
+            }
+            None => return u64::MAX,
+        },
+        Err(_) => return u64::MAX,
     }
 }
