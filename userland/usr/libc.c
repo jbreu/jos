@@ -89,13 +89,28 @@ void draw_pixel(uint32_t x, uint32_t y, uint8_t color) {
 // Allocate memory
 void *malloc(long unsigned int size) {
   uint64_t address;
-  DO_SYSCALL(4, address, size, 0, 0); // Only size is passed
-  return (void *)address;
+  // Allocation includes 8 bytes for the size header
+  uint64_t total_size = size + 8;
+  DO_SYSCALL(4, address, total_size, 0, 0);
+  
+  if (address == 0) return NULL;
+
+  uint64_t *ptr = (uint64_t *)address;
+  *ptr = size; // Store the original size in the header
+  return (void *)(address + 8);
 }
 
-// Free memory (currently does nothing) --> leaks memory
+// Free memory
 void free(void *address) {
-  // TODO: Implement the free function
+  if (address == NULL) return;
+
+  uint64_t base_address = (uint64_t)address - 8;
+  uint64_t original_size = *(uint64_t *)base_address;
+
+  // Utilize realloc syscall (20) with size 0 to trigger deallocation in kernel
+  // The kernel realloc implementation requires the pointer and the new size (0)
+  uint64_t result;
+  DO_SYSCALL(20, result, base_address, 0, 0);
 }
 
 // Open a file
