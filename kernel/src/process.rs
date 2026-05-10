@@ -485,9 +485,11 @@ impl Process {
             let layout = core::alloc::Layout::from_size_align_unchecked(new_size, 0x8);
 
             if new_size == 0 {
+                let stored_size = core::ptr::read_unaligned(ptr as *const u64) as usize;
+                let dealloc_layout = core::alloc::Layout::from_size_align_unchecked(stored_size + 8, 0x8);
                 self.heap_allocator
                     .lock()
-                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), layout);
+                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), dealloc_layout);
                 return 0;
             }
 
