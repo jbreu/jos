@@ -227,15 +227,45 @@ int fprintf(FILE *stream, const char *format, ...) {
   return count;
 }
 
-// TODO very inefficient, one syscall for each character - use buffered approach
-int fputc(int c, FILE *stream) {
-  unsigned char ch = (unsigned char)c;
+// Helper to flush the buffer
+int fflush(FILE *stream) {
+  if (!stream || !stream->buffer || stream->pos == 0) {
+    return 0;
+  }
 
-  if (write(stream->fd, &ch, 1) != 1) {
+  if (write(stream->fd, stream->buffer, stream->pos) != (ssize_t)stream->pos) {
     return EOF;
   }
 
-  return (int)ch;
+  stream->pos = 0;
+  return 0;
+}
+
+// TODO very inefficient, one syscall for each character - use buffered approach
+int fputc(int c, FILE *stream) {
+  if (!stream) return EOF;
+
+  // Lazy allocate buffer if not exists
+  if (stream->buffer == 0) {
+    stream->buffer = malloc(stream->bufsize);
+    if (!stream->buffer) {
+        // Fallback to unbuffered write if malloc fails
+        unsigned char ch = (unsigned char)c;
+        return (write(stream->fd, &ch, 1) == 1) ? (int)ch : EOF;
+    }
+    stream->pos = 0;
+  }
+
+  ((char*)stream->buffer)[stream->pos++] = (unsigned char)c;
+
+  // Line buffering for stdout/stderr or if buffer is full
+  if (c == '\n' || stream->pos >= stream->bufsize) {
+    if (fflush(stream) != 0) {
+      return EOF;
+    }
+  }
+
+  return (unsigned char)c;
 }
 
 void exit(int exit_code) {
