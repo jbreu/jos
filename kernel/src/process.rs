@@ -16,11 +16,9 @@ pub static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(1);
 
 #[repr(C)]
 struct HeapAllocationHeader {
-    magic: u64,
     size: usize,
 }
 
-const HEAP_ALLOCATION_MAGIC: u64 = 0x4a4f535f48454150;
 const HEAP_ALLOCATION_HEADER_SIZE: usize = core::mem::size_of::<HeapAllocationHeader>();
 
 // stores a process' registers when it gets interrupted
@@ -443,10 +441,7 @@ impl Process {
                 match self.heap_allocator.lock().allocate_first_fit(layout) {
                     Ok(address) => {
                         let header_ptr = address.as_ptr() as *mut HeapAllocationHeader;
-                        header_ptr.write(HeapAllocationHeader {
-                            magic: HEAP_ALLOCATION_MAGIC,
-                            size,
-                        });
+                        header_ptr.write(HeapAllocationHeader { size: payload_size });
 
                         return header_ptr.add(1) as u64;
                     }
@@ -510,16 +505,10 @@ impl Process {
                     }
                 };
 
-                let header = &mut *header_ptr;
-                if header.magic != HEAP_ALLOCATION_MAGIC {
-                    ERROR!("Attempted to free unknown heap pointer\n");
-                    return 0;
-                }
+                let header = &*header_ptr;
 
-                let stored_size = header.size;
-                header.magic = 0;
-
-                let dealloc_size = stored_size
+                let dealloc_size = header
+                    .size
                     .max(1)
                     .checked_add(HEAP_ALLOCATION_HEADER_SIZE)
                     .expect("Heap allocation size overflow");
@@ -538,13 +527,8 @@ impl Process {
                 }
             };
 
-            let old_header = &mut *old_header_ptr;
-            if old_header.magic != HEAP_ALLOCATION_MAGIC {
-                ERROR!("Attempted to realloc unknown heap pointer\n");
-                return 0;
-            }
-
-            let old_size = old_header.size;
+            let old_header = &*old_header_ptr;
+            let old_size = old_header.size.max(1);
 
             let alloc_size = new_size.max(1);
             let total_size = alloc_size
@@ -572,18 +556,13 @@ impl Process {
 
             if new_ptr.is_ok() {
                 let new_header_ptr = new_ptr.unwrap().as_ptr() as *mut HeapAllocationHeader;
-                new_header_ptr.write(HeapAllocationHeader {
-                    magic: HEAP_ALLOCATION_MAGIC,
-                    size: new_size,
-                });
+                new_header_ptr.write(HeapAllocationHeader { size: alloc_size });
 
                 let new_address = new_header_ptr.add(1) as u64;
 
-                core::ptr::copy_nonoverlapping(ptr as *const u8, new_address as *mut u8, old_size.min(new_size));
+                core::ptr::copy_nonoverlapping(ptr as *const u8, new_address as *mut u8, old_size.min(alloc_size));
 
-                old_header.magic = 0;
                 let old_total_size = old_size
-                    .max(1)
                     .checked_add(HEAP_ALLOCATION_HEADER_SIZE)
                     .expect("Heap allocation size overflow");
                 let old_layout = core::alloc::Layout::from_size_align_unchecked(old_total_size, 0x8);
