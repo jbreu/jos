@@ -146,6 +146,7 @@ pub struct Process {
     working_directory: &'static str,
 
     file_handles: BTreeMap<u64, FileHandle>,
+    heap_allocations: BTreeMap<u64, usize>,
     next_handle_id: u64,
 
     parent_id: u64,
@@ -189,6 +190,7 @@ impl Process {
 
             working_directory: "/",
             file_handles: BTreeMap::new(),
+            heap_allocations: BTreeMap::new(),
             next_handle_id: 1,
 
             parent_id: 0,
@@ -209,6 +211,7 @@ impl Process {
         self.l4_page_map_l4_table = PageTable::default();
         self.heap_allocator = linked_list_allocator::LockedHeap::empty();
         self.file_handles = BTreeMap::new();
+        self.heap_allocations = BTreeMap::new();
         self.heap_l1_table_number = 0;
         self.heap_l2_table_number = 0;
         self.stack_page_counter = 0;
@@ -422,14 +425,17 @@ impl Process {
         let _event = core::hint::black_box(crate::instrument!());
 
         unsafe {
-            let layout = core::alloc::Layout::from_size_align_unchecked(size, 0x8);
+            let alloc_size = size.max(1);
+            let layout = core::alloc::Layout::from_size_align_unchecked(alloc_size, 0x8);
 
             let success = false;
 
             while !success {
                 match self.heap_allocator.lock().allocate_first_fit(layout) {
                     Ok(address) => {
-                        return address.as_ptr() as u64;
+                        let address = address.as_ptr() as u64;
+                        self.heap_allocations.insert(address, size);
+                        return address;
                     }
                     Err(()) => {
                         //DEBUG!("Allocating userspace memory failed - attempting to increase heap size\n");
@@ -482,16 +488,32 @@ impl Process {
                 return self.malloc(new_size);
             }
 
-            let layout = core::alloc::Layout::from_size_align_unchecked(new_size, 0x8);
-
             if new_size == 0 {
-                let stored_size = core::ptr::read_unaligned(ptr as *const u64) as usize;
-                let dealloc_layout = core::alloc::Layout::from_size_align_unchecked(stored_size + 8, 0x8);
+                let stored_size = match self.heap_allocations.remove(&ptr) {
+                    Some(size) => size,
+                    None => {
+                        ERROR!("Attempted to free unknown heap pointer\n");
+                        return 0;
+                    }
+                };
+
+                let dealloc_layout = core::alloc::Layout::from_size_align_unchecked(stored_size.max(1), 0x8);
                 self.heap_allocator
                     .lock()
                     .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), dealloc_layout);
                 return 0;
             }
+
+            let old_size = match self.heap_allocations.get(&ptr).copied() {
+                Some(size) => size,
+                None => {
+                    ERROR!("Attempted to realloc unknown heap pointer\n");
+                    return 0;
+                }
+            };
+
+            let alloc_size = new_size.max(1);
+            let layout = core::alloc::Layout::from_size_align_unchecked(alloc_size, 0x8);
 
             /*
                 // SAFETY: the caller must ensure that the `new_size` does not overflow.
@@ -514,11 +536,16 @@ impl Process {
             if new_ptr.is_ok() {
                 let new_address = new_ptr.unwrap().as_ptr() as u64;
 
-                core::ptr::copy_nonoverlapping(ptr as *const u8, new_address as *mut u8, new_size);
+                core::ptr::copy_nonoverlapping(ptr as *const u8, new_address as *mut u8, old_size.min(new_size));
+
+                let old_size = self.heap_allocations.remove(&ptr).unwrap();
+                let old_layout = core::alloc::Layout::from_size_align_unchecked(old_size.max(1), 0x8);
 
                 self.heap_allocator
                     .lock()
-                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), layout);
+                    .deallocate(core::ptr::NonNull::new_unchecked(ptr as *mut u8), old_layout);
+
+                self.heap_allocations.insert(new_address, new_size);
 
                 return new_address;
             }
