@@ -27,7 +27,7 @@ pub enum Colors {
 fn get_video_byte_string(character: char, foreground: Colors, background: Colors) -> u16 {
     let backgroundu8 = background as u16;
     let foregroundu8 = foreground as u16;
-    return (backgroundu8 << 4 | foregroundu8) << 8 | character as u16;
+    return (((backgroundu8 & 0b0111) << 4) | foregroundu8) << 8 | character as u16;
 }
 
 // TODO handle those module global variables in rusty way
@@ -85,7 +85,7 @@ macro_rules! kprintcolor {
 #[macro_export]
 macro_rules! kprintln {
     ($($arg:tt)*) => {
-        crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, true, $($arg)*)
+        crate::kprint_internal!(crate::kprint::Colors::KPrintColorWhite, true, $($arg)*)
     };
     () => {
         crate::kprint::kprint_char('\n');
@@ -96,7 +96,7 @@ macro_rules! kprintln {
 #[macro_export]
 macro_rules! kprint {
     ($($arg:tt)*) => {
-        crate::kprint_internal!(crate::kprint::Colors::KPrintColorBlack, false, $($arg)*)
+        crate::kprint_internal!(crate::kprint::Colors::KPrintColorWhite, false, $($arg)*)
     };
     () => {
         crate::kprint::kprint_char('\n');
@@ -118,7 +118,7 @@ pub fn clear() {
                 // https://en.wikipedia.org/wiki/VGA_text_mode
                 core::ptr::write_volatile(
                     (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (row * 80 + column) * 2) as *mut u16,
-                    get_video_byte_string(' ', Colors::KPrintColorBlack, Colors::KPrintColorWhite),
+                    get_video_byte_string(' ', Colors::KPrintColorWhite, Colors::KPrintColorBlack),
                 );
             }
         }
@@ -149,7 +149,7 @@ fn scroll_line() {
         unsafe {
             core::ptr::write_volatile(
                 (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (24 * 80 + column) * 2) as *mut u16,
-                get_video_byte_string(' ', Colors::KPrintColorBlack, Colors::KPrintColorWhite),
+                get_video_byte_string(' ', Colors::KPrintColorWhite, Colors::KPrintColorBlack),
             );
         }
     }
@@ -224,7 +224,7 @@ pub fn kprint_char(character_in: char, color: Colors) {
         core::ptr::write_volatile(
             (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (CURRENT_COL + CURRENT_ROW * 80) as usize * 2)
                 as *mut u16,
-            get_video_byte_string(character, color, Colors::KPrintColorWhite),
+            get_video_byte_string(character, color, Colors::KPrintColorBlack),
         );
 
         if CURRENT_COL == 80 {
