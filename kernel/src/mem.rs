@@ -8,6 +8,17 @@ static AVAILABLE_MEMORY: [AtomicBool; MAX_PAGE_FRAMES] =
     [const { AtomicBool::new(false) }; MAX_PAGE_FRAMES];
 static NEXT_FREE_PAGE: AtomicUsize = AtomicUsize::new(0);
 
+static mut PHYSICAL_MEMORY_PAGE_TABLES: [process::PageTable;
+    MAX_MEMORY / HUGE_PAGE_SIZE / PAGE_TABLE_ENTRIES] = [const {
+    process::PageTable {
+        entry: [0; PAGE_TABLE_ENTRIES],
+    }
+};
+    MAX_MEMORY / HUGE_PAGE_SIZE / PAGE_TABLE_ENTRIES];
+static mut PHYSICAL_MEMORY_PAGE_DIRECTORY_POINTER_TABLE: process::PageTable = process::PageTable {
+    entry: [0; PAGE_TABLE_ENTRIES],
+};
+
 pub fn init_available_memory() {
     let _event = core::hint::black_box(crate::instrument!());
     // Kernel memory
@@ -73,6 +84,41 @@ pub fn map_page_in_page_tables(
             (*l1table).entry[l1] = page | bitmask as usize;
         } else {
             (*l2table).entry[l2] = page | bitmask as usize;
+        }
+    }
+}
+
+// Maps all RAM to the same virtual address as physical memory, so that we can access it directly without needing to set up page tables first
+pub fn physical_memory_mapping() {
+    let mut physical_address = 0;
+    let mut virtual_address = PHYSICAL_MEMORY_BASE;
+
+    unsafe {
+        if process::KERNEL_CR3.load(Ordering::Relaxed) == 0 {
+            let mut cr3: u64;
+            asm!("mov r15, cr3", out("r15") cr3);
+            process::KERNEL_CR3.store(cr3 as usize, Ordering::Relaxed);
+        }
+
+        let kernel_cr3 = process::KERNEL_CR3.load(Ordering::Relaxed) as *mut process::PageTable;
+
+        (*kernel_cr3).entry[257] = &raw const PHYSICAL_MEMORY_PAGE_DIRECTORY_POINTER_TABLE
+            as *const process::PageTable as usize
+            | BASE_PAGE_ENTRY_FLAGS_USERSPACE as usize;
+
+        // use huge page size to identity map physical memory, so that we don't have to set up page tables for the identity mapping and can just use the page directory pointer table to map it all at once
+        for i in 0..(MAX_MEMORY / HUGE_PAGE_SIZE / PAGE_TABLE_ENTRIES) {
+            PHYSICAL_MEMORY_PAGE_DIRECTORY_POINTER_TABLE.entry[i] =
+                &raw const PHYSICAL_MEMORY_PAGE_TABLES[i] as *const process::PageTable as usize
+                    | BASE_PAGE_ENTRY_FLAGS_USERSPACE as usize;
+        }
+
+        while physical_address < MAX_MEMORY {
+            PHYSICAL_MEMORY_PAGE_TABLES[physical_address / HUGE_PAGE_SIZE / PAGE_TABLE_ENTRIES]
+                .entry[physical_address / HUGE_PAGE_SIZE % PAGE_TABLE_ENTRIES] =
+                physical_address | HUGE_PAGE_ENTRY_FLAGS_USERSPACE as usize;
+            physical_address += 0x200000;
+            virtual_address += 0x200000;
         }
     }
 }
