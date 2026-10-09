@@ -58,4 +58,4 @@ https://www.qemu.org/docs/master/system/replay.html
 
 ## Kudos
 
-Bootstrapped by "Write Your Own 64-bit Operating System Kernel From Scratch" by https://github.com/davidcallanan/os-series
+Bootstrapped by "Write Your Own 64-bit Operating System Kernel From Scratch" by https://github.com/davidcallanan/jos
