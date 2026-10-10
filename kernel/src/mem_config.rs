@@ -4,6 +4,9 @@ pub const BASE_PAGE_SIZE: usize = 0x1000;
 /// Size of a huge page (2 MiB)
 pub const HUGE_PAGE_SIZE: usize = 0x200000;
 
+/// Size of a 1 GiB page (1 GiB)
+pub const GIGANTIC_PAGE_SIZE: usize = 0x40000000;
+
 // define PAGE_SIZE as HUGE_PAGE_SIZE for compatibility
 pub const PAGE_SIZE: usize = BASE_PAGE_SIZE;
 
@@ -15,6 +18,9 @@ pub const BASE_PAGE_ENTRY_FLAGS: u8 = 0b11;
 
 /// Huge page table entry flags (Present + Writable + No User + Huge)
 pub const HUGE_PAGE_ENTRY_FLAGS: u8 = 0b10000011;
+
+/// Gigantic page table entry flags (Present + Writable + No User + Huge)
+pub const GIGANTIC_PAGE_ENTRY_FLAGS: u16 = 0b111000011;
 
 pub const PAGE_ENTRY_FLAGS_KERNELSPACE: u8 = BASE_PAGE_ENTRY_FLAGS;
 

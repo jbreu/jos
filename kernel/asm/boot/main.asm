@@ -75,16 +75,21 @@ check_long_mode:
 
 setup_page_tables:
 	; EQU is used to define constants in assembly
+	%define GIGANTIC_PAGE_SIZE 0x40000000 ; 1 GiB
 	%define HUGE_PAGE_SIZE    0x200000     ; 2 MiB
 	%define SMALL_PAGE_SIZE   0x1000       ; 4 KiB
 	%define PAGE_SIZE SMALL_PAGE_SIZE
 	%define HUGE_PAGE_ENTRY_FLAGS   0b10000011    ; huge page, no access from user, writable, present
+	%define GIGANTIC_PAGE_ENTRY_FLAGS 0b111000011 ; gigantic page, no access from user, writable, present
 	%define PAGE_TABLE_FLAGS        0b011    	  ; no access from user, writable, present
 	%define PAGE_ENTRY_FLAGS        PAGE_TABLE_FLAGS
 
 	; Calculate number of pages: KERNEL_SIZE / PAGE_SIZE
 	%define KERNEL_SIZE 0x2800000      ; 40 MiB kernel size SYNCID2
 	%define NUM_KERNEL_PAGES (KERNEL_SIZE / PAGE_SIZE)	
+	%define NUM_GIGANTIC_PAGES (MAX_MEMORY / GIGANTIC_PAGE_SIZE)
+	%define MAX_MEMORY 0x100000000  ; 4 GiB
+	%define PHYSICAL_MEMORY_BASE 0xffff900000000000
 
 	mov eax, page_table_l3
 	or eax, PAGE_TABLE_FLAGS
@@ -137,6 +142,21 @@ setup_page_tables:
 	or eax, PAGE_TABLE_FLAGS
 	mov [page_table_l2+510*8], eax
 
+	; Map the first 4 GiB of physical memory using gigantic pages (1 GiB each) to PHYSICAL_MEMORY_BASE (0xffff900000000000)
+	mov ebx, 0
+.gigantic_page_loop:
+	mov eax, ebx
+	imul eax, GIGANTIC_PAGE_SIZE
+	or eax, GIGANTIC_PAGE_ENTRY_FLAGS
+	mov [page_table_gigantic + ebx*8], eax
+	inc ebx
+	cmp ebx, NUM_GIGANTIC_PAGES
+	jne .gigantic_page_loop
+
+	mov eax, page_table_gigantic
+	or eax, PAGE_TABLE_FLAGS
+	mov [page_table_l4 + 288*8], eax ; Map the gigantic page table to the appropriate L4 entry (index 288 for 0xffff900000000000)
+
 	ret
 
 enable_paging:
@@ -172,6 +192,8 @@ error:
 
 section .bootbss
 align 4096
+page_table_gigantic:
+	resb 4096
 page_table_l4:
 	resb 4096
 page_table_l3:
