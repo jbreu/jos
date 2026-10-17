@@ -41,7 +41,6 @@ lazy_static! {
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
     mem::init_available_memory();
-    //mem::physical_memory_mapping();
 
     clear_console!();
     DEBUG!("Entering JOS Kernel");

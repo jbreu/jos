@@ -69,6 +69,7 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
+// TODO move to mem.rs
 fn print_page_table_tree(start_addr: u64) {
     let _event = core::hint::black_box(crate::instrument!());
     let entry_mask = 0x0008_ffff_ffff_f800;
@@ -88,6 +89,11 @@ fn print_page_table_tree(start_addr: u64) {
                         as *const u64);
                     if l3bits != 0 {
                         kprint!("      L3: {} - {:#x}\n", l3_entry, l3bits & entry_mask);
+
+                        if (l3bits & 0b1000_0000) == 0b1000_0000 {
+                            kprint!("         L3 entry is a huge page\n");
+                            continue;
+                        }
 
                         for l2_entry in 0..512 {
                             let l2bits = *((((l3bits & entry_mask) + l2_entry * 8)
