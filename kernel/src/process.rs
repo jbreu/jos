@@ -252,6 +252,8 @@ impl Process {
 
             self.l4_page_map_l4_table.entry[256] =
                 *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
+            self.l4_page_map_l4_table.entry[288] =
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 288 * 8) as *const _); // full physical memory mapping at PHYSICAL_MEMORY_BASE
         }
 
         if PAGE_SIZE == HUGE_PAGE_SIZE {
