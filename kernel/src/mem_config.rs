@@ -56,4 +56,4 @@ pub const KERNEL_HIGHER_HALF_BASE: usize = 0xffff_8000_0000_0000;
 pub const KERNEL_STACK_TOP_ADDRESS: usize = 0xffff_ffff_ffff_ffff;
 pub const USERSPACE_STACK_TOP_ADDRESS: usize = 0x0000_7fff_ffff_fff0;
 
-pub const PHYSICAL_MEMORY_BASE: usize = 0xffff_9000_0000_0000; // Identity mapping for the first 4 GiB of physical memory
+pub const PHYSICAL_MEMORY_BASE: usize = 0xffff_9000_0000_0000; // Identity mapping for the first 4 GiB of physical memory (corresponds to 288th entry in the L4 page table, which is the first entry after the kernel space mapping)

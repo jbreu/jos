@@ -100,9 +100,7 @@ macro_rules! get_ns_since_boot {
         if hpet_counter_value_address.is_null() {
             0
         } else {
-            let counter_value = unsafe {
-                (*hpet_counter_value_address).load(core::sync::atomic::Ordering::Relaxed)
-            };
+            let counter_value = unsafe { core::ptr::read_volatile(hpet_counter_value_address) };
             let clock_period_in_ns =
                 crate::acpi::HPET_CLOCK_PERIOD_IN_NS.load(core::sync::atomic::Ordering::Relaxed);
             (counter_value * clock_period_in_ns)

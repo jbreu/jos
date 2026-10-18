@@ -2,14 +2,12 @@ use core::str;
 use core::sync::atomic::{AtomicPtr, AtomicU64, Ordering};
 
 use crate::DEBUG;
-use crate::mem_config::{
-    BASE_PAGE_SIZE, HUGE_PAGE_ENTRY_FLAGS, PAGE_ENTRY_FLAGS_KERNELSPACE, PAGE_SIZE,
-};
+use crate::mem_config::PHYSICAL_MEMORY_BASE;
 
-use crate::{mem, util::compare_str_to_memory};
+use crate::util::compare_str_to_memory;
 
 // TODO better use lazy static
-pub static HPET_COUNTER_VALUE_ADDRESS: AtomicPtr<AtomicU64> = AtomicPtr::new(core::ptr::null_mut());
+pub static HPET_COUNTER_VALUE_ADDRESS: AtomicPtr<u64> = AtomicPtr::new(0 as *mut u64);
 pub static HPET_CLOCK_PERIOD_IN_NS: AtomicU64 = AtomicU64::new(0);
 
 // https://wiki.osdev.org/RSDP
@@ -46,12 +44,14 @@ struct ACPISDTHeader {
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 struct HPET {
-    event_timer_block_id: u32,
+    hardware_rev_id: u8,
+    cluster_8_bits: u8, // attention, mind the colons in the wiki, this is a bitfield
+    pci_vendor_id: u16,
     address_space_id: u8,
     register_bit_width: u8,
     register_bit_offset: u8,
     reserved: u8,
-    base_address: u64,
+    address: u64,
     hpet_number: u8,
     minimum_tick: u16,
     page_protection: u8,
@@ -73,13 +73,13 @@ struct GeneralConfigurationRegister {
 }
 
 fn find_xsdp() -> *const XsdpT {
-    let ebda_address = 0x040E as *const u16;
-    let bios_rom_start = 0xE0000 as u32;
-    let bios_rom_end = 0xFFFFF as u32;
+    let ebda_address = (PHYSICAL_MEMORY_BASE + 0x040E) as *const u64;
+    let bios_rom_start = (PHYSICAL_MEMORY_BASE + 0xE0000) as u64;
+    let bios_rom_end = (PHYSICAL_MEMORY_BASE + 0xFFFFF) as u64;
 
     // Search in EBDA
-    let ebda_seg = unsafe { *ebda_address };
-    let ebda: u32 = (ebda_seg as u32) << 4;
+    let ebda_seg = unsafe { ebda_address.read_unaligned() as u16 };
+    let ebda = PHYSICAL_MEMORY_BASE + ((ebda_seg as usize) << 4);
     for address in (ebda..(ebda + 1024)).step_by(16) {
         if compare_str_to_memory("RSD PTR ", address as usize) {
             return address as *const XsdpT;
@@ -100,19 +100,13 @@ fn find_xsdp() -> *const XsdpT {
 // 64-bit physical address of the XSDT table. If you detect ACPI Version 2.0 you should use this table instead of RSDT even on IA-32, casting the address to uint32_t.
 fn find_hpet_table() -> *const HPET {
     let xsdp = find_xsdp();
-    let offset: usize;
+    let offset = PHYSICAL_MEMORY_BASE;
 
     unsafe {
         if (*xsdp).revision == 0 {
-            let page =
-                mem::allocate_page_frame_for_given_physical_address((*xsdp).rsdt_address as usize);
             let virt_rsdt_address;
 
-            mem::map_page_in_page_tables(page, 0, 0, 510, 0, PAGE_ENTRY_FLAGS_KERNELSPACE);
-
-            offset = 0xffff_8000_3fc0_0000;
-
-            virt_rsdt_address = ((*xsdp).rsdt_address as usize % PAGE_SIZE) + offset;
+            virt_rsdt_address = ((*xsdp).rsdt_address as usize) + offset;
 
             DEBUG!("RSDT Address: {:?}", virt_rsdt_address as *const u64);
 
@@ -126,7 +120,7 @@ fn find_hpet_table() -> *const HPET {
 
             // The individual tables are pointed to 32bit pointers coming after the header
             let table_ptrs =
-                (virt_rsdt_address as usize + core::mem::size_of::<ACPISDTHeader>()) as *const u32;
+                (virt_rsdt_address as usize + core::mem::size_of::<ACPISDTHeader>()) as usize;
 
             DEBUG!(
                 "RSDT table_ptrs: {:?} (size of ACPISDTHeader: {:?})",
@@ -135,13 +129,8 @@ fn find_hpet_table() -> *const HPET {
             );
 
             for i in 0..entries {
-                let header = core::ptr::read_unaligned(table_ptrs.add(i));
-                let virt_header: *const ACPISDTHeader;
-                if PAGE_SIZE == BASE_PAGE_SIZE {
-                    virt_header = ((header as usize % PAGE_SIZE) + offset) as *const ACPISDTHeader;
-                } else {
-                    virt_header = ((header as usize % PAGE_SIZE) + offset) as *const ACPISDTHeader;
-                }
+                let header = core::ptr::read_unaligned((table_ptrs + i * 4) as *const usize) >> 32;
+                let virt_header = ((header as usize) + offset) as *const ACPISDTHeader;
 
                 DEBUG!(
                     "ACPI Entry: {:?}",
@@ -169,22 +158,11 @@ fn find_hpet_table() -> *const HPET {
 
 pub fn init_acpi() {
     let hpet = find_hpet_table();
-    let offset: usize;
+    let offset = PHYSICAL_MEMORY_BASE;
 
     unsafe {
-        let page =
-            mem::allocate_page_frame_for_given_physical_address((*hpet).base_address as usize);
-
-        if PAGE_SIZE == BASE_PAGE_SIZE {
-            mem::map_page_in_page_tables(page, 0, 0, 510, 1, PAGE_ENTRY_FLAGS_KERNELSPACE);
-            offset = 0xffff_8000_3fc0_1000;
-        } else {
-            mem::map_page_in_page_tables(page, 0, 0, 508, 0, PAGE_ENTRY_FLAGS_KERNELSPACE);
-            offset = 0xffff_8000_3fa0_0000;
-        }
-
-        let capabilities = (((*hpet).base_address as usize % PAGE_SIZE) + offset)
-            as *const GeneralCapabilitiesAndIdRegister;
+        let capabilities =
+            (((*hpet).address as usize) + offset) as *const GeneralCapabilitiesAndIdRegister;
 
         let frequency = 10_u64.pow(15) / (*capabilities).counter_clk_period as u64;
         DEBUG!("frequency: {}", frequency);
@@ -194,18 +172,14 @@ pub fn init_acpi() {
             Ordering::Relaxed,
         );
 
-        let configuration = ((((*hpet).base_address as usize + 0x10) % PAGE_SIZE) + offset)
-            as *mut GeneralConfigurationRegister;
+        let configuration =
+            (((*hpet).address as usize + 0x10) + offset) as *mut GeneralConfigurationRegister;
 
         // Enable HPET
         (*configuration).config = 0x1;
 
-        let hpet_counter_value_address =
-            (((*hpet).base_address + 0xf0) as usize % PAGE_SIZE) + offset;
+        let hpet_counter_value_address = (((*hpet).address + 0xf0) as usize) + offset;
 
-        HPET_COUNTER_VALUE_ADDRESS.store(
-            hpet_counter_value_address as *mut AtomicU64,
-            Ordering::Relaxed,
-        );
+        HPET_COUNTER_VALUE_ADDRESS.store(hpet_counter_value_address as *mut u64, Ordering::Relaxed);
     }
 }
