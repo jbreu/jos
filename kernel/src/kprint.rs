@@ -1,4 +1,4 @@
-use crate::mem_config::KERNEL_HIGHER_HALF_BASE;
+use crate::mem_config::PHYSICAL_MEMORY_BASE;
 use crate::serial;
 // add better formatting options, see https://os.phil-opp.com/vga-text-mode/#a-kprintln-macro
 
@@ -117,7 +117,7 @@ pub fn clear() {
             unsafe {
                 // https://en.wikipedia.org/wiki/VGA_text_mode
                 core::ptr::write_volatile(
-                    (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (row * 80 + column) * 2) as *mut u16,
+                    (PHYSICAL_MEMORY_BASE + 0xb8000 + (row * 80 + column) * 2) as *mut u16,
                     get_video_byte_string(' ', Colors::KPrintColorWhite, Colors::KPrintColorBlack),
                 );
             }
@@ -134,9 +134,9 @@ fn scroll_line() {
             }
             unsafe {
                 core::ptr::write_volatile(
-                    (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (row * 80 + column) * 2) as *mut u16,
+                    (PHYSICAL_MEMORY_BASE + 0xb8000 + (row * 80 + column) * 2) as *mut u16,
                     core::ptr::read_volatile(
-                        (KERNEL_HIGHER_HALF_BASE + 0xb8000 + ((row + 1) * 80 + column) * 2)
+                        (PHYSICAL_MEMORY_BASE + 0xb8000 + ((row + 1) * 80 + column) * 2)
                             as *mut u16,
                     ),
                 );
@@ -148,7 +148,7 @@ fn scroll_line() {
     for column in 0..80 {
         unsafe {
             core::ptr::write_volatile(
-                (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (24 * 80 + column) * 2) as *mut u16,
+                (PHYSICAL_MEMORY_BASE + 0xb8000 + (24 * 80 + column) * 2) as *mut u16,
                 get_video_byte_string(' ', Colors::KPrintColorWhite, Colors::KPrintColorBlack),
             );
         }
@@ -222,7 +222,7 @@ pub fn kprint_char(character_in: char, color: Colors) {
 
         // https://en.wikipedia.org/wiki/VGA_text_mode
         core::ptr::write_volatile(
-            (KERNEL_HIGHER_HALF_BASE + 0xb8000 + (CURRENT_COL + CURRENT_ROW * 80) as usize * 2)
+            (PHYSICAL_MEMORY_BASE + 0xb8000 + (CURRENT_COL + CURRENT_ROW * 80) as usize * 2)
                 as *mut u16,
             get_video_byte_string(character, color, Colors::KPrintColorBlack),
         );

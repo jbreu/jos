@@ -219,7 +219,6 @@ impl Process {
         self.heap_l2_table_number = 0;
         self.stack_page_counter = 0;
 
-        // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
             let mut kernel_cr3 = KERNEL_CR3.load(Ordering::Relaxed) as u64;
@@ -251,7 +250,7 @@ impl Process {
             print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
             self.l4_page_map_l4_table.entry[256] =
-                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _); // higher half kernel mapping at KERNEL_HIGHER_HALF_BASE
             self.l4_page_map_l4_table.entry[288] =
                 *((KERNEL_CR3.load(Ordering::Relaxed) + 288 * 8) as *const _); // full physical memory mapping at PHYSICAL_MEMORY_BASE
         }
@@ -650,7 +649,6 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
-
     fn get_physical_address_for_virtual_address(vaddr: usize) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 
