@@ -4,6 +4,9 @@ pub const BASE_PAGE_SIZE: usize = 0x1000;
 /// Size of a huge page (2 MiB)
 pub const HUGE_PAGE_SIZE: usize = 0x200000;
 
+/// Size of a 1 GiB page (1 GiB)
+pub const GIGANTIC_PAGE_SIZE: usize = 0x40000000;
+
 // define PAGE_SIZE as HUGE_PAGE_SIZE for compatibility
 pub const PAGE_SIZE: usize = BASE_PAGE_SIZE;
 
@@ -15,6 +18,9 @@ pub const BASE_PAGE_ENTRY_FLAGS: u8 = 0b11;
 
 /// Huge page table entry flags (Present + Writable + No User + Huge)
 pub const HUGE_PAGE_ENTRY_FLAGS: u8 = 0b10000011;
+
+/// Gigantic page table entry flags (Present + Writable + No User + Huge)
+pub const GIGANTIC_PAGE_ENTRY_FLAGS: u16 = 0b111000011;
 
 pub const PAGE_ENTRY_FLAGS_KERNELSPACE: u8 = BASE_PAGE_ENTRY_FLAGS;
 
@@ -41,10 +47,13 @@ pub const L2_TABLE_SHIFT: u32 = 21;
 pub const L1_TABLE_SHIFT: u32 = 12;
 
 /// Memory region information
+pub const MAX_MEMORY: usize = 0x100000000; // 4 GiB; if this gets adapted to support more than 4 GiB, the physical memory mapping code will need to be updated to use more than one page table for the identity mapping
 pub const KERNEL_SIZE: usize = 0x200000 * 20; // 40 MiB // SYNCID2
-pub const MAX_PAGE_FRAMES: usize = 0x100000000 / PAGE_SIZE; // 4 GiB total memory
+pub const MAX_PAGE_FRAMES: usize = MAX_MEMORY / PAGE_SIZE; // 4 GiB total memory
 
 /// Virtual memory layout constants
 pub const KERNEL_HIGHER_HALF_BASE: usize = 0xffff_8000_0000_0000;
 pub const KERNEL_STACK_TOP_ADDRESS: usize = 0xffff_ffff_ffff_ffff;
 pub const USERSPACE_STACK_TOP_ADDRESS: usize = 0x0000_7fff_ffff_fff0;
+
+pub const PHYSICAL_MEMORY_BASE: usize = 0xffff_9000_0000_0000; // Identity mapping for the first 4 GiB of physical memory (corresponds to 288th entry in the L4 page table, which is the first entry after the kernel space mapping)

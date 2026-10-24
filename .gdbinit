@@ -1,8 +1,8 @@
 set output-radix 16
 set disassembly-flavor intel
 set osabi none
-set substitute-path /root/env/userland/ c:/Users/Jakob/Documents/workspace/os-series/userland/
-add-symbol-file c:/Users/Jakob/Documents/workspace/os-series/userland/dash-0.5.13/src/dash
+set substitute-path /root/env/userland/ c:/Users/Jakob/Documents/workspace/jos/userland/
+add-symbol-file c:/Users/Jakob/Documents/workspace/jos/userland/dash-0.5.13/src/dash
 display/5i $pc
 display/20xg $sp
 

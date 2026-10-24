@@ -6,7 +6,7 @@ $(x86_64_asm_object_files): build/x86_64/%.o : kernel/asm/%.asm
 	nasm -f elf64 -g -F dwarf $(patsubst build/x86_64/%.o, kernel/asm/%.asm, $@) -o $@
 
 .PHONY: setup
-setup: $(x86_64_asm_object_files)
+setup: 
 	mkdir -p build/kernel && \
 	mkdir -p build/userspace/x86_64-unknown-none/debug/ && \
 	mkdir -p dist/x86_64 && \
@@ -22,7 +22,7 @@ userland:
 	cd storage && sh generateExt2Img.sh && cd ..
 
 .PHONY: kernel
-kernel:
+kernel: $(x86_64_asm_object_files)
 	cargo rustc --manifest-path kernel/Cargo.toml --target-dir build/kernel/ -- -C no-redzone=on -C target-feature=-sse -C link-arg=-Ttargets/x86_64/linker.ld 
 	$(MAKE) iso
 

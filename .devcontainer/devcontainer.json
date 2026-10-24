@@ -1,0 +1,14 @@
+{
+    "name": "jos_buildenv",
+    "image": "jos_buildenv",
+    "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/root/env,consistency=cached",
+    "workspaceFolder": "/root/env",
+    "remoteUser": "root",
+    "runArgs": [
+        "--privileged"
+    ],
+    "remoteEnv": {
+        "CARGO_HOME": "/root/.cargo",
+        "RUSTUP_HOME": "/root/.rustup"
+    }
+}

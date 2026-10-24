@@ -2,9 +2,9 @@
 name = "jos-tests"
 version = "0.1.0"
 description = "Test suite for JOS kernel"
-requires-python = ">=3.8"
+requires-python = ">=3.15"
 dependencies = [
-    "pytest >=7.0.0",
+    "pytest >=9.1.1",
     "pyserial >=3.5",
     "pytest-dependency >=0.6.0",
 ]

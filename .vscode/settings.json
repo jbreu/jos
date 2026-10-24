@@ -1,10 +1,6 @@
 {
     "rust-analyzer.cargo.target": "x86_64-unknown-none",
     "rust-analyzer.check.allTargets": false,
-    "rust-analyzer.check.extraArgs": [
-        "--target",
-        "x86_64-unknown-none"
-    ],
     "rust-analyzer.linkedProjects": [
         "Cargo.toml",
     ],
@@ -13,5 +9,6 @@
         "test"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

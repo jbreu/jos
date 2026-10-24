@@ -69,6 +69,7 @@ fn _print_page_table_tree_for_cr3() {
     print_page_table_tree(cr3);
 }
 
+// TODO move to mem.rs
 fn print_page_table_tree(start_addr: u64) {
     let _event = core::hint::black_box(crate::instrument!());
     let entry_mask = 0x0008_ffff_ffff_f800;
@@ -88,6 +89,11 @@ fn print_page_table_tree(start_addr: u64) {
                         as *const u64);
                     if l3bits != 0 {
                         kprint!("      L3: {} - {:#x}\n", l3_entry, l3bits & entry_mask);
+
+                        if (l3bits & 0b1000_0000) == 0b1000_0000 {
+                            kprint!("         L3 entry is a huge page\n");
+                            continue;
+                        }
 
                         for l2_entry in 0..512 {
                             let l2bits = *((((l3bits & entry_mask) + l2_entry * 8)
@@ -213,7 +219,6 @@ impl Process {
         self.heap_l2_table_number = 0;
         self.stack_page_counter = 0;
 
-        // TODO Hack? map the kernel pages from main.asm to process
         // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
             let mut kernel_cr3 = KERNEL_CR3.load(Ordering::Relaxed) as u64;
@@ -245,7 +250,9 @@ impl Process {
             print_page_table_tree(KERNEL_CR3.load(Ordering::Relaxed) as u64);
 
             self.l4_page_map_l4_table.entry[256] =
-                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _);
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 256 * 8) as *const _); // higher half kernel mapping at KERNEL_HIGHER_HALF_BASE
+            self.l4_page_map_l4_table.entry[288] =
+                *((KERNEL_CR3.load(Ordering::Relaxed) + 288 * 8) as *const _); // full physical memory mapping at PHYSICAL_MEMORY_BASE
         }
 
         if PAGE_SIZE == HUGE_PAGE_SIZE {
@@ -642,7 +649,6 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
-
     fn get_physical_address_for_virtual_address(vaddr: usize) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 

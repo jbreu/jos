@@ -12,14 +12,12 @@ crate-type = ["staticlib"]
 [build-dependencies]
 vergen = { version = "9.0.1", features = ["build"] }
 
-[dependencies]
-include_bytes_aligned = "0.1.4"
 
 [dependencies.linked_list_allocator]
-version = "0.10.5"
+version = "0.10.6"
 
 [dependencies.spin]
-version = "0.10.0"
+version = "0.12.3"
 default-features = false
 features = ["mutex", "spin_mutex"]
 
@@ -28,5 +26,5 @@ version = "0.8.0"
 default-features = false
 
 [dependencies.lazy_static]
-version = "1.4.0"
+version = "1.5.1"
 features = ["spin_no_std"]
