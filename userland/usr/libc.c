@@ -89,13 +89,31 @@ void draw_pixel(uint32_t x, uint32_t y, uint8_t color) {
 // Allocate memory
 void *malloc(long unsigned int size) {
   uint64_t address;
-  DO_SYSCALL(4, address, size, 0, 0); // Only size is passed
-  return (void *)address;
+  if (size > ((size_t)-1) - 8) {
+    return NULL;
+  }
+
+  // Allocation includes 8 bytes for the size header
+  uint64_t total_size = size + 8;
+  DO_SYSCALL(4, address, total_size, 0, 0);
+
+  if (address == 0) return NULL;
+
+  uint64_t *ptr = (uint64_t *)address;
+  *ptr = size; // Store the original size in the header
+  return (void *)(address + 8);
 }
 
-// Free memory (currently does nothing) --> leaks memory
+// Free memory
 void free(void *address) {
-  // TODO: Implement the free function
+  if (address == NULL) return;
+
+  uint64_t base_address = (uint64_t)address - 8;
+
+  // The kernel reads the stored size header at base_address to deallocate the
+  // original allocation.
+  uint64_t result;
+  DO_SYSCALL(20, result, base_address, 0, 0);
 }
 
 // Open a file
@@ -1325,7 +1343,9 @@ void *realloc(void *ptr, size_t size) {
     return NULL;
   }
 
-  memcpy(new_ptr, ptr, size);
+  size_t old_size = *((uint64_t *)((uint8_t *)ptr - 8));
+  size_t copy_size = size < old_size ? size : old_size;
+  memcpy(new_ptr, ptr, copy_size);
   free(ptr);
   return new_ptr;
 }
