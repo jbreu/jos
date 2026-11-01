@@ -2,10 +2,10 @@
 // https://wiki.osdev.org/Interrupts_Tutorial
 
 use crate::DEBUG;
-use crate::ERROR;
 use crate::USERLAND;
 use crate::keyboard;
 use crate::kprint;
+use crate::mem_config::USERSPACE_STACK_TOP_ADDRESS;
 use crate::profiling;
 use crate::userland;
 use crate::util::out_port_b;
@@ -51,17 +51,22 @@ pub static mut STDIN_BUFFER: [char; 0x1000] = ['\0'; 0x1000];
 pub static STDIN_BUFFER_POS: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
-pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
+pub extern "C" fn isr_handler(error_code: u64, int_no: u64, return_rip: u64) {
     let _event = core::hint::black_box(crate::instrument!());
 
     match int_no as u64 {
         0..=31 => {
-            ERROR!("ISR {} error_code {:x?}", int_no, error_code);
-            ERROR!("{}", CPU_EXCEPTIONS[int_no as usize]);
+            DEBUG!(
+                "ISR {} error_code {:x?} return_rip {:x?}",
+                int_no,
+                error_code,
+                return_rip
+            );
+            DEBUG!("{}", CPU_EXCEPTIONS[int_no as usize]);
 
             if int_no == 14 {
                 // Page fault handling
-                let cr2: u64;
+                let cr2: usize;
                 unsafe {
                     asm!("mov {}, cr2", out(reg) cr2);
                 }
@@ -70,7 +75,7 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
                 let present = (error_code & 0b001) != 0;
                 let write = (error_code & 0b010) != 0;
                 let user = (error_code & 0b100) != 0;
-                if !present && write && user {
+                if !present && write && user && cr2 < USERSPACE_STACK_TOP_ADDRESS {
                     DEBUG!(
                         "Extending user stack (cr2={:#x}, ec={:#x})",
                         cr2,
@@ -78,17 +83,20 @@ pub extern "C" fn isr_handler(error_code: u64, int_no: u64) {
                     );
                     userland::extend_stack();
                 } else {
-                    panic!("Unhandled page fault: cr2={:#x}, ec={:#x}", cr2, error_code);
+                    panic!(
+                        "Unhandled page fault: cr2={:#x}, ec={:#x}, rip={:#x}",
+                        cr2, error_code, return_rip
+                    );
                 }
             } else {
-                let cr2: u64;
+                let cr2: usize;
                 unsafe {
                     asm!("mov {}, cr2", out(reg) cr2);
                 }
 
                 panic!(
-                    "Unhandled exception: int_no={}, cr2={:#x}, ec={:#x}",
-                    int_no, cr2, error_code
+                    "Unhandled exception: int_no={}, cr2={:#x}, ec={:#x}, rip={:#x}",
+                    int_no, cr2, error_code, return_rip
                 );
             }
         }

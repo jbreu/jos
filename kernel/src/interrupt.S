@@ -176,16 +176,19 @@ isr_common_stub:
     // https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/linux-x64-calling-convention-stack-frame 
     push rdi // save previous value to stack as we are gonna using it to pass arguments to isr_handler
 	push rsi
+    push rdx
     push rax
     // Attention! --> when you push more registers here, you have to update the following stack references
 
-	mov rdi, [rsp+4*8]	// put the the error number into rsi (1nd argument for isr_handler)// it has been previously pushed onto the stack (see macros above)
-	mov rsi, [rsp+3*8]	// put the the isr number into rdi (2nd argument for isr_handler)// it has been previously pushed onto the stack (see macros above)
+	mov rdi, [rsp+5*8]	// put the the error number into rsi (1nd argument for isr_handler) // part of the stack frame pushed by the CPU when the interrupt was triggered
+	mov rsi, [rsp+4*8]	// put the the isr number into rdi (2nd argument for isr_handler)// it has been previously pushed onto the stack (see macros above)
+    mov rdx, [rsp+6*8]  // put the return instruction pointer into rdx (3rd argument for isr_handler) // part of the stack frame pushed by the CPU when the interrupt was triggered
 
     lea rax, [rip + isr_handler]
 	call rax
 
     pop rax
+    pop rdx
 	pop rsi
 	pop rdi
 
