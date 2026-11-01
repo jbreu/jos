@@ -219,10 +219,10 @@ impl Process {
         self.heap_l2_table_number = 0;
         self.stack_page_counter = 0;
 
+        let mut kernel_cr3 = KERNEL_CR3.load(Ordering::Relaxed) as u64;
+
         // TODO Later, the kernel pages should be restricted to superuser access; in order to do so, the process code and data must be fully in userspace pages
         unsafe {
-            let mut kernel_cr3 = KERNEL_CR3.load(Ordering::Relaxed) as u64;
-
             if kernel_cr3 == 0 {
                 let mut cr3: u64;
                 asm!("mov r15, cr3", out("r15") cr3);
@@ -279,6 +279,7 @@ impl Process {
             self.l2_page_directory_table.entry[511] =
                 Process::get_physical_address_for_virtual_address(
                     &self.l1_page_table as *const _ as usize,
+                    kernel_cr3 as usize,
                 ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
         }
 
@@ -287,10 +288,12 @@ impl Process {
         self.l3_page_directory_pointer_table.entry[511] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table as *const _ as usize,
+                kernel_cr3 as usize,
             ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
         self.l4_page_map_l4_table.entry[255] = Process::get_physical_address_for_virtual_address(
             &self.l3_page_directory_pointer_table as *const _ as usize,
+            kernel_cr3 as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
         let mut file_handle = FileHandle::new(file_path, 0).unwrap();
@@ -325,6 +328,7 @@ impl Process {
             self.l2_page_directory_table_beginning.entry[i] =
                 Process::get_physical_address_for_virtual_address(
                     &self.l1_page_table_beginning[i] as *const _ as usize,
+                    kernel_cr3 as usize,
                 ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
 
             if i < self.heap_l2_table_number - 1 {
@@ -343,44 +347,28 @@ impl Process {
         self.l3_page_directory_pointer_table_beginning.entry[0] =
             Process::get_physical_address_for_virtual_address(
                 &self.l2_page_directory_table_beginning as *const _ as usize,
+                kernel_cr3 as usize,
             ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
         self.l4_page_map_l4_table.entry[0] = Process::get_physical_address_for_virtual_address(
             &self.l3_page_directory_pointer_table_beginning as *const _ as usize,
+            kernel_cr3 as usize,
         ) | PAGE_ENTRY_FLAGS_USERSPACE as usize;
-
-        //print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
-
-        // TODO Here we load the new pagetable into cr3 for the first process. This needs to happen because otherwise we cant load the programm into the first pages. This is a hack I think
-        self.cr3 = Process::get_physical_address_for_virtual_address(
-            &self.l4_page_map_l4_table as *const _ as usize,
-        );
-
-        kprint!("Process CR3: {:x}\n", self.cr3);
-
-        unsafe {
-            asm!(
-                "mov cr3, r15",
-                in("r15") self.cr3,
-                options(nostack, preserves_flags)
-            );
-        }
 
         //print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
         self.rsp = USERSPACE_STACK_TOP_ADDRESS as u64;
 
+        self.cr3 = Process::get_physical_address_for_virtual_address(
+            &self.l4_page_map_l4_table as *const _ as usize,
+            kernel_cr3 as usize,
+        );
+
         let (entry, v_addr, p_memsz) = self.load_elf_from_bin(&program_slice);
         self.rip = entry;
 
-        self.init_process_heap(v_addr, p_memsz);
+        //print_page_table_tree(&self.l4_page_map_l4_table as *const _ as u64);
 
-        unsafe {
-            asm!(
-                "mov cr3, r15",
-                in("r15") KERNEL_CR3.load(Ordering::Relaxed) as u64,
-                options(nostack, preserves_flags)
-            );
-        }
+        self.init_process_heap(v_addr, p_memsz);
 
         self.ss = 0x1b;
         self.cs = 0x23;
@@ -649,7 +637,7 @@ impl Process {
     }
 
     // According to AMD Volume 2, page 146
-    fn get_physical_address_for_virtual_address(vaddr: usize) -> usize {
+    fn get_physical_address_for_virtual_address(vaddr: usize, cr3: usize) -> usize {
         let _event = core::hint::black_box(crate::instrument!());
 
         let l4_page_map_table_offset = (vaddr >> L4_TABLE_SHIFT) & 0x1ff;
@@ -659,22 +647,18 @@ impl Process {
         let page_offset = vaddr & PAGE_OFFSET_MASK;
 
         unsafe {
-            let mut cr3: u64;
-
-            asm!("mov {}, cr3", out(reg) cr3);
-
-            let l4_page_map_base_address = cr3 as usize | KERNEL_HIGHER_HALF_BASE;
+            let l4_page_map_base_address = cr3 + PHYSICAL_MEMORY_BASE;
 
             let l3_page_directory_pointer_table_address =
-                *((l4_page_map_base_address + l4_page_map_table_offset * 8) as *const usize)
-                    & ENTRY_MASK
-                    | KERNEL_HIGHER_HALF_BASE;
+                (*((l4_page_map_base_address + l4_page_map_table_offset * 8) as *const usize)
+                    & ENTRY_MASK)
+                    + PHYSICAL_MEMORY_BASE;
 
-            let l2_page_directory_table_address = *((l3_page_directory_pointer_table_address
+            let l2_page_directory_table_address = (*((l3_page_directory_pointer_table_address
                 + l3_page_directory_pointer_offset * 8)
                 as *const usize)
-                & ENTRY_MASK
-                | KERNEL_HIGHER_HALF_BASE;
+                & ENTRY_MASK)
+                + PHYSICAL_MEMORY_BASE;
 
             if PAGE_SIZE == HUGE_PAGE_SIZE {
                 let physical_page_address = *((l2_page_directory_table_address
@@ -684,11 +668,11 @@ impl Process {
 
                 return physical_page_address + page_offset;
             } else {
-                let l1_page_table_address = *((l2_page_directory_table_address
+                let l1_page_table_address = (*((l2_page_directory_table_address
                     + l2_page_directory_offset * 8)
                     as *const usize)
-                    & ENTRY_MASK
-                    | KERNEL_HIGHER_HALF_BASE;
+                    & ENTRY_MASK)
+                    + PHYSICAL_MEMORY_BASE;
 
                 let physical_page_address = *((l1_page_table_address + l1_page_table_offset * 8)
                     as *const usize)
@@ -704,6 +688,7 @@ impl Process {
 
         Process::get_physical_address_for_virtual_address(
             &(self.l4_page_map_l4_table) as *const _ as usize,
+            self.cr3,
         )
     }
 
@@ -776,36 +761,60 @@ impl Process {
                     phdr.p_memsz
                 );
 
-                asm!(
-                    "mov rcx, {}
-                    mov rsi, {}
-                    mov rdi, {}
-                    rep movsb",
-                    in(reg) phdr.p_filesz,
-                    in(reg) program_slice.as_ptr() as usize + phdr.p_offset as usize,
-                    in(reg) phdr.p_vaddr,
-                    out("rcx") _,
-                    out("rsi") _,
-                    out("rdi") _
-                );
+                let mut written_bytes: u64 = 0;
+                while written_bytes < phdr.p_filesz {
+                    let current_vaddr = phdr.p_vaddr + written_bytes;
 
-                if phdr.p_flags & 0x2 != 0 {
-                    // Writable segment --> BSS
-                    let bss_start = phdr.p_vaddr + phdr.p_filesz;
-                    let bss_size = phdr.p_memsz - phdr.p_filesz;
+                    let physical_address = Process::get_physical_address_for_virtual_address(
+                        current_vaddr as usize,
+                        self.cr3,
+                    ) + PHYSICAL_MEMORY_BASE;
 
-                    // Zeroes the bss region
+                    // TODO map pages as required --> removes the need to determine the size of the program beforehand
+
+                    let bytes_to_write =
+                        core::cmp::min(PAGE_SIZE as u64, phdr.p_filesz - written_bytes);
+
                     asm!(
                         "mov rcx, {}
-                        xor rsi, rsi
+                        mov rsi, {}
                         mov rdi, {}
                         rep movsb",
-                        in(reg) bss_size,
-                        in(reg) bss_start,
+                        in(reg) bytes_to_write,
+                        in(reg) program_slice.as_ptr() as usize + phdr.p_offset as usize + written_bytes as usize,
+                        in(reg) physical_address,
                         out("rcx") _,
                         out("rsi") _,
                         out("rdi") _
                     );
+
+                    written_bytes += bytes_to_write;
+                }
+
+                // Writable segment --> BSS
+                if phdr.p_flags & 0x2 != 0 {
+                    let mut nulled_bytes: u64 = 0;
+                    let nullable_bss_size = phdr.p_memsz - phdr.p_filesz;
+
+                    while nulled_bytes < nullable_bss_size {
+                        let current_vaddr_bss_start = phdr.p_vaddr + phdr.p_filesz + nulled_bytes;
+                        let physical_address = Process::get_physical_address_for_virtual_address(
+                            current_vaddr_bss_start as usize,
+                            self.cr3,
+                        ) + PHYSICAL_MEMORY_BASE;
+
+                        let bytes_to_null =
+                            core::cmp::min(PAGE_SIZE as u64, nullable_bss_size - nulled_bytes);
+
+                        // Zeroes the bss region
+                        core::ptr::write_bytes(
+                            physical_address as *mut u8,
+                            0,
+                            bytes_to_null as usize,
+                        );
+
+                        nulled_bytes += bytes_to_null;
+                    }
                 }
 
                 if last_v_addr < phdr.p_vaddr as usize {
