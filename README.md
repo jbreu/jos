@@ -45,16 +45,32 @@ https://wiki.osdev.org/QEMU#Useful_QEMU_command-line_options
 
 ## Reverse Debugging via qemu
 
-(couldn't get this working yet)
-
 https://www.qemu.org/docs/master/system/replay.html
 
-- `qemu-img create -f qcow2 empty.qcow2 1G`
-- `qemu-system-x86_64 -s -S -d int,cpu_reset,guest_errors -action panic=pause -no-reboot  -monitor stdio -cdrom dist/x86_64/kernel.iso -icount shift=auto,rr=record,rrfile=record.bin,rrsnapshot=init -net none -drive file=empty.qcow2,if=none,id=rr`
-- `savevm TAG` (multiple times if needed)
-- `quit`
-- `qemu-system-x86_64 -s -S -d int,cpu_reset,guest_errors -action panic=pause -no-reboot  -monitor stdio -cdrom dist/x86_64/kernel.iso -icount shift=auto,rr=replay,rrfile=record.bin,rrsnapshot=init -net none -drive file=empty.qcow2,if=none,id=rr`
-- `loadvm TAG`
+- Terminal: `qemu-img create -f qcow2 -F raw -b "$(Resolve-Path storage/disk.img)" storage/recording.qcow2`
+- Terminal: `qemu-system-x86_64 `
+  -action panic=pause -no-reboot -no-shutdown `
+  -monitor stdio -s -S -net none `
+  -icount shift=auto,rr=record,rrfile=record.bin,rrsnapshot=init `
+  -drive file=storage/recording.qcow2,format=qcow2,if=none,id=disk `
+  -drive driver=blkreplay,if=none,image=disk,id=disk-replay `
+  -device ide-hd,drive=disk-replay,bus=ide.0,unit=0 `
+  -drive file=dist/x86_64/kernel.iso,format=raw,if=none,id=cd,read-only=on `
+  -drive driver=blkreplay,if=none,image=cd,id=cd-replay,read-only=on `
+  -device ide-cd,drive=cd-replay,bus=ide.1,unit=0`
+- Qemu monitor: `savevm TAG` (multiple times if needed)
+- Qemu monitor: `quit`
+- Terminal: `qemu-system-x86_64 `
+  -action panic=pause -no-reboot -no-shutdown `
+  -monitor stdio -s -S -net none `
+  -icount shift=auto,rr=replay,rrfile=record.bin,rrsnapshot=TAG `
+  -drive file=storage/recording.qcow2,format=qcow2,if=none,id=disk `
+  -drive driver=blkreplay,if=none,image=disk,id=disk-replay `
+  -device ide-hd,drive=disk-replay,bus=ide.0,unit=0 `
+  -drive file=dist/x86_64/kernel.iso,format=raw,if=none,id=cd,read-only=on `
+  -drive driver=blkreplay,if=none,image=cd,id=cd-replay,read-only=on `
+  -device ide-cd,drive=cd-replay,bus=ide.1,unit=0`
+- Debug Console (gdb): `rsi`
 
 ## Kudos
 
